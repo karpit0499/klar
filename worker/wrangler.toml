@@ -1,0 +1,12 @@
+name = "klar-proxy"
+main = "src/index.ts"
+compatibility_date = "2025-01-01"
+
+# Optional: restrict which origins may use your proxy (recommended once your
+# GitHub Pages URL is known). Leave unset to allow all origins ("*").
+# [vars]
+# ALLOWED_ORIGINS = "https://<your-username>.github.io"
+
+# Adzuna keys are SECRETS — never put them here. Set them with:
+#   npx wrangler secret put ADZUNA_APP_ID
+#   npx wrangler secret put ADZUNA_APP_KEY
