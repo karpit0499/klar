@@ -35,7 +35,7 @@ export default function App() {
     const rows = await db.profiles.orderBy('createdAt').reverse().limit(1).toArray()
     return rows[0] ?? null
   }, [], undefined)
-  const prefs = useLiveQuery(() => db.preferences.get('current'), [], undefined)
+  const prefs = useLiveQuery(async () => (await db.preferences.get('current')) ?? null, [], undefined)
 
   async function saveProfile(p: Profile) {
     const id = `${Date.now()}`
