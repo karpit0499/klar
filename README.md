@@ -70,4 +70,4 @@ Klar's code is public so you can see how it works and verify its privacy claims 
 
 ---
 
-<p align="center"><sub><em>Klar</em> means "clear" in German. Built by Kace.</sub></p>
+<p align="center"><sub><em>Klar</em> means "clear" in German. Built by Kumar Arpit.</sub></p>
