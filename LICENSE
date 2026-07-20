@@ -1,0 +1,46 @@
+Klar — All Rights Reserved
+
+Copyright (c) 2026 Kumar Arpit (github.com/karpit0499)
+
+Klar and its source code (the "Software") are published on a source-available
+basis: the code is public so that anyone can read it, understand how it works,
+and independently verify its privacy behaviour — namely, that personal data is
+processed in the browser and is not sent to any server the author controls.
+
+Making the source visible does NOT make it free to reuse. All rights are
+reserved by the copyright holder. No license, express or implied, is granted
+except as explicitly stated below.
+
+YOU MAY:
+
+  1. View and read the source code in this repository.
+  2. Use the official hosted version of the application for your own personal
+     job search.
+
+YOU MAY NOT, without the prior written permission of the copyright holder:
+
+  1. Copy, reproduce, or redistribute the Software or any portion of it.
+  2. Modify, adapt, translate, or create derivative or competing works based
+     on the Software.
+  3. Deploy, host, or publish your own instance of the Software.
+  4. Incorporate the Software, in whole or in part, into any other project,
+     whether commercial or non-commercial.
+  5. Remove or alter this notice or the author's attribution.
+
+The only rights you have in the Software are those listed under "YOU MAY"
+above, together with any rights that cannot be waived under applicable law and
+any use that GitHub's own Terms of Service extend to public repositories (for
+example, viewing and forking within GitHub itself). No other rights are
+granted.
+
+To request permission for any use not allowed above, open an issue on the
+project's GitHub repository or contact the author through their GitHub profile
+(github.com/karpit0499).
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHOR OR COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT, OR OTHERWISE, ARISING FROM,
+OUT OF, OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
