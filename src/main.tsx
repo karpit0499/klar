@@ -18,8 +18,11 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
 if (import.meta.env.PROD && 'serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     const swUrl = `${import.meta.env.BASE_URL}sw.js`
-    navigator.serviceWorker.register(swUrl).catch(() => {
-      /* offline support is a progressive enhancement — ignore failures */
-    })
+    navigator.serviceWorker
+      .register(swUrl, { updateViaCache: 'none' })
+      .then((registration) => registration.update())
+      .catch(() => {
+        /* offline support is a progressive enhancement — ignore failures */
+      })
   })
 }

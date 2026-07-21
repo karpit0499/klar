@@ -7,6 +7,7 @@ import { addToTracker } from '../tracker/store'
 import { FACTOR_KEYS } from '../match/weights'
 import { draftCoverLetter } from '../llm/coverLetter'
 import { useT } from '../i18n/LocaleProvider'
+import { useScrollLock } from './useScrollLock'
 import type { TranslationKey } from '../i18n/translations'
 
 // Factor label → translation key. FACTOR_KEYS drives the set; the keys live in
@@ -47,6 +48,7 @@ export function JobDrawer({
   score,
   profile,
   apiKey,
+  saved,
   onClose,
 }: {
   job: NormalizedJob
@@ -55,13 +57,15 @@ export function JobDrawer({
   score?: number
   profile: Profile
   apiKey: string
+  saved: boolean
   onClose: () => void
 }) {
   const t = useT()
+  useScrollLock()
 
   const [description, setDescription] = useState(job.description)
   const [loadingDesc, setLoadingDesc] = useState(false)
-  const [added, setAdded] = useState(false)
+  const [added, setAdded] = useState(saved)
   const [showBundle, setShowBundle] = useState(false)
   const panelRef = useRef<HTMLDivElement>(null)
 
@@ -92,6 +96,10 @@ export function JobDrawer({
     }
   }, [job])
 
+  useEffect(() => {
+    setAdded(saved)
+  }, [saved])
+
   async function makeLetter() {
     setLetterErr('')
     setLetterBusy(true)
@@ -119,26 +127,26 @@ export function JobDrawer({
 
   return (
     <>
-      <div className="fixed inset-0 z-40 flex justify-end bg-black/40" onClick={onClose}>
+      <div className="fixed inset-0 z-50 flex justify-end overscroll-contain bg-black/40" onClick={onClose}>
       <div
         ref={panelRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="job-drawer-title"
         tabIndex={-1}
-        className="h-full w-full max-w-xl overflow-y-auto bg-surface p-6 outline-none"
+        className="app-drawer w-full max-w-xl overflow-y-auto bg-surface p-4 pb-[calc(5.5rem+env(safe-area-inset-bottom))] outline-none sm:p-6 sm:pb-6"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-3">
-          <div>
-            <h2 id="job-drawer-title" className="text-xl font-semibold text-ink">
+          <div className="min-w-0 flex-1">
+            <h2 id="job-drawer-title" className="wrap-anywhere text-xl font-semibold text-ink">
               {job.title}
             </h2>
-            <p className="text-sm text-muted">
+            <p className="wrap-anywhere text-base text-muted">
               {job.company} · {job.location.city ?? (job.location.remote ? t('card.remote') : '—')}
             </p>
           </div>
-          <Button variant="ghost" size="sm" onClick={onClose} aria-label={t('common.close')}>
+          <Button variant="ghost" size="sm" className="shrink-0" onClick={onClose} aria-label={t('common.close')}>
             {t('common.close')}
           </Button>
         </div>
@@ -159,11 +167,11 @@ export function JobDrawer({
 
         {match && (
           <div className="mt-4 rounded-lg border border-border bg-surface-2 p-3 text-sm">
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
               <span className="font-display text-3xl font-bold tabular-nums text-accent">{headline}</span>
               <span className="text-faint">{t('drawer.scoreOutOf')} · {match.verdict}</span>
               {match.confidence != null && (
-                <span className="ml-auto text-xs text-faint">
+                <span className="w-full text-sm text-faint sm:ml-auto sm:w-auto">
                   {t('drawer.confidence', { pct: Math.round(match.confidence * 100) })}
                 </span>
               )}
@@ -174,7 +182,7 @@ export function JobDrawer({
                 <div className="h-1.5 rounded-full bg-accent" style={{ width: `${headline}%` }} />
               </div>
             )}
-            <p className="mt-2 text-muted">{match.rationale}</p>
+            <p className="mt-2 wrap-anywhere text-base leading-relaxed text-muted">{match.rationale}</p>
 
             {/* Per-factor breakdown — what drove the score (feature 1.3). */}
             {match.factors && (
@@ -200,7 +208,7 @@ export function JobDrawer({
               <Spinner label={t('drawer.loadingDescription')} />
             </div>
           ) : (
-            <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-muted">
+            <p className="mt-2 whitespace-pre-wrap wrap-anywhere text-base leading-relaxed text-muted">
               {description || t('drawer.noDescription')}
             </p>
           )}

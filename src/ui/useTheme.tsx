@@ -42,7 +42,7 @@ export function ThemeToggle({
     <div
       role="radiogroup"
       aria-label={t('theme.aria')}
-      className="inline-flex items-center gap-0.5 rounded-full border border-border bg-surface p-0.5"
+      className="inline-flex min-h-tap items-center gap-0.5 rounded-full border border-border bg-surface p-0.5"
     >
       {OPTIONS.map((o) => {
         const active = mode === o.value
@@ -55,7 +55,7 @@ export function ThemeToggle({
             aria-label={label}
             title={label}
             onClick={() => setMode(o.value)}
-            className={`flex h-8 w-8 items-center justify-center rounded-full text-sm transition ${
+            className={`flex h-11 w-11 items-center justify-center rounded-full text-base transition ${
               active ? 'bg-accent-tint text-accent' : 'text-faint hover:text-ink'
             }`}
           >

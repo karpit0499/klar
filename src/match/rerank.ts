@@ -10,6 +10,15 @@ import { groqChat, extractJson } from '../llm/groq'
 
 const SYSTEM = `You are a precise technical recruiter. You compare a candidate profile to job postings and score fit HONESTLY. You never inflate scores. You must reply with a single JSON object and nothing else.`
 
+const LEGACY_FAILED_RATIONALE = 'Scoring failed for this batch.'
+
+/** Identify 0/100 placeholders written by older Klar builds after an API error. */
+export function isFailedMatchPlaceholder(match: MatchResult): boolean {
+  // IndexedDB can contain rows written by older JavaScript bundles, so coerce
+  // the score and trim the message instead of assuming today's runtime types.
+  return Number(match.fitScore) === 0 && match.rationale.trim() === LEGACY_FAILED_RATIONALE
+}
+
 /** Build the (deterministic, testable) user prompt for one batch. */
 export function buildRerankPrompt(
   profile: Profile,
@@ -163,14 +172,9 @@ export async function rerankAll(
     try {
       out.push(...(await rerankBatch(profile, prefs, batch, apiKey, signal)))
     } catch {
-      // A failed batch shouldn't kill the run — emit neutral placeholders.
-      for (const j of batch) {
-        out.push({
-          jobId: j.id, fitScore: 0, verdict: 'weak', rationale: 'Scoring failed for this batch.',
-          matchedSkills: [], missingSkills: [], salaryFit: 'unknown', redFlags: [],
-          scoredAt: new Date().toISOString(), modelVersion: GROQ.model,
-        })
-      }
+      // A failed batch is not a real 0/100 match. Omit it so the UI can show a
+      // partial-results notice and retry those jobs on the next run. Failed
+      // placeholders would otherwise be cached and look like honest scores.
     }
     onProgress?.(Math.min(i + size, candidates.length), candidates.length)
   }

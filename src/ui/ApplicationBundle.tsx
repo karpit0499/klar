@@ -1,23 +1,10 @@
-// ============================================================================
-// ApplicationBundle (feature 15). For one job, assembles everything you'd attach
-// to an application, reusing features already built:
-//   • the tailored résumé (feature 12)  → DOCX + text-based PDF
-//   • a cover letter (feature 7)         → editable, downloadable
-//   • a salary expectation line (feature 14, needs an Adzuna key)
-//   • a JD-coverage summary (feature 13) → what the résumé does / doesn't hit
-//
-// Tailoring needs the RICH ResumeData (feature 12), which is separate from the
-// thin matching Profile. If the user hasn't provided one yet, the panel first
-// walks them through a one-time detailed extraction and caches it.
-//
-// Localized in feature 20. Left NOT translated (generated output):
-// tailored.coverage.summary and the salary line (both come from helpers).
-// ============================================================================
 import { useEffect, useState } from 'react'
-import { Button, Spinner, Badge } from './atoms'
+import { Badge, Button, Spinner } from './atoms'
+import { useScrollLock } from './useScrollLock'
 import type { MatchResult, NormalizedJob, Profile, Region } from '../types'
-import type { ResumeData } from '../resume/types'
-import { tailorResume } from '../resume/tailor'
+import type { ResumeData, ResumeLanguage } from '../resume/types'
+import { pickLanguage } from '../resume/tailor'
+import { tailorResumeWithAi, type AiTailoredResume } from '../llm/tailorResume'
 import { downloadResumeDocx } from '../resume/docx'
 import { printResumeAsPdf } from '../resume/pdf'
 import { extractResumeData } from '../resume/extract'
@@ -29,21 +16,22 @@ import { getActiveRegion } from '../regions'
 import { draftCoverLetter } from '../llm/coverLetter'
 import { useT } from '../i18n/LocaleProvider'
 
-/** Trigger a plain-text download without any library. */
 function downloadText(filename: string, text: string): void {
   const blob = new Blob([text], { type: 'text/plain;charset=utf-8' })
   const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = filename
-  a.click()
+  const anchor = document.createElement('a')
+  anchor.href = url
+  anchor.download = filename
+  anchor.click()
   URL.revokeObjectURL(url)
 }
 
-/** A filesystem-safe stem like "klar-Company-Title". */
 function fileStem(job: NormalizedJob): string {
   const raw = `klar-${job.company}-${job.title}`
-  return raw.replace(/[^\p{L}\p{N}]+/gu, '-').replace(/^-+|-+$/g, '').slice(0, 80) || 'klar-application'
+  return (
+    raw.replace(/[^\p{L}\p{N}]+/gu, '-').replace(/^-+|-+$/g, '').slice(0, 80) ||
+    'klar-application'
+  )
 }
 
 export function ApplicationBundle({
@@ -60,34 +48,45 @@ export function ApplicationBundle({
   onClose: () => void
 }) {
   const t = useT()
+  useScrollLock()
 
-  const [resume, setResume] = useState<ResumeData | null | undefined>(undefined) // undefined = loading
+  const suggestedLanguage = pickLanguage(job)
+  const [resumeLanguage, setResumeLanguage] = useState<ResumeLanguage>(suggestedLanguage)
+  const [resume, setResume] = useState<ResumeData | null | undefined>(undefined)
+  const [tailoredByLanguage, setTailoredByLanguage] = useState<
+    Partial<Record<ResumeLanguage, AiTailoredResume>>
+  >({})
+  const [tailoringLanguage, setTailoringLanguage] = useState<ResumeLanguage | null>(null)
+  const [tailoringError, setTailoringError] = useState('')
   const [region, setRegion] = useState<Region | undefined>(undefined)
-
-  // Detailed-résumé extraction (only shown when no ResumeData is cached yet).
-  const [exBusy, setExBusy] = useState<'' | 'reading' | 'parsing'>('')
-  const [exErr, setExErr] = useState('')
-
-  // Cover letter.
+  const [extractBusy, setExtractBusy] = useState<'' | 'reading' | 'parsing'>('')
+  const [extractError, setExtractError] = useState('')
   const [letter, setLetter] = useState('')
   const [letterBusy, setLetterBusy] = useState(false)
-  const [letterErr, setLetterErr] = useState('')
-
-  // Salary line (feature 14).
+  const [letterError, setLetterError] = useState('')
   const [salaryLine, setSalaryLine] = useState<string | null>(null)
   const [salaryBusy, setSalaryBusy] = useState(true)
+  const [hasSalaryKey, setHasSalaryKey] = useState(false)
 
   useEffect(() => {
-    void loadResumeData().then((d) => setResume(d ?? null))
+    void loadResumeData().then((data) => setResume(data ?? null))
     void getActiveRegion().then(setRegion)
   }, [])
 
-  // Once we know the region, try the salary benchmark (graceful without a key).
   useEffect(() => {
     let alive = true
+
     async function run() {
       setSalaryBusy(true)
       const key = await loadAdzunaKey()
+      setHasSalaryKey(Boolean(key))
+      if (!key) {
+        if (alive) {
+          setSalaryLine(null)
+          setSalaryBusy(false)
+        }
+        return
+      }
       const city = job.location.city ?? ''
       const summary = await fetchSalaryBenchmark(
         { title: job.title, city, country: region?.adzunaCountry },
@@ -97,6 +96,7 @@ export function ApplicationBundle({
       setSalaryLine(summary ? salaryExpectationLine(summary, city, job.title) : null)
       setSalaryBusy(false)
     }
+
     void run()
     return () => {
       alive = false
@@ -104,87 +104,115 @@ export function ApplicationBundle({
   }, [job, region])
 
   async function extractDetailed(text: string) {
-    setExErr('')
+    setExtractError('')
     if (text.trim().length < 30) {
-      setExErr(t('bundle.tooShort'))
+      setExtractError(t('bundle.tooShort'))
       return
     }
-    setExBusy('parsing')
+    setExtractBusy('parsing')
     try {
       const data = await extractResumeData(text, apiKey)
       await saveResumeData(data)
       setResume(data)
-    } catch (e) {
-      setExErr(e instanceof Error ? e.message : t('bundle.extractionFailed'))
+      setTailoredByLanguage({})
+    } catch (error) {
+      setExtractError(error instanceof Error ? error.message : t('bundle.extractionFailed'))
     } finally {
-      setExBusy('')
+      setExtractBusy('')
     }
   }
 
   async function onFile(file: File) {
-    setExErr('')
-    setExBusy('reading')
+    setExtractError('')
+    setExtractBusy('reading')
     try {
       const { text } = await extractText(file)
-      setExBusy('')
+      setExtractBusy('')
       await extractDetailed(text)
-    } catch (e) {
-      setExBusy('')
-      setExErr(e instanceof Error ? e.message : t('bundle.readFailed'))
+    } catch (error) {
+      setExtractBusy('')
+      setExtractError(error instanceof Error ? error.message : t('bundle.readFailed'))
+    }
+  }
+
+  async function makeTailoredResume(language: ResumeLanguage) {
+    if (!resume) return
+    setTailoringError('')
+    setTailoringLanguage(language)
+    try {
+      const result = await tailorResumeWithAi(resume, job, profile, apiKey, language)
+      setTailoredByLanguage((current) => ({ ...current, [language]: result }))
+    } catch (error) {
+      setTailoringError(
+        t('bundle.resumeFailed', {
+          error: error instanceof Error ? error.message : String(error),
+        }),
+      )
+    } finally {
+      setTailoringLanguage(null)
     }
   }
 
   async function makeLetter() {
-    setLetterErr('')
+    setLetterError('')
     setLetterBusy(true)
     try {
       setLetter(await draftCoverLetter(profile, job, apiKey, match))
-    } catch (e) {
-      setLetterErr(e instanceof Error ? e.message : t('bundle.letterFailed'))
+    } catch (error) {
+      setLetterError(error instanceof Error ? error.message : t('bundle.letterFailed'))
     } finally {
       setLetterBusy(false)
     }
   }
 
-  // The tailored résumé is pure + cheap, so derive it on each render.
-  const tailored = resume ? tailorResume(resume, job, profile) : null
+  const currentTailored = tailoredByLanguage[resumeLanguage]
   const stem = fileStem(job)
 
   function downloadResume() {
-    if (!tailored) return
-    void downloadResumeDocx(tailored.data, tailored.language, `${stem}.docx`)
+    if (!currentTailored) return
+    void downloadResumeDocx(
+      currentTailored.data,
+      currentTailored.language,
+      `${stem}-${currentTailored.language}.docx`,
+    )
   }
+
   function downloadResumePdf() {
-    if (!tailored) return
-    printResumeAsPdf(tailored.data, tailored.language)
+    if (!currentTailored) return
+    printResumeAsPdf(currentTailored.data, currentTailored.language)
   }
+
   function downloadLetter() {
-    if (letter) downloadText(`${stem}-anschreiben.txt`, letter)
+    if (letter) downloadText(`${stem}-cover-letter.txt`, letter)
   }
+
   function downloadAll() {
     downloadResume()
-    if (letter) setTimeout(downloadLetter, 300) // stagger so both saves fire
+    if (letter) setTimeout(downloadLetter, 300)
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-black/40" onClick={onClose}>
+    <div
+      className="fixed inset-0 z-[60] flex justify-end overscroll-contain bg-black/40"
+      onClick={onClose}
+    >
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby="bundle-title"
-        className="h-full w-full max-w-xl overflow-y-auto bg-surface p-6"
-        onClick={(e) => e.stopPropagation()}
+        className="app-drawer w-full max-w-xl overflow-y-auto bg-surface p-4 pb-[calc(5.5rem+env(safe-area-inset-bottom))] sm:p-6 sm:pb-6"
+        onClick={(event) => event.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-3">
-          <div>
-            <h2 id="bundle-title" className="text-xl font-semibold text-ink">
+          <div className="min-w-0 flex-1">
+            <h2 id="bundle-title" className="wrap-anywhere text-xl font-semibold text-ink">
               {t('bundle.title')}
             </h2>
-            <p className="text-sm text-muted">
+            <p className="wrap-anywhere text-base text-muted">
               {job.title} · {job.company}
             </p>
           </div>
-          <Button variant="ghost" size="sm" onClick={onClose} aria-label={t('common.close')}>
+          <Button variant="ghost" size="sm" className="shrink-0" onClick={onClose} aria-label={t('common.close')}>
             {t('common.close')}
           </Button>
         </div>
@@ -195,120 +223,183 @@ export function ApplicationBundle({
           </div>
         )}
 
-        {/* One-time detailed extraction when we don't have a rich résumé yet. */}
         {resume === null && (
-          <div className="mt-5 rounded-lg border border-border bg-surface-2 p-4 text-sm">
+          <div className="mt-5 rounded-lg border border-border bg-surface-2 p-4 text-base">
             <p className="font-medium text-ink">{t('bundle.needResumeTitle')}</p>
-            <p className="mt-1 text-muted">{t('bundle.needResumeBody')}</p>
+            <p className="mt-1 leading-relaxed text-muted">{t('bundle.needResumeBody')}</p>
             <div className="mt-3 flex flex-wrap items-center gap-3">
               <label className="inline-flex">
                 <input
                   type="file"
                   accept=".pdf,.docx,.txt,.md"
                   className="hidden"
-                  onChange={(e) => {
-                    const f = e.target.files?.[0]
-                    if (f) void onFile(f)
+                  onChange={(event) => {
+                    const file = event.target.files?.[0]
+                    if (file) void onFile(file)
                   }}
                 />
                 <span className="inline-flex min-h-tap cursor-pointer items-center rounded-md border border-border bg-surface px-4 py-2.5 font-medium text-ink hover:bg-surface-2">
                   {t('bundle.chooseFile')}
                 </span>
               </label>
-              {exBusy === 'reading' && <Spinner label={t('bundle.readingFile')} />}
-              {exBusy === 'parsing' && <Spinner label={t('bundle.extractingResume')} />}
+              {extractBusy === 'reading' && <Spinner label={t('bundle.readingFile')} />}
+              {extractBusy === 'parsing' && <Spinner label={t('bundle.extractingResume')} />}
             </div>
-            {exErr && <p className="mt-2 text-danger">{exErr}</p>}
+            {extractError && <p className="mt-2 wrap-anywhere text-danger">{extractError}</p>}
           </div>
         )}
 
-        {tailored && (
+        {resume && (
           <>
-            {/* Coverage (feature 13). */}
-            <section className="mt-5">
-              <h3 className="text-sm font-semibold text-ink">{t('bundle.coverage')}</h3>
-              <p className="mt-1 text-sm text-muted">{tailored.coverage.summary}</p>
-              {tailored.coverage.missing.length > 0 && (
-                <div className="mt-2 flex flex-wrap gap-1.5">
-                  {tailored.coverage.missing.slice(0, 8).map((m) => (
-                    <Badge key={m} tone="outline">
-                      {t('bundle.gap', { skill: m })}
-                    </Badge>
-                  ))}
-                </div>
-              )}
-            </section>
-
-            {/* Tailored résumé (feature 12). */}
-            <section className="mt-5 rounded-lg border border-border p-3">
-              <h3 className="text-sm font-semibold text-ink">
-                {t('bundle.tailoredResume', { lang: tailored.language.toUpperCase() })}
-              </h3>
-              <p className="mt-1 text-xs text-faint">{t('bundle.tailoredHint')}</p>
-              <div className="mt-3 flex flex-wrap gap-2">
-                <Button size="sm" onClick={downloadResume}>
-                  {t('bundle.downloadDocx')}
-                </Button>
-                <Button variant="ghost" size="sm" onClick={downloadResumePdf}>
-                  {t('bundle.printPdf')}
-                </Button>
+            <section className="mt-5 rounded-lg border border-border p-4">
+              <h3 className="text-base font-semibold text-ink">{t('bundle.languagePrompt')}</h3>
+              <div className="mt-3 grid grid-cols-2 gap-2" role="radiogroup" aria-label={t('bundle.languagePrompt')}>
+                {(['en', 'de'] as const).map((language) => {
+                  const selected = resumeLanguage === language
+                  const suggested = suggestedLanguage === language
+                  return (
+                    <button
+                      key={language}
+                      type="button"
+                      role="radio"
+                      aria-checked={selected}
+                      onClick={() => {
+                        setResumeLanguage(language)
+                        setTailoringError('')
+                      }}
+                      className={`flex min-h-[64px] flex-col items-center justify-center rounded-md border px-2 py-2 text-sm font-medium transition ${
+                        selected
+                          ? 'border-accent bg-accent-tint text-accent'
+                          : 'border-border bg-surface text-ink hover:bg-surface-2'
+                      }`}
+                    >
+                      <span>{language === 'en' ? t('bundle.english') : t('bundle.german')}</span>
+                      {suggested && (
+                        <span className="mt-0.5 text-xs leading-tight text-muted">{t('bundle.suggested')}</span>
+                      )}
+                    </button>
+                  )
+                })}
               </div>
-            </section>
 
-            {/* Salary (feature 14). */}
-            <section className="mt-5 rounded-lg border border-border p-3">
-              <h3 className="text-sm font-semibold text-ink">{t('bundle.salary')}</h3>
-              {salaryBusy ? (
-                <div className="mt-2">
-                  <Spinner label={t('bundle.checkingBenchmark')} />
-                </div>
-              ) : salaryLine ? (
-                <p className="mt-1 text-sm text-muted">{salaryLine}</p>
-              ) : (
-                <p className="mt-1 text-sm text-faint">{t('bundle.noBenchmark')}</p>
-              )}
-            </section>
-
-            {/* Cover letter (feature 7). */}
-            <section className="mt-5 rounded-lg border border-border p-3">
-              <div className="flex items-center justify-between gap-3">
-                <h3 className="text-sm font-semibold text-ink">{t('drawer.coverLetter')}</h3>
-                <Button size="sm" onClick={makeLetter} disabled={letterBusy}>
-                  {letterBusy ? (
-                    <Spinner label={t('common.drafting')} />
-                  ) : letter ? (
+              <div className="mt-4">
+                <Button
+                  onClick={() => void makeTailoredResume(resumeLanguage)}
+                  disabled={tailoringLanguage !== null}
+                >
+                  {tailoringLanguage === resumeLanguage ? (
+                    <Spinner label={t('bundle.generatingResume')} />
+                  ) : currentTailored ? (
                     t('common.regenerate')
                   ) : (
-                    t('bundle.draft')
+                    t('bundle.generateResume')
                   )}
                 </Button>
               </div>
-              {letterErr && <p className="mt-2 text-sm text-danger">{letterErr}</p>}
-              {letter && (
-                <div className="mt-2">
-                  <textarea
-                    className="h-48 w-full rounded-md border border-border bg-surface p-3 text-sm text-ink outline-none focus:border-accent"
-                    value={letter}
-                    onChange={(e) => setLetter(e.target.value)}
-                  />
-                  <div className="mt-2">
-                    <Button variant="ghost" size="sm" onClick={downloadLetter}>
-                      {t('bundle.downloadTxt')}
-                    </Button>
-                  </div>
-                </div>
-              )}
+              {tailoringError && <p className="mt-3 wrap-anywhere text-danger">{tailoringError}</p>}
             </section>
 
-            {/* One action to grab the whole packet. */}
-            <div className="mt-6 flex flex-wrap items-center gap-3">
-              <Button variant="accent" onClick={downloadAll}>
-                {t('bundle.downloadPacket')}
-              </Button>
-              <span className="text-xs text-faint">
-                {letter ? t('bundle.packetNoteWithLetter') : t('bundle.packetNote')}
-              </span>
-            </div>
+            {currentTailored && (
+              <>
+                <section className="mt-5">
+                  <h3 className="text-base font-semibold text-ink">{t('bundle.coverage')}</h3>
+                  <p className="mt-1 wrap-anywhere text-base leading-relaxed text-muted">
+                    {currentTailored.coverage.summary}
+                  </p>
+                  {currentTailored.coverage.missing.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {currentTailored.coverage.missing.slice(0, 8).map((skill) => (
+                        <Badge key={skill} tone="outline">
+                          {t('bundle.gap', { skill })}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                </section>
+
+                <section className="mt-5 rounded-lg border border-border p-4">
+                  <h3 className="text-base font-semibold text-ink">
+                    {t('bundle.tailoredResume', { lang: currentTailored.language.toUpperCase() })}
+                  </h3>
+                  <p className="mt-1 text-sm text-faint">{t('bundle.tailoredHint')}</p>
+                  <p className="mt-3 text-base text-success">{t('bundle.resumeReady')}</p>
+                  {currentTailored.changeSummary.length > 0 && (
+                    <div className="mt-3">
+                      <h4 className="text-sm font-semibold text-ink">{t('bundle.changeSummary')}</h4>
+                      <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-muted">
+                        {currentTailored.changeSummary.map((change, index) => (
+                          <li key={`${index}-${change}`} className="wrap-anywhere">
+                            {change}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    <Button size="sm" onClick={downloadResume}>
+                      {t('bundle.downloadDocx')}
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={downloadResumePdf}>
+                      {t('bundle.printPdf')}
+                    </Button>
+                  </div>
+                </section>
+
+                <section className="mt-5 rounded-lg border border-border p-4">
+                  <h3 className="text-base font-semibold text-ink">{t('bundle.salary')}</h3>
+                  {salaryBusy ? (
+                    <div className="mt-2">
+                      <Spinner label={t('bundle.checkingBenchmark')} />
+                    </div>
+                  ) : salaryLine ? (
+                    <p className="mt-1 wrap-anywhere text-base text-muted">{salaryLine}</p>
+                  ) : (
+                    <p className="mt-1 text-sm text-faint">
+                      {hasSalaryKey ? t('bundle.benchmarkUnavailable') : t('bundle.noBenchmark')}
+                    </p>
+                  )}
+                </section>
+
+                <section className="mt-5 rounded-lg border border-border p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <h3 className="text-base font-semibold text-ink">{t('drawer.coverLetter')}</h3>
+                    <Button size="sm" onClick={makeLetter} disabled={letterBusy}>
+                      {letterBusy ? (
+                        <Spinner label={t('common.drafting')} />
+                      ) : letter ? (
+                        t('common.regenerate')
+                      ) : (
+                        t('bundle.draft')
+                      )}
+                    </Button>
+                  </div>
+                  {letterError && <p className="mt-2 wrap-anywhere text-danger">{letterError}</p>}
+                  {letter && (
+                    <div className="mt-2">
+                      <textarea
+                        className="h-48 w-full rounded-md border border-border bg-surface p-3 text-base text-ink outline-none focus:border-accent"
+                        value={letter}
+                        onChange={(event) => setLetter(event.target.value)}
+                      />
+                      <div className="mt-2">
+                        <Button variant="ghost" size="sm" onClick={downloadLetter}>
+                          {t('bundle.downloadTxt')}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </section>
+
+                <div className="mt-6 flex flex-wrap items-center gap-3">
+                  <Button variant="accent" onClick={downloadAll}>
+                    {t('bundle.downloadPacket')}
+                  </Button>
+                  <span className="text-sm text-faint">
+                    {letter ? t('bundle.packetNoteWithLetter') : t('bundle.packetNote')}
+                  </span>
+                </div>
+              </>
+            )}
           </>
         )}
       </div>

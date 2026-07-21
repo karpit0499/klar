@@ -11,8 +11,8 @@ export function GapSummary({ data }: { data: GapData }) {
   const lead = top[0]
   return (
     <Card className="p-4">
-      <h3 className="text-sm font-semibold text-ink">{t('gap.title')}</h3>
-      <p className="mt-1 text-sm text-muted">
+      <h3 className="text-base font-semibold text-ink">{t('gap.title')}</h3>
+      <p className="mt-1 wrap-anywhere text-base leading-relaxed text-muted">
         {t('gap.lead', {
           considered: data.considered,
           skill: lead.skill,
@@ -23,7 +23,7 @@ export function GapSummary({ data }: { data: GapData }) {
       <div className="mt-3 space-y-1.5">
         {top.map((g) => (
           <div key={g.skill} className="flex items-center gap-2">
-            <span className="w-40 shrink-0 truncate text-sm text-ink">{g.skill}</span>
+            <span className="w-20 shrink-0 wrap-anywhere text-sm text-ink sm:w-40">{g.skill}</span>
             <div className="h-2 flex-1 rounded-full bg-border">
               <div
                 className="h-2 rounded-full bg-accent"

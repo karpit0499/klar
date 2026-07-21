@@ -10,7 +10,7 @@ import type { ReactNode } from 'react'
 import { type Locale, type TranslationKey, translate } from './translations'
 
 const STORAGE_KEY = 'klar-locale'
-const DEFAULT_LOCALE: Locale = 'de' // German-first
+const DEFAULT_LOCALE: Locale = 'en'
 
 function getStoredLocale(): Locale {
   try {
@@ -74,7 +74,7 @@ export function LocaleToggle() {
     <div
       role="radiogroup"
       aria-label={t('locale.aria')}
-      className="inline-flex items-center gap-0.5 rounded-full border border-border bg-surface p-0.5"
+      className="inline-flex min-h-tap items-center gap-0.5 rounded-full border border-border bg-surface p-0.5"
     >
       {options.map((l) => {
         const active = locale === l
@@ -84,7 +84,7 @@ export function LocaleToggle() {
             role="radio"
             aria-checked={active}
             onClick={() => setLocale(l)}
-            className={`flex h-8 min-w-8 items-center justify-center rounded-full px-2 text-xs font-semibold uppercase transition ${
+            className={`flex h-11 min-w-11 items-center justify-center rounded-full px-2 text-sm font-semibold uppercase transition ${
               active ? 'bg-accent-tint text-accent' : 'text-faint hover:text-ink'
             }`}
           >
