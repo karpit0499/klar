@@ -170,7 +170,7 @@ export async function tailorResumeWithAi(
     user: userPrompt(source, job, profile),
     json: true,
     temperature: 0.2,
-    maxTokens: 8192,
+    maxTokens: 4096,
   })
   const parsed = extractJson<unknown>(raw)
   validateTailoringResponse(parsed, source)
