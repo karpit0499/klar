@@ -34,6 +34,62 @@ function isNonEmptyString(value: unknown): value is string {
   return typeof value === 'string' && value.trim().length > 0
 }
 
+/**
+ * Some models occasionally return one-based bullet indexes:
+ * 1, 2, 3 instead of the required 0, 1, 2.
+ *
+ * Only correct the response when it is clearly one-based.
+ * Arbitrary invalid indexes are still rejected by the validator.
+ */
+function normalizeClearlyOneBasedEvidenceIndexes(
+  value: unknown,
+  source: ResumeData,
+): void {
+  if (!value || typeof value !== 'object') return
+
+  const response = value as Partial<ModelTailoringResponse>
+  if (!Array.isArray(response.experience)) return
+
+  for (const item of response.experience) {
+    if (!Number.isInteger(item?.sourceIndex)) continue
+
+    if (
+      item.sourceIndex < 0 ||
+      item.sourceIndex >= source.experience.length ||
+      !Array.isArray(item.bullets)
+    ) {
+      continue
+    }
+
+    const bulletCount =
+      source.experience[item.sourceIndex].bullets.length
+
+    const returnedIndexes = item.bullets.flatMap((bullet) =>
+      Array.isArray(bullet?.sourceBulletIndexes)
+        ? bullet.sourceBulletIndexes
+        : [],
+    )
+
+    const clearlyOneBased =
+      bulletCount > 0 &&
+      returnedIndexes.length > 0 &&
+      returnedIndexes.every(
+        (index) =>
+          Number.isInteger(index) &&
+          index >= 1 &&
+          index <= bulletCount,
+      ) &&
+      returnedIndexes.some((index) => index === bulletCount)
+
+    if (!clearlyOneBased) continue
+
+    for (const bullet of item.bullets) {
+      bullet.sourceBulletIndexes =
+        bullet.sourceBulletIndexes.map((index) => index - 1)
+    }
+  }
+}
+
 export function validateTailoringResponse(
   value: unknown,
   source: ResumeData,
@@ -103,7 +159,9 @@ export function validateTailoringResponse(
 }
 
 function systemPrompt(language: ResumeLanguage): string {
-  const languageName = language === 'de' ? 'German' : 'English'
+  const languageName =
+    language === 'de' ? 'German' : 'English'
+
   return `You are an expert ATS résumé editor. Rebuild the supplied résumé for the exact job posting.
 
 Write all generated prose in ${languageName}.
@@ -113,12 +171,17 @@ Rules:
 2. Lead with evidence that is most relevant to the job posting.
 3. Prefer action + scope + outcome phrasing.
 4. Mirror the job posting's terminology only when the source résumé supports it.
-5. You may combine or omit weak/repetitive bullets, but every rewritten bullet must cite one or more zero-based source bullet indexes.
-6. Never invent employers, dates, tools, responsibilities, qualifications, clients, certifications, or metrics.
-7. If the source has no number, do not add a number.
-8. Return every source experience role exactly once, using its zero-based sourceIndex.
-9. Return every source project exactly once. Rewrite its summary only when a source summary exists; otherwise return an empty summary.
-10. Return valid JSON only, using exactly this shape:
+5. The input explicitly labels every role with sourceIndex and every source bullet with sourceBulletIndex.
+6. Every rewritten bullet must cite one or more sourceBulletIndexes copied exactly from sourceBulletIndex values belonging to that SAME role.
+7. Never count, renumber, guess, or invent an index. Never use one-based numbering.
+8. You may combine or omit weak or repetitive bullets, but the cited sourceBulletIndexes must support the rewritten text.
+9. Never invent employers, dates, tools, responsibilities, qualifications, clients, certifications, or metrics.
+10. If the source has no number, do not add a number.
+11. Return every source experience role exactly once using its supplied sourceIndex.
+12. Return every source project exactly once using its supplied sourceIndex.
+13. Rewrite a project summary only when a source summary exists. Otherwise return an empty summary.
+14. Return valid JSON only using exactly this shape:
+
 {
   "summary": "string",
   "experience": [
@@ -126,12 +189,18 @@ Rules:
       "sourceIndex": 0,
       "title": "string",
       "bullets": [
-        { "text": "string", "sourceBulletIndexes": [0] }
+        {
+          "text": "string",
+          "sourceBulletIndexes": [0]
+        }
       ]
     }
   ],
   "projects": [
-    { "sourceIndex": 0, "summary": "string" }
+    {
+      "sourceIndex": 0,
+      "summary": "string"
+    }
   ],
   "changeSummary": ["string"]
 }`
@@ -142,6 +211,31 @@ function userPrompt(
   job: NormalizedJob,
   profile: Profile,
 ): string {
+  const indexedSourceResume = {
+    ...source,
+
+    experience: source.experience.map((role, sourceIndex) => ({
+      ...role,
+
+      // The model must copy this exact role index.
+      sourceIndex,
+
+      // Explicitly label every bullet so the model does not
+      // have to calculate or guess its position.
+      bullets: role.bullets.map(
+        (text, sourceBulletIndex) => ({
+          sourceBulletIndex,
+          text,
+        }),
+      ),
+    })),
+
+    projects: source.projects.map((project, sourceIndex) => ({
+      ...project,
+      sourceIndex,
+    })),
+  }
+
   return JSON.stringify(
     {
       job: {
@@ -149,8 +243,12 @@ function userPrompt(
         company: job.company,
         description: job.description,
       },
-      candidateSkills: profile.skills.map((skill) => skill.name),
-      sourceResume: source,
+
+      candidateSkills: profile.skills.map(
+        (skill) => skill.name,
+      ),
+
+      sourceResume: indexedSourceResume,
     },
     null,
     2,
@@ -169,10 +267,15 @@ export async function tailorResumeWithAi(
     system: systemPrompt(language),
     user: userPrompt(source, job, profile),
     json: true,
-    temperature: 0.2,
+    temperature: 0,
     maxTokens: 4096,
   })
   const parsed = extractJson<unknown>(raw)
+
+  // Correct a clearly one-based response before performing
+  // the strict no-fabrication validation.
+  normalizeClearlyOneBasedEvidenceIndexes(parsed, source)
+
   validateTailoringResponse(parsed, source)
 
   const deterministic = tailorResume(source, { ...job, language }, profile)
