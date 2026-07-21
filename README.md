@@ -1,73 +1,225 @@
-<h1 align="center">Klar</h1>
+# Klar v2.1
 
-<p align="center"><strong>Your private, AI-assisted job search for the German market.</strong></p>
+**A privacy-first, AI-assisted job search workspace for Germany and nearby European markets.**
 
-<p align="center">Upload your CV, see jobs matched to you, and track every application — all inside your browser. Nothing is ever uploaded to a server.</p>
+Klar reads your résumé, finds live openings, explains your fit, helps you tailor each application, and keeps the entire search organised in one browser-based workspace.
 
-<p align="center"><a href="https://karpit0499.github.io/klar/"><strong>→ Open Klar</strong></a></p>
+[**Open Klar →**](https://karpit0499.github.io/klar/) · [View the changelog](CHANGELOG.md)
 
-<p align="center">
-  <img src="docs/klar-dashboard.png" alt="The Klar dashboard, showing a personal profile card and matched jobs" width="820">
-</p>
+> **Current release: v2.1**  
+> A reliability-focused release that strengthens bilingual résumé tailoring, fixes responsive-layout and state-consistency issues, improves onboarding and Settings, and makes deployments safer for returning users.
+
+
+![Klar v2.1 dashboard](docs/klar-dashboard.png)
 
 ---
 
-## What Klar does for you
+## What changed in v2.1
 
-- **Reads your CV for you.** Upload a PDF or Word CV and Klar automatically pulls out your skills, experience, and past roles — right in your browser.
-- **Finds real, live jobs.** It gathers current openings from several major German job sources, so you're not copy-pasting between ten different websites.
-- **Matches jobs to you — and explains why.** An AI model scores every job against your profile and shows what fits and what doesn't, so you spend time only on the roles worth it.
-- **Tells you what to learn next.** Klar looks across all your matches and highlights the skills that keep coming up but are missing from your CV.
-- **Keeps your search organised.** A simple drag-and-drop board tracks each application from *saved* to *offer*, with reminders so nothing slips through the cracks.
-- **Drafts your cover letters.** Generate a tailored first draft for any job in one click, then make it your own.
-- **Understands the German market.** Filter out roles that need more German than you have, or that won't sponsor a visa — clearly and up front.
-- **Exports and backs up everything.** Download your results and your tracker as CSV, Excel, or PDF, and save a full backup you can restore any time.
+Klar v2.1 puts the finished v2 experience on a more dependable foundation:
 
-## Your data never leaves your device
+- **English and German tailored résumés** are both available for every supported job.
+- **Aggressive, job-specific rewriting** reshapes summaries and bullets while preserving employers, dates, qualifications, tools, and other protected facts.
+- **Evidence guards** keep generated claims grounded in the uploaded résumé.
+- **Responsive layout fixes** prevent text overlap, horizontal overflow, unsafe mobile drawers, and controls hidden behind bottom navigation.
+- **Search state now survives navigation** between Search, Dashboard, Tracker, and Settings.
+- **Scores and saved state remain consistent** across job cards, drawers, tracker views, and browser reloads.
+- **Partial scoring failures are handled honestly**: failed batches are omitted, explained, and retried instead of appearing as fake `0/100` matches.
+- **Onboarding and Settings are fully bilingual**, with Groq, optional Adzuna credentials, Language, and Appearance clearly available.
+- **Service-worker updates are deployment-safe**, reducing the risk of returning users loading stale HTML that references deleted bundles.
 
-This is the whole point of Klar.
+See [CHANGELOG.md](CHANGELOG.md) for the complete v1 → v2 → v2.1 history.
 
-- Your CV, your profile, your photo, and your tracked applications are stored **only in your browser** — there is no server on our side collecting any of it.
-- Klar uses a free AI service (Groq) to read and rank jobs. Your key for it stays on your device and talks to that service directly. It is never sent to us, and it's never included in your backups.
-- Want it all gone? One button in **Settings** erases everything Klar has stored, instantly.
-- Because everything runs on your own machine, you never hand your job search — some of your most personal data — to a company you have to trust.
+---
 
-## What you'll need
+## What Klar can do
 
-- Any modern web browser (Chrome, Firefox, Edge, or Safari).
-- A **free Groq key** — this is the AI that reads and ranks your jobs. It's free, takes about two minutes, and needs no payment details.
+### Discover and understand jobs
 
-> **Getting a Groq key:** go to [console.groq.com](https://console.groq.com), sign up for free, open **API Keys**, and create one. Copy it (it starts with `gsk_`). You'll paste it into Klar once — and it stays on your device.
+- Gather live vacancies from public job feeds and employer applicant-tracking systems.
+- Search across **Germany, Austria, Switzerland, the Netherlands, Luxembourg, and Liechtenstein**; source coverage varies by market.
+- Use employment-type, student/Werkstudent, distance, recency, German-language, and visa-sponsorship filters.
+- Hide irrelevant jobs and save searches with a **new-since-last-check** view.
+- Translate job descriptions between German and English.
 
-## Getting started (2 minutes)
+### Match jobs to your profile
 
-1. **Open Klar** and go to **Settings**.
-2. **Paste your free Groq key** (see just above for how to get one).
-3. **Upload your CV** — PDF or Word. Klar reads it in seconds.
-4. **Hit Search.** Klar gathers live jobs and ranks them for you, with a skill-gap summary.
-5. **Track what you like.** Save promising roles to your board and let the reminders keep you on schedule.
+- Parse PDF and DOCX résumés in the browser.
+- Run a two-stage pipeline: deterministic pre-filtering followed by LLM re-ranking.
+- Show an explainable fit score with factors the user can re-weight.
+- Aggregate recurring skill gaps into a practical **what to learn next** summary.
+- Keep partial failures visible and recoverable instead of converting them into misleading low scores.
 
-## Good to know
+### Build stronger applications
 
-A few honest notes so there are no surprises:
+- Replace or re-upload a résumé without losing preferences or tracked jobs.
+- Generate a job-specific résumé as **ATS-safe DOCX** or text-based PDF.
+- Choose **English or German output independently of the job-description language**.
+- Show résumé-to-job-description keyword coverage and missing-skill gaps.
+- Generate a cover-letter draft, interview questions, answer scaffolds, and honest gap-handling strategies.
+- Add optional Adzuna salary benchmarks and a German **Brutto → Netto** estimate.
+- Assemble the deliverables for one role in a single application workspace.
 
-- Klar mostly surfaces roles from tech companies and modern employers that publish their jobs openly. Many large, traditional German firms keep their listings in closed systems, so those won't appear here.
-- The quality of the matching depends on the AI model. It's a strong assistant, not a recruiter — always use your own judgement.
-- Klar is built for the German job market, with basic support for the Netherlands.
-- Some job sources are optional and simply add more listings when switched on.
+### Organise the search
 
-## What it costs
+- Save jobs to a Kanban-style application tracker.
+- Switch between board and list views.
+- Add notes, contacts, reminders, follow-ups, and status changes.
+- Flag older saved postings as potentially stale.
+- Export job results and tracker data as CSV, XLSX, or PDF.
+- Back up and restore Klar data as JSON.
 
-Nothing. Klar is free to use and free to run — no subscription, no account, no hidden costs.
+### Use it comfortably anywhere
 
-## Can you really trust the privacy claims?
+- Full **English/German interface**.
+- Light, dark, and system appearance modes.
+- Desktop navigation rail and mobile bottom navigation.
+- Accessible focus states, reduced-motion support, readable typography, and touch-friendly controls.
+- Installable Progressive Web App with offline app-shell fallback.
 
-Yes — and you don't have to take our word for it. Klar's full source code is published in this repository, so anyone (or their more technical friend) can read exactly what it does. Everything happens in your browser; there is simply no server on our side that could see your data.
+---
+
+## Privacy model
+
+Klar is designed without an application backend that stores your profile or job-search history.
+
+- Your profile, preferences, tracked applications, dashboard data, and cached results live in your browser through IndexedDB.
+- AI requests go **directly from your browser to Groq** using the API key you provide.
+- Klar does not receive or store your Groq key, and credentials are excluded from Klar backup exports.
+- A small allow-listed Cloudflare Worker proxies only the job APIs that cannot be called directly from a browser.
+- Optional client-side résumé encryption uses AES-GCM with a passphrase-derived key. The passphrase is not stored.
+- Settings includes export, restore, and delete-all controls.
+
+**Important:** content required for an AI feature is sent to Groq for processing. It is not sent to or stored by a Klar-controlled application server.
+
+---
+
+## Getting started
+
+You need:
+
+- A current desktop or mobile browser.
+- A free [Groq API key](https://console.groq.com/).
+- Optionally, an Adzuna App ID and App Key for additional listings and salary data.
+
+Then:
+
+1. [Open Klar](https://karpit0499.github.io/klar/).
+2. Add your Groq key on the first setup screen.
+3. Optionally add both Adzuna credentials.
+4. Choose your language and appearance.
+5. Upload a PDF or DOCX résumé and confirm the extracted profile.
+6. Set your target roles, location, and filters.
+7. Search, inspect the fit explanations, and save promising jobs.
+8. Open a saved job to create its application materials.
+
+Your keys remain in browser storage on that device and are not included in exported backups.
+
+---
+
+## Supported sources and markets
+
+Klar combines direct browser requests with a narrowly scoped proxy:
+
+| Source type | Examples | Connection |
+|---|---|---|
+| Public job APIs | Arbeitnow | Direct from the browser |
+| Employer ATS boards | Greenhouse, Lever, Ashby | Direct from the browser |
+| Government/partner feeds | Bundesagentur für Arbeit | Through the allow-listed Worker |
+| Optional commercial feed | Adzuna | Through the Worker using user-supplied credentials |
+
+The employer registry includes more than 200 verified and candidate ATS boards. Availability, market coverage, quotas, and listing freshness depend on the original providers.
+
+---
+
+## How matching works
+
+```text
+Résumé upload
+    ↓
+Client-side PDF/DOCX extraction
+    ↓
+Structured profile + preferences
+    ↓
+Live job gathering and deduplication
+    ↓
+Local filters and deterministic/semantic pre-filter
+    ↓
+Groq re-ranking with factor breakdown
+    ↓
+Matches, recurring skill gaps, tracker, and application tools
+```
+
+The shortlist-first architecture keeps latency and API usage lower than scoring every gathered job with an LLM.
+
+---
+
+## Technology
+
+- React 18, TypeScript, Vite, and Tailwind CSS
+- Dexie/IndexedDB for local persistence
+- pdf.js and Mammoth for browser-side résumé extraction
+- Groq for structured parsing, ranking, rewriting, translation, and interview preparation
+- `docx`, SheetJS, and client-side PDF generation for downloadable deliverables
+- Cloudflare Workers for the restricted BA/Adzuna proxy
+- GitHub Actions and GitHub Pages for static deployment
+- Web Crypto API for optional résumé encryption
+- `@dnd-kit` for the application tracker
+
+---
+
+## Local development
+
+Requirements: Node.js 20 or newer and npm.
+
+```bash
+git clone https://github.com/karpit0499/klar.git
+cd klar
+npm install
+cp .env.example .env.local
+npm run dev
+```
+
+Set the Worker URL in `.env.local` when proxy-backed sources are needed.
+
+### Quality checks
+
+```bash
+node --check public/sw.js
+npm run typecheck
+npm test
+npm run build
+```
+
+The production site is deployed from `main` through the repository's GitHub Pages workflow.
+
+---
+
+## Honest limitations
+
+- Coverage varies by country and source. Many employers expose no public job API.
+- Adzuna is optional and subject to its own country coverage, quota, and availability.
+- AI output should be reviewed before submission; Klar is an assistant, not a recruiter or factual authority.
+- Résumé tailoring is constrained to evidence in the uploaded résumé and should not invent missing experience.
+- The German net-salary calculator is an estimate, not tax advice.
+- Saved-posting staleness is based on age because browsers cannot reliably inspect every cross-origin destination.
+
+---
+
+## Version history
+
+- **v1** — Original privacy-first job discovery, matching, dashboard, tracker, exports, cover letters, filters, evaluation harness, and PWA.
+- **v2** — Major UI overhaul plus multi-country discovery, richer filtering, saved searches, résumé/application tooling, salary features, localization, accessibility, dark mode, and optional encryption.
+- **v2.1** — Bilingual résumé-deliverable improvements and a full reliability, responsive-layout, state-consistency, scoring, parsing, and deployment-safety pass.
+
+Read the detailed [CHANGELOG.md](CHANGELOG.md).
+
+---
 
 ## License
 
-Klar's code is public so you can see how it works and verify its privacy claims — but it is **not** open source. Please don't copy, reuse, or redistribute it. See [LICENSE](LICENSE) for details.
+Klar's source is public so its behaviour and privacy model can be inspected, but the project is **not open source**. Copying, reuse, and redistribution are restricted. See [LICENSE](LICENSE).
 
 ---
 
-<p align="center"><sub><em>Klar</em> means "clear" in German. Built by Kumar Arpit.</sub></p>
+*Klar means “clear” in German. Built by Kumar Arpit.*
