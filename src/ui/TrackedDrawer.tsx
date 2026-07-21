@@ -10,6 +10,7 @@ import {
 import { stalenessInfo } from '../tracker/staleness'
 import { useT } from '../i18n/LocaleProvider'
 import type { TranslationKey } from '../i18n/translations'
+import { useScrollLock } from './useScrollLock'
 
 const STATUSES: TrackStatus[] = [
   'new', 'interested', 'applied', 'interviewing', 'offer', 'rejected', 'archived',
@@ -26,8 +27,17 @@ const STATUS_KEY: Record<TrackStatus, TranslationKey> = {
   archived: 'status.archived',
 }
 
-export function TrackedDrawer({ row, onClose }: { row: TrackedJob; onClose: () => void }) {
+export function TrackedDrawer({
+  row,
+  score,
+  onClose,
+}: {
+  row: TrackedJob
+  score?: number
+  onClose: () => void
+}) {
   const t = useT()
+  useScrollLock()
 
   const [notes, setNotesLocal] = useState(row.notes)
   const [remDate, setRemDate] = useState('')
@@ -38,21 +48,21 @@ export function TrackedDrawer({ row, onClose }: { row: TrackedJob; onClose: () =
   const stale = stalenessInfo(row)
 
   return (
-    <div className="fixed inset-0 z-40 flex justify-end bg-black/40" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex justify-end overscroll-contain bg-black/40" onClick={onClose}>
       <div
-        className="h-full w-full max-w-lg overflow-y-auto bg-surface p-6"
+        className="app-drawer w-full max-w-lg overflow-y-auto bg-surface p-4 pb-[calc(5.5rem+env(safe-area-inset-bottom))] sm:p-6 sm:pb-6"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-start justify-between">
-          <div className="min-w-0">
-            <h2 className="truncate text-lg font-semibold text-ink">{row.job.title}</h2>
-            <p className="truncate text-sm text-muted">{row.job.company}</p>
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <h2 className="wrap-anywhere text-lg font-semibold text-ink">{row.job.title}</h2>
+            <p className="wrap-anywhere text-base text-muted">{row.job.company}</p>
           </div>
-          <Button variant="ghost" onClick={onClose}>{t('common.close')}</Button>
+          <Button variant="ghost" className="shrink-0" onClick={onClose}>{t('common.close')}</Button>
         </div>
 
         <div className="mt-3 flex flex-wrap items-center gap-2">
-          {row.match && <Badge tone="accent">{row.match.fitScore}{t('drawer.scoreOutOf')}</Badge>}
+          {score != null && <Badge tone="accent">{score}{t('drawer.scoreOutOf')}</Badge>}
           {/* Stale-posting flag (feature 5.4). */}
           <Badge tone={stale.likelyStale ? 'danger' : 'neutral'}>{stale.label}</Badge>
           <a href={row.job.url} target="_blank" rel="noreferrer" className="text-sm text-accent underline">
@@ -101,7 +111,7 @@ export function TrackedDrawer({ row, onClose }: { row: TrackedJob; onClose: () =
                 </span>
                 <button
                   onClick={() => void removeReminder(row.jobId, i)}
-                  className="text-xs text-faint hover:text-danger"
+                  className="min-h-tap rounded-md px-3 text-sm text-faint hover:bg-surface hover:text-danger"
                 >
                   {t('common.remove')}
                 </button>

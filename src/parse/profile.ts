@@ -7,14 +7,17 @@ import { groqChat, extractJson } from '../llm/groq'
 
 const SYSTEM = `You extract structured data from résumés. You never invent facts not present in the text. Reply with ONE JSON object and nothing else.`
 
-export function buildProfilePrompt(rawText: string): string {
+export function buildProfilePrompt(rawText: string, asOf = new Date()): string {
+  const today = asOf.toISOString().slice(0, 10)
   return [
     'Extract a candidate profile from this résumé text.',
+    `Treat ${today} as today's date when a role ends in Present, Current, Heute, or Jetzt.`,
     'Return a JSON object with EXACTLY these keys:',
     'summary (string, 1-2 sentences), titles (array of {title, seniority?, years?}),',
     'skills (array of {name, level?}), domains (string[]), totalYears (number|null),',
     'education (array of {degree?, field?, institution?}),',
     'languages (array of {lang, level?}), certifications (string[]).',
+    'For each title, calculate years from its own date range to one decimal place; do not confuse role tenure with total experience.',
     'Use empty arrays/nulls where information is missing. Do NOT guess.',
     '',
     'RÉSUMÉ TEXT:',

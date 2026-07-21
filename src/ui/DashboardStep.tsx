@@ -46,40 +46,35 @@ export function DashboardStep({
   const set = (patch: Partial<Dashboard>) => setForm((f) => ({ ...f, ...patch }))
 
   return (
-    <div className="mx-auto max-w-2xl p-6">
-      <Card className="p-6">
-        <div className="flex items-start gap-4">
+    <div className="mx-auto max-w-2xl p-4 sm:p-6">
+      <Card className="p-4 sm:p-6">
+        <div className="flex items-start gap-3 sm:gap-4">
           <div className="shrink-0">
             {form.photoDataUrl ? (
               <img
                 src={form.photoDataUrl}
                 alt={t('dashboard.photoAlt')}
-                className="h-20 w-20 rounded-full object-cover ring-1 ring-border"
+                className="h-16 w-16 rounded-full object-cover ring-1 ring-border sm:h-20 sm:w-20"
               />
             ) : (
-              <div className="flex h-20 w-20 items-center justify-center rounded-full bg-accent-tint text-2xl font-semibold text-accent">
+              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-accent-tint text-2xl font-semibold text-accent sm:h-20 sm:w-20">
                 {(form.displayName || 'K').slice(0, 1).toUpperCase()}
               </div>
             )}
           </div>
           <div className="min-w-0 flex-1">
             {editing ? (
-              <div className="space-y-3">
-                <Field label={t('dashboard.displayName')}>
-                  <TextInput value={form.displayName} onChange={(e) => set({ displayName: e.target.value })} placeholder={t('dashboard.namePlaceholder')} />
-                </Field>
-                <Field label={t('dashboard.headline')}>
-                  <TextInput value={form.headline} onChange={(e) => set({ headline: e.target.value })} placeholder="Senior Data Scientist · Berlin" />
-                </Field>
-                <Field label={t('dashboard.location')}>
-                  <TextInput value={form.location} onChange={(e) => set({ location: e.target.value })} placeholder="Berlin, Germany" />
-                </Field>
-              </div>
+              <>
+                <h2 className="wrap-anywhere text-lg font-semibold text-ink">
+                  {form.displayName || t('dashboard.title')}
+                </h2>
+                <p className="text-sm text-muted">{t('dashboard.editing')}</p>
+              </>
             ) : (
               <>
                 <h2 className="text-xl font-semibold text-ink">{form.displayName || t('dashboard.title')}</h2>
-                {form.headline && <p className="text-sm text-muted">{form.headline}</p>}
-                {form.location && <p className="text-sm text-faint">{form.location}</p>}
+                {form.headline && <p className="hidden text-sm text-muted sm:block">{form.headline}</p>}
+                {form.location && <p className="hidden text-sm text-faint sm:block">{form.location}</p>}
               </>
             )}
           </div>
@@ -92,8 +87,26 @@ export function DashboardStep({
           </div>
         </div>
 
+        {!editing && (form.headline || form.location) && (
+          <div className="mt-3 sm:hidden">
+            {form.headline && <p className="text-sm text-muted">{form.headline}</p>}
+            {form.location && <p className="text-sm text-faint">{form.location}</p>}
+          </div>
+        )}
+
         {editing && (
           <div className="mt-4 space-y-4">
+            <div className="space-y-3">
+              <Field label={t('dashboard.displayName')}>
+                <TextInput value={form.displayName} onChange={(e) => set({ displayName: e.target.value })} placeholder={t('dashboard.namePlaceholder')} />
+              </Field>
+              <Field label={t('dashboard.headline')}>
+                <TextInput value={form.headline} onChange={(e) => set({ headline: e.target.value })} placeholder="Senior Data Scientist · Berlin" />
+              </Field>
+              <Field label={t('dashboard.location')}>
+                <TextInput value={form.location} onChange={(e) => set({ location: e.target.value })} placeholder="Berlin, Germany" />
+              </Field>
+            </div>
             <div>
               <p className="mb-1 text-sm font-medium text-ink">{t('dashboard.photo')}</p>
               <input
@@ -133,14 +146,14 @@ export function DashboardStep({
               <p className="mb-1 text-sm font-medium text-ink">{t('dashboard.links')}</p>
               <div className="space-y-2">
                 {form.links.map((lnk, i) => (
-                  <div key={i} className="flex flex-wrap items-center gap-2">
+                  <div key={i} className="grid grid-cols-1 gap-2 sm:grid-cols-[8rem_minmax(0,1fr)_auto] sm:items-center">
                     <TextInput
                       value={lnk.label}
                       onChange={(e) =>
                         set({ links: form.links.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)) })
                       }
                       placeholder="GitHub"
-                      className="w-32"
+                      className="w-full"
                     />
                     <TextInput
                       value={lnk.url}
@@ -148,11 +161,11 @@ export function DashboardStep({
                         set({ links: form.links.map((x, j) => (j === i ? { ...x, url: e.target.value } : x)) })
                       }
                       placeholder="https://github.com/you"
-                      className="flex-1"
+                      className="w-full"
                     />
                     <button
                       onClick={() => set({ links: form.links.filter((_, j) => j !== i) })}
-                      className="text-xs text-faint hover:text-danger"
+                      className="min-h-tap justify-self-start rounded-md px-3 text-sm text-faint hover:bg-surface-2 hover:text-danger sm:justify-self-auto"
                     >
                       {t('common.remove')}
                     </button>
@@ -187,9 +200,9 @@ export function DashboardStep({
 
       {/* A light touch of context pulled from the résumé/preferences, if present. */}
       {!editing && (profile || prefs) && (
-        <Card className="mt-4 p-6">
+        <Card className="mt-4 p-4 sm:p-6">
           <h3 className="text-sm font-semibold text-ink">{t('dashboard.atAGlance')}</h3>
-          <div className="mt-2 grid grid-cols-2 gap-3 text-sm text-muted">
+          <div className="mt-2 grid grid-cols-1 gap-3 text-sm text-muted min-[360px]:grid-cols-2">
             {profile && <div><span className="font-medium">{t('dashboard.skillsLabel')}</span> {profile.skills.length}</div>}
             {profile?.totalYears != null && (
               <div><span className="font-medium">{t('dashboard.experienceLabel')}</span> {t('common.yearsShort', { years: profile.totalYears })}</div>

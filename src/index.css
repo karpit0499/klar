@@ -57,11 +57,13 @@
 html,
 body,
 #root {
-  height: 100%;
+  min-height: 100%;
 }
 
 body {
   margin: 0;
+  min-height: 100dvh;
+  overflow-x: hidden;
   background: var(--bg);
   color: var(--ink);
   font-family: 'Hanken Grotesk', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
@@ -70,6 +72,74 @@ body {
 
 * {
   box-sizing: border-box;
+}
+
+#root {
+  min-height: 100dvh;
+}
+
+/* Shared responsive page geometry. Reading/forms stay comfortably narrow while
+   discovery views can use the wider application canvas. */
+.page-container {
+  width: 100%;
+  max-width: 1120px;
+  margin-inline: auto;
+  padding: 24px 16px 112px;
+}
+
+.reading-container {
+  width: 100%;
+  max-width: 760px;
+  margin-inline: auto;
+}
+
+/* Fixed drawers use the dynamic viewport and stop scroll chaining into the
+   page behind them. */
+.app-drawer {
+  height: 100dvh;
+  overscroll-behavior: contain;
+  overflow-wrap: anywhere;
+  -webkit-overflow-scrolling: touch;
+}
+
+.wrap-anywhere {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+@media (min-width: 640px) {
+  .page-container {
+    padding: 32px 24px;
+  }
+}
+
+@media (max-width: 639px) {
+  /* Existing v2 screens use a top-level p-6 wrapper. Reduce that to the
+     standard 16px mobile gutter and reserve room for the fixed bottom nav. */
+  #main > .p-6 {
+    padding: 1rem;
+    padding-bottom: calc(7rem + env(safe-area-inset-bottom));
+  }
+}
+
+@media (min-width: 1024px) {
+  /* Raise the old 14px/12px utility steps slightly on roomy desktop layouts.
+     Components that already use text-base are unaffected. */
+  .text-sm {
+    font-size: 0.9375rem;
+    line-height: 1.5;
+  }
+
+  .text-xs {
+    font-size: 0.8125rem;
+    line-height: 1.4;
+  }
+}
+
+@media (min-width: 1024px) {
+  .page-container {
+    padding-inline: 32px;
+  }
 }
 
 /* ---------------------------------------------------------------------------

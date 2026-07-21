@@ -1,12 +1,13 @@
-// Settings: JSON backup/restore (feature 3.3), a data-loss warning (6.2), the
-// region selector (8.1), and delete-all (6.1). The JSON backup is your data,
-// not your key — the API key is deliberately excluded from the export file.
 import { useEffect, useRef, useState } from 'react'
-import { Button, Card, Field } from './atoms'
+import { Button, Card, Field, TextInput } from './atoms'
+import { PreferenceControls } from './PreferenceControls'
 import { ResumeReupload } from './ResumeReupload'
 import { exportAll, importAll, wipeAllData } from '../db/db'
 import { clearGroqKey } from '../settings/keys'
+import { clearAdzunaKey, loadAdzunaKey, saveAdzunaKey } from '../settings/adzunaKey'
 import { REGIONS, getActiveRegion, setActiveRegion, DEFAULT_REGION_CODE } from '../regions'
+import { useT } from '../i18n/LocaleProvider'
+import type { TranslationKey } from '../i18n/translations'
 import type { Profile } from '../types'
 
 export function SettingsStep({
@@ -16,126 +17,209 @@ export function SettingsStep({
 }: {
   onReset: () => void
   apiKey: string
-  onReplaceProfile: (p: Profile) => void | Promise<void>
+  onReplaceProfile: (profile: Profile) => void | Promise<void>
 }) {
+  const t = useT()
   const fileRef = useRef<HTMLInputElement>(null)
-  const [msg, setMsg] = useState('')
+  const [message, setMessage] = useState('')
   const [regionCode, setRegionCode] = useState(DEFAULT_REGION_CODE)
+  const [adzunaAppId, setAdzunaAppId] = useState('')
+  const [adzunaAppKey, setAdzunaAppKey] = useState('')
+  const [hasAdzunaKey, setHasAdzunaKey] = useState(false)
+  const [adzunaMessage, setAdzunaMessage] = useState('')
 
   useEffect(() => {
-    void getActiveRegion().then((r) => setRegionCode(r.code))
+    void getActiveRegion().then((region) => setRegionCode(region.code))
+    void loadAdzunaKey().then((credentials) => {
+      if (!credentials) return
+      setAdzunaAppId(credentials.appId)
+      setAdzunaAppKey(credentials.appKey)
+      setHasAdzunaKey(true)
+    })
   }, [])
 
   async function changeRegion(code: string) {
     setRegionCode(code)
     await setActiveRegion(code)
-    setMsg(`Region set to ${REGIONS[code]?.label ?? code}. It applies on your next search.`)
+    setMessage(t('settings.regionChanged', { region: t(regionLabelKey(code)) }))
+  }
+
+  async function saveAdzuna() {
+    const appId = adzunaAppId.trim()
+    const appKey = adzunaAppKey.trim()
+    if (!appId || !appKey) {
+      setAdzunaMessage(t('settings.adzunaBothRequired'))
+      return
+    }
+    await saveAdzunaKey(appId, appKey)
+    setHasAdzunaKey(true)
+    setAdzunaMessage(t('settings.adzunaSaved'))
+  }
+
+  async function removeAdzuna() {
+    await clearAdzunaKey()
+    setAdzunaAppId('')
+    setAdzunaAppKey('')
+    setHasAdzunaKey(false)
+    setAdzunaMessage(t('settings.adzunaRemoved'))
   }
 
   async function doExport() {
     const data = await exportAll()
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
     const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `klar-export-${new Date().toISOString().slice(0, 10)}.json`
-    a.click()
+    const anchor = document.createElement('a')
+    anchor.href = url
+    anchor.download = `klar-export-${new Date().toISOString().slice(0, 10)}.json`
+    anchor.click()
     URL.revokeObjectURL(url)
-    setMsg('Exported. Keep this file safe — it is your backup.')
+    setMessage(t('settings.exported'))
   }
 
   async function doImport(file: File) {
     try {
       const text = await file.text()
       await importAll(JSON.parse(text))
-      setMsg('Imported. Reloading…')
+      setMessage(t('settings.imported'))
       setTimeout(() => location.reload(), 600)
-    } catch (e) {
-      setMsg('Import failed: ' + (e instanceof Error ? e.message : String(e)))
+    } catch (error) {
+      setMessage(
+        t('settings.importFailed', {
+          error: error instanceof Error ? error.message : String(error),
+        }),
+      )
     }
   }
 
   async function wipe() {
-    if (!confirm('Delete ALL local data (profile, preferences, dashboard, tracked jobs)? This cannot be undone.')) return
+    if (!confirm(t('settings.deleteConfirm'))) return
     await wipeAllData()
     await clearGroqKey()
     onReset()
   }
 
   return (
-    <div className="mx-auto max-w-2xl p-6">
-      <Card className="p-6">
-        <h2 className="text-lg font-semibold">Settings & data</h2>
-        <p className="mt-1 text-sm text-muted">
-          All your data lives in this browser. Export it to back up or move devices.
-        </p>
+    <div className="page-container">
+      <div className="reading-container">
+        <Card className="p-4 sm:p-6">
+          <h1 className="font-display text-display-md font-semibold text-ink">
+            {t('settings.title')}
+          </h1>
+          <p className="mt-2 text-base leading-relaxed text-muted">{t('settings.intro')}</p>
+          <div className="mt-4 rounded-lg border border-border bg-surface-2 p-4 text-base leading-relaxed text-ink">
+            {t('settings.dataWarning')}
+          </div>
+          <div className="mt-4 flex flex-wrap gap-3">
+            <Button onClick={doExport}>{t('settings.export')}</Button>
+            <Button variant="ghost" onClick={() => fileRef.current?.click()}>
+              {t('settings.import')}
+            </Button>
+            <input
+              ref={fileRef}
+              type="file"
+              accept="application/json"
+              className="hidden"
+              onChange={(event) => {
+                const file = event.target.files?.[0]
+                if (file) void doImport(file)
+              }}
+            />
+            <Button variant="danger" onClick={wipe}>
+              {t('settings.deleteAll')}
+            </Button>
+          </div>
+          <p className="mt-3 text-sm text-faint">{t('settings.credentialsExcluded')}</p>
+          {message && <p className="mt-3 wrap-anywhere text-base text-muted">{message}</p>}
+        </Card>
 
-        {/* Data-loss warning (feature 6.2). */}
-        <div className="mt-3 rounded-lg border border-border bg-surface-2 p-3 text-sm text-ink">
-          Heads up: because nothing is stored on a server, clearing your browser or switching devices
-          wipes everything permanently. Export a backup every so often.
-        </div>
+        <Card className="mt-4 p-4 sm:p-6">
+          <h2 className="text-xl font-semibold text-ink">{t('preferences.title')}</h2>
+          <p className="mt-1 text-base text-muted">{t('preferences.intro')}</p>
+          <div className="mt-4 rounded-lg border border-border bg-surface-2 p-3">
+            <PreferenceControls />
+          </div>
+        </Card>
 
-        <div className="mt-4 flex flex-wrap gap-3">
-          <Button onClick={doExport}>Export data (JSON)</Button>
-          <Button variant="ghost" onClick={() => fileRef.current?.click()}>
-            Import / restore from file
-          </Button>
-          <input
-            ref={fileRef}
-            type="file"
-            accept="application/json"
-            className="hidden"
-            onChange={(e) => {
-              const f = e.target.files?.[0]
-              if (f) void doImport(f)
-            }}
-          />
-          <Button variant="danger" onClick={wipe}>
-            Delete all local data
-          </Button>
-        </div>
-        <p className="mt-2 text-xs text-faint">
-          Your Groq API key is never written to the export file.
-        </p>
-        {msg && <p className="mt-3 text-sm text-muted">{msg}</p>}
-      </Card>
+        <Card className="mt-4 p-4 sm:p-6">
+          <h2 className="text-xl font-semibold text-ink">{t('settings.adzunaTitle')}</h2>
+          <p className="mt-1 text-base leading-relaxed text-muted">{t('settings.adzunaIntro')}</p>
+          <a
+            className="mt-2 inline-block wrap-anywhere text-sm text-accent underline"
+            href="https://developer.adzuna.com/"
+            target="_blank"
+            rel="noreferrer"
+          >
+            developer.adzuna.com
+          </a>
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            <Field label={t('settings.adzunaAppId')}>
+              <TextInput
+                value={adzunaAppId}
+                onChange={(event) => setAdzunaAppId(event.target.value)}
+                autoComplete="off"
+              />
+            </Field>
+            <Field label={t('settings.adzunaAppKey')}>
+              <TextInput
+                type="password"
+                value={adzunaAppKey}
+                onChange={(event) => setAdzunaAppKey(event.target.value)}
+                autoComplete="off"
+              />
+            </Field>
+          </div>
+          <div className="mt-4 flex flex-wrap gap-3">
+            <Button onClick={saveAdzuna}>{t('common.save')}</Button>
+            {hasAdzunaKey && (
+              <Button variant="ghost" onClick={removeAdzuna}>
+                {t('settings.adzunaRemove')}
+              </Button>
+            )}
+          </div>
+          <p className="mt-3 text-sm text-faint">{t('settings.adzunaPrivacy')}</p>
+          {adzunaMessage && <p className="mt-3 text-base text-muted">{adzunaMessage}</p>}
+        </Card>
 
-      {/* Replace résumé (feature 11). */}
-      <Card className="mt-4 p-6">
-        <h2 className="text-lg font-semibold">Résumé</h2>
-        <p className="mt-1 text-sm text-muted">
-          Replace the résumé behind your profile — for a new version or a fresh focus. Parsing
-          happens in your browser; the file is never uploaded. Your tracked jobs and preferences
-          are kept.
-        </p>
-        <div className="mt-3">
-          <ResumeReupload apiKey={apiKey} onReplace={onReplaceProfile} />
-        </div>
-      </Card>
+        <Card className="mt-4 p-4 sm:p-6">
+          <h2 className="text-xl font-semibold text-ink">{t('settings.resumeTitle')}</h2>
+          <p className="mt-1 text-base leading-relaxed text-muted">{t('settings.resumeIntro')}</p>
+          <div className="mt-4">
+            <ResumeReupload apiKey={apiKey} onReplace={onReplaceProfile} />
+          </div>
+        </Card>
 
-      {/* Region selector (feature 8.1). */}
-      <Card className="mt-4 p-6">
-        <h2 className="text-lg font-semibold">Region</h2>
-        <p className="mt-1 text-sm text-muted">
-          Which market to search. Each region decides which job sources run.
-        </p>
-        <div className="mt-3 max-w-xs">
-          <Field label="Active region">
-            <select
-              className="w-full rounded-lg border border-border px-3 py-2 text-sm"
-              value={regionCode}
-              onChange={(e) => void changeRegion(e.target.value)}
-            >
-              {Object.values(REGIONS).map((r) => (
-                <option key={r.code} value={r.code}>
-                  {r.label}
-                </option>
-              ))}
-            </select>
-          </Field>
-        </div>
-      </Card>
+        <Card className="mt-4 p-4 sm:p-6">
+          <h2 className="text-xl font-semibold text-ink">{t('settings.regionTitle')}</h2>
+          <p className="mt-1 text-base leading-relaxed text-muted">{t('settings.regionIntro')}</p>
+          <div className="mt-4 max-w-xs">
+            <Field label={t('settings.activeRegion')}>
+              <select
+                className="min-h-tap w-full rounded-lg border border-border bg-surface px-3 py-2 text-base text-ink"
+                value={regionCode}
+                onChange={(event) => void changeRegion(event.target.value)}
+              >
+                {Object.values(REGIONS).map((region) => (
+                  <option key={region.code} value={region.code}>
+                    {t(regionLabelKey(region.code))}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          </div>
+        </Card>
+      </div>
     </div>
   )
+}
+
+function regionLabelKey(code: string): TranslationKey {
+  const keys: Record<string, TranslationKey> = {
+    de: 'region.de',
+    at: 'region.at',
+    ch: 'region.ch',
+    nl: 'region.nl',
+    lu: 'region.lu',
+    li: 'region.li',
+  }
+  return keys[code] ?? 'region.de'
 }

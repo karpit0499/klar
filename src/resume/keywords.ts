@@ -19,7 +19,9 @@ export const SKILL_DICTIONARY: Record<string, string[]> = {
   Java: ['java'],
   JavaScript: ['javascript', 'js'],
   TypeScript: ['typescript', 'ts'],
-  Go: ['golang', 'go lang'],
+  // Do not include bare "go": product postings use "go-live" and "go-to-market"
+  // constantly, which would create a false programming-language gap.
+  Go: ['golang', 'go lang', 'go programming language', 'go developer', 'go engineer'],
   Rust: ['rust'],
   Scala: ['scala'],
   R: ['r language', 'r programming'],
@@ -132,7 +134,8 @@ export function extractJdTerms(job: NormalizedJob, extra: string[] = []): string
   const found = new Set<string>()
 
   for (const [canon, aliases] of Object.entries(SKILL_DICTIONARY)) {
-    if ([canon, ...aliases].some((term) => containsTerm(text, term))) found.add(canon)
+    const searchable = canon === 'Go' ? aliases : [canon, ...aliases]
+    if (searchable.some((term) => containsTerm(text, term))) found.add(canon)
   }
   // Also honor multi-word profile skills that appear literally in the posting
   // but aren't in our dictionary (e.g. a niche tool the user listed).

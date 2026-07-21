@@ -28,7 +28,7 @@ export function Button({
   // Both sizes clear the 44px tap target via min-h-tap; padding controls density.
   const sizes: Record<Size, string> = {
     sm: 'min-h-tap px-3 py-1.5 text-sm',
-    md: 'min-h-tap px-4 py-2.5 text-sm',
+    md: 'min-h-tap px-4 py-2.5 text-base',
   }
   const styles: Record<Variant, string> = {
     primary: 'bg-primary text-primary-ink hover:opacity-90',
@@ -84,7 +84,7 @@ export function Field({
 }) {
   return (
     <label className="block" htmlFor={htmlFor}>
-      <span className="mb-1 block text-sm font-medium text-ink">{label}</span>
+      <span className="mb-1 block text-base font-medium text-ink">{label}</span>
       {children}
       {hint && <span className="mt-1 block text-xs text-faint">{hint}</span>}
     </label>
@@ -95,14 +95,14 @@ export function TextInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
   return (
     <input
       {...props}
-      className={`w-full min-h-tap rounded-md border border-border bg-surface px-3 py-2 text-sm text-ink placeholder:text-faint outline-none focus:border-accent ${props.className ?? ''}`}
+      className={`w-full min-h-tap rounded-md border border-border bg-surface px-3 py-2 text-base text-ink placeholder:text-faint outline-none focus:border-accent ${props.className ?? ''}`}
     />
   )
 }
 
 export function Spinner({ label }: { label?: string }) {
   return (
-    <span className="inline-flex items-center gap-2 text-sm text-muted" role="status">
+    <span className="inline-flex items-center gap-2 text-base text-muted" role="status">
       <span
         aria-hidden="true"
         className="h-4 w-4 animate-spin rounded-full border-2 border-border border-t-accent"

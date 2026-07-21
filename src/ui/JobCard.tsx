@@ -23,8 +23,8 @@ export function JobCard({
   return (
     <Card className="p-4">
       <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <button onClick={onOpen} className="text-left">
+        <div className="min-w-0 flex-1">
+          <button onClick={onOpen} className="max-w-full text-left">
             <h3 className="truncate font-semibold text-ink hover:text-accent">{job.title}</h3>
           </button>
           <p className="truncate text-sm text-muted">
@@ -41,7 +41,7 @@ export function JobCard({
         )}
       </div>
 
-      {match?.rationale && <p className="mt-2 line-clamp-2 text-sm text-muted">{match.rationale}</p>}
+      {match?.rationale && <p className="mt-2 line-clamp-2 wrap-anywhere text-base text-muted">{match.rationale}</p>}
 
       <div className="mt-3 flex flex-wrap items-center gap-1.5">
         <Badge tone="neutral">{job.source}</Badge>
@@ -60,7 +60,7 @@ export function JobCard({
         ))}
       </div>
 
-      <div className="mt-3 flex items-center gap-2">
+      <div className="mt-3 flex flex-wrap items-center gap-2">
         <Button variant="ghost" size="sm" onClick={onOpen}>
           {t('card.details')}
         </Button>

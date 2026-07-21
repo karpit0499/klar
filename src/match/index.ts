@@ -8,7 +8,7 @@ import { MATCH } from '../lib/config'
 import { stableHash } from '../lib/hash'
 import { prefilter } from './prefilter'
 import { semanticPrefilter } from './semantic'
-import { rerankAll } from './rerank'
+import { isFailedMatchPlaceholder, rerankAll } from './rerank'
 import { fetchBaDetail } from '../sources/ba'
 import { db, type MatchRow } from '../db/db'
 
@@ -68,11 +68,16 @@ export async function runMatching(
   const cachedRows = await db.matches.bulkGet(candidates.map((c) => key(c.id)))
   const cached: MatchResult[] = []
   const todo: NormalizedJob[] = []
+  const staleKeys: string[] = []
   candidates.forEach((c, i) => {
     const row = cachedRows[i]
-    if (row) cached.push(row)
-    else todo.push(c)
+    if (row && !isFailedMatchPlaceholder(row)) cached.push(row)
+    else {
+      todo.push(c)
+      if (row) staleKeys.push(key(c.id))
+    }
   })
+  if (staleKeys.length) await db.matches.bulkDelete(staleKeys)
 
   // 3. Enrich BA descriptions for the ones we'll actually score.
   opts.onProgress?.({ phase: 'enrich', done: 0, total: todo.length })
@@ -94,6 +99,6 @@ export async function runMatching(
   // 6. Merge + sort best-first.
   const all = [...cached, ...fresh]
   all.sort((a, b) => b.fitScore - a.fitScore)
-  opts.onProgress?.({ phase: 'done', done: all.length, total: all.length })
+  opts.onProgress?.({ phase: 'done', done: all.length, total: candidates.length })
   return all
 }

@@ -11,11 +11,12 @@ import { GapSummary } from './GapSummary'
 import { WeightsPanel } from './WeightsPanel'
 import { gatherJobs } from '../sources'
 import { runMatching, type MatchProgress } from '../match'
-import { addToTracker } from '../tracker/store'
+import { addToTracker, useTracked } from '../tracker/store'
 import { compositeScore, DEFAULT_WEIGHTS } from '../match/weights'
 import { partitionByHardFilters } from '../match/germanMarket'
 import { aggregateGaps } from '../match/gaps'
 import { getActiveRegion } from '../regions'
+import { db } from '../db/db'
 import { jobsToRows, downloadCsv, downloadXlsx, printRowsAsPdf } from '../export/exporters'
 import type {
   MatchResult, NormalizedJob, Preferences, Profile, Region, ScoreWeights, SearchQuery, SourceId,
@@ -37,7 +38,7 @@ export function SearchStep({
   const [status, setStatus] = useState<SourceStatus[]>([])
   const [phase, setPhase] = useState<'idle' | 'gathering' | 'matching' | 'done'>('idle')
   const [progress, setProgress] = useState<MatchProgress | null>(null)
-  const [saved, setSaved] = useState<Set<string>>(new Set())
+  const tracked = useTracked()
   const [open, setOpen] = useState<NormalizedJob | null>(null)
   const [error, setError] = useState('')
   const [region, setRegion] = useState<Region | undefined>(undefined)
@@ -65,6 +66,7 @@ export function SearchStep({
 
   async function run() {
     setError('')
+    setProgress(null)
     setPhase('gathering')
     setMatches({})
     try {
@@ -89,7 +91,13 @@ export function SearchStep({
 
   async function save(job: NormalizedJob) {
     await addToTracker(job, matches[job.id])
-    setSaved((s) => new Set(s).add(job.id))
+  }
+
+  function updateWeights(nextWeights: ScoreWeights) {
+    setWeights(nextWeights)
+    // Persist the correction so Tracker uses the same composite formula and a
+    // returning visit does not silently revert to a different score.
+    void db.preferences.update('current', { weights: nextWeights })
   }
 
   // Derived view: score with current weights, apply hard filters, sort, roll up gaps.
@@ -106,8 +114,11 @@ export function SearchStep({
     return { withScore, hidden, gap }
   }, [jobs, matches, weights, hideGerman, hideNoVisa, prefs])
 
-  const hasMatches = phase === 'done' && view.withScore.length + view.hidden.length > 0
-  const shownJobs = hasMatches ? view.withScore.map((x) => x.job) : jobs
+  const finished = phase === 'done'
+  const hasMatches = finished && view.withScore.length + view.hidden.length > 0
+  const shownJobs = finished ? view.withScore.map((x) => x.job) : jobs
+  const savedIds = useMemo(() => new Set(tracked.map((row) => row.jobId)), [tracked])
+  const partial = finished && progress?.phase === 'done' && progress.done < progress.total
 
   function exportResults(kind: 'csv' | 'xlsx' | 'pdf') {
     const rows = jobsToRows(shownJobs, matches)
@@ -128,7 +139,7 @@ export function SearchStep({
                 roles: query.what.filter(Boolean).join(', ') || t('search.allRoles'),
               })}
               {query.where ? ` ${t('search.near', { city: query.where.city })}` : ''}
-              {region ? ` · ${region.label}` : ''}
+              {region ? ` · ${t(regionLabelKey(region.code))}` : ''}
             </p>
           </div>
           <Button onClick={run} disabled={phase === 'gathering' || phase === 'matching'}>
@@ -185,6 +196,11 @@ export function SearchStep({
           </p>
         )}
         {error && <p className="mt-2 text-sm text-danger">{error}</p>}
+        {partial && (
+          <p className="mt-2 text-sm text-muted">
+            {t('search.partialScores', { done: progress.done, total: progress.total })}
+          </p>
+        )}
 
         {/* Export the current results (feature 3.1). */}
         {hasMatches && (
@@ -200,19 +216,19 @@ export function SearchStep({
       {hasMatches && (
         <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
           <GapSummary data={view.gap} />
-          <WeightsPanel weights={weights} onChange={setWeights} />
+          <WeightsPanel weights={weights} onChange={updateWeights} />
         </div>
       )}
 
       <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
-        {(hasMatches ? view.withScore : shownJobs.map((job) => ({ job, match: undefined, score: undefined }))).map(
+        {(finished ? view.withScore : shownJobs.map((job) => ({ job, match: undefined, score: undefined }))).map(
           (row) => (
             <JobCard
               key={row.job.id}
               job={row.job}
               match={row.match}
               score={row.score}
-              saved={saved.has(row.job.id)}
+              saved={savedIds.has(row.job.id)}
               onOpen={() => setOpen(row.job)}
               onSave={() => void save(row.job)}
             />
@@ -250,7 +266,7 @@ export function SearchStep({
         </details>
       )}
 
-      {phase === 'done' && shownJobs.length === 0 && (
+      {finished && shownJobs.length === 0 && !partial && (
         <p className="mt-6 text-center text-sm text-faint">
           {t('search.noMatches')}
         </p>
@@ -263,11 +279,24 @@ export function SearchStep({
           score={matches[open.id] ? compositeScore(matches[open.id], weights) : undefined}
           profile={profile}
           apiKey={apiKey}
+          saved={savedIds.has(open.id)}
           onClose={() => setOpen(null)}
         />
       )}
     </div>
   )
+}
+
+function regionLabelKey(code: string): TranslationKey {
+  const keys: Record<string, TranslationKey> = {
+    de: 'region.de',
+    at: 'region.at',
+    ch: 'region.ch',
+    nl: 'region.nl',
+    lu: 'region.lu',
+    li: 'region.li',
+  }
+  return keys[code] ?? 'region.de'
 }
 
 function sourceLabelKey(s: SourceId | 'ats'): TranslationKey {
