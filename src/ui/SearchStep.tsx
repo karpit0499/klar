@@ -17,6 +17,7 @@ import { partitionByHardFilters } from '../match/germanMarket'
 import { aggregateGaps } from '../match/gaps'
 import { getActiveRegion } from '../regions'
 import { db } from '../db/db'
+import { loadAdzunaKey } from '../settings/adzunaKey'
 import { jobsToRows, downloadCsv, downloadXlsx, printRowsAsPdf } from '../export/exporters'
 import type {
   MatchResult, NormalizedJob, Preferences, Profile, Region, ScoreWeights, SearchQuery, SourceId,
@@ -70,7 +71,12 @@ export function SearchStep({
     setPhase('gathering')
     setMatches({})
     try {
-      const gathered = await gatherJobs(query, { region })
+      const adzunaKey = await loadAdzunaKey()
+
+      const gathered = await gatherJobs(query, {
+        region,
+        adzunaKey,
+      })
       setJobs(gathered.jobs)
       setStatus(gathered.status)
 
