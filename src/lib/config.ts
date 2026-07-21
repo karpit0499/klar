@@ -26,9 +26,9 @@ export const GROQ = {
    * https://console.groq.com/docs/models and change this one constant if needed.
    * 70B gives the best parse/matching quality on the free tier.
    */
-  model: 'llama-3.3-70b-versatile',
+  model: 'openai/gpt-oss-120b',
   /** A smaller/faster fallback you can switch to for speed over quality. */
-  fastModel: 'llama-3.1-8b-instant',
+  fastModel: 'openai/gpt-oss-20b',
 } as const
 
 /** Matching tuning knobs (Phase 5). */
