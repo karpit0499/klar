@@ -4,8 +4,11 @@ import { useEffect, useState } from 'react'
 import { Button, Card, Field, TextInput, Spinner, Badge } from './atoms'
 import { loadGroqKey, saveGroqKey, clearGroqKey, isRemembered } from '../settings/keys'
 import { pingGroqKey } from '../llm/groq'
+import { useT } from '../i18n/LocaleProvider'
 
 export function KeyGate({ onReady }: { onReady: (key: string) => void }) {
+  const t = useT()
+
   const [key, setKey] = useState('')
   const [remember, setRemember] = useState(true)
   const [status, setStatus] = useState<'idle' | 'checking' | 'ok' | 'error'>('idle')
@@ -34,7 +37,7 @@ export function KeyGate({ onReady }: { onReady: (key: string) => void }) {
       onReady(key.trim())
     } else {
       setStatus('error')
-      setError(res.error || 'That key did not work.')
+      setError(res.error || t('key.keyFailed'))
     }
   }
 
@@ -48,24 +51,21 @@ export function KeyGate({ onReady }: { onReady: (key: string) => void }) {
   return (
     <div className="mx-auto max-w-lg p-6">
       <Card className="p-6">
-        <h1 className="text-xl font-semibold">Connect your free Groq key</h1>
-        <p className="mt-2 text-sm text-gray-600">
-          Klar uses Groq's free API for résumé parsing and job matching. Your key is sent
-          only to Groq, directly from your browser — never to our server.
-        </p>
-        <ol className="mt-3 list-decimal space-y-1 pl-5 text-sm text-gray-600">
+        <h1 className="text-xl font-semibold text-ink">{t('key.title')}</h1>
+        <p className="mt-2 text-sm text-muted">{t('key.intro')}</p>
+        <ol className="mt-3 list-decimal space-y-1 pl-5 text-sm text-muted">
           <li>
-            Open{' '}
-            <a className="text-indigo-600 underline" href="https://console.groq.com/keys" target="_blank" rel="noreferrer">
+            {t('key.step1Open')}{' '}
+            <a className="text-accent underline" href="https://console.groq.com/keys" target="_blank" rel="noreferrer">
               console.groq.com/keys
             </a>{' '}
-            and create a key (free, ~30 seconds).
+            {t('key.step1After')}
           </li>
-          <li>Paste it below and click Validate.</li>
+          <li>{t('key.step2')}</li>
         </ol>
 
         <div className="mt-4 space-y-3">
-          <Field label="Groq API key" hint="Starts with gsk_…">
+          <Field label={t('key.fieldLabel')} hint={t('key.fieldHint')}>
             <TextInput
               type="password"
               placeholder="gsk_…"
@@ -75,24 +75,24 @@ export function KeyGate({ onReady }: { onReady: (key: string) => void }) {
             />
           </Field>
 
-          <label className="flex items-center gap-2 text-sm text-gray-700">
+          <label className="flex items-center gap-2 text-sm text-ink">
             <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
-            Remember on this device (uncheck on shared computers)
+            {t('key.remember')}
           </label>
 
           <div className="flex items-center gap-3">
             <Button onClick={validateAndSave} disabled={status === 'checking' || !key.trim()}>
-              {status === 'checking' ? <Spinner label="Validating…" /> : 'Validate & continue'}
+              {status === 'checking' ? <Spinner label={t('key.validating')} /> : t('key.validateContinue')}
             </Button>
             {hasStored && (
               <Button variant="ghost" onClick={forget}>
-                Forget key
+                {t('key.forget')}
               </Button>
             )}
-            {status === 'ok' && <Badge tone="green">Key works</Badge>}
+            {status === 'ok' && <Badge tone="success">{t('key.keyWorks')}</Badge>}
           </div>
 
-          {status === 'error' && <p className="text-sm text-red-600">{error}</p>}
+          {status === 'error' && <p className="text-sm text-danger">{error}</p>}
         </div>
       </Card>
     </div>

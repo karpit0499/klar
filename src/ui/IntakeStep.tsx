@@ -3,9 +3,21 @@
 import { useState } from 'react'
 import { Button, Card, Field, TextInput } from './atoms'
 import type { Preferences, Profile } from '../types'
+import { useT } from '../i18n/LocaleProvider'
+import type { TranslationKey } from '../i18n/translations'
 
 const csv = (s: string): string[] =>
   s.split(',').map((x) => x.trim()).filter(Boolean)
+
+// Seniority value → translation key (type-safe: every value maps to a key).
+const SEN_KEY: Record<Preferences['seniority'], TranslationKey> = {
+  intern: 'intake.sen.intern',
+  junior: 'intake.sen.junior',
+  mid: 'intake.sen.mid',
+  senior: 'intake.sen.senior',
+  lead: 'intake.sen.lead',
+  exec: 'intake.sen.exec',
+}
 
 export function IntakeStep({
   profile,
@@ -16,8 +28,10 @@ export function IntakeStep({
   initial?: Preferences
   onSave: (p: Preferences) => void
 }) {
+  const t = useT()
+
   const [titles, setTitles] = useState(
-    (initial?.targetTitles ?? profile.titles.map((t) => t.title)).join(', '),
+    (initial?.targetTitles ?? profile.titles.map((x) => x.title)).join(', '),
   )
   const [seniority, setSeniority] = useState<Preferences['seniority']>(initial?.seniority ?? 'mid')
   const [salaryMin, setSalaryMin] = useState(initial?.salary.min?.toString() ?? '')
@@ -69,27 +83,27 @@ export function IntakeStep({
   return (
     <div className="mx-auto max-w-2xl p-6">
       <Card className="p-6">
-        <h2 className="text-lg font-semibold">What are you looking for?</h2>
+        <h2 className="text-lg font-semibold text-ink">{t('intake.title')}</h2>
         <div className="mt-4 space-y-4">
-          <Field label="Target titles" hint="Comma-separated. We search each one.">
+          <Field label={t('intake.targetTitles')} hint={t('intake.targetTitlesHint')}>
             <TextInput value={titles} onChange={(e) => setTitles(e.target.value)} placeholder="Data Scientist, ML Engineer" />
           </Field>
 
           <div className="grid grid-cols-2 gap-4">
-            <Field label="Seniority">
+            <Field label={t('intake.seniority')}>
               <select
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink"
                 value={seniority}
                 onChange={(e) => setSeniority(e.target.value as Preferences['seniority'])}
               >
                 {(['intern', 'junior', 'mid', 'senior', 'lead', 'exec'] as const).map((s) => (
                   <option key={s} value={s}>
-                    {s}
+                    {t(SEN_KEY[s])}
                   </option>
                 ))}
               </select>
             </Field>
-            <Field label="Min salary (€/year)" hint="Optional">
+            <Field label={t('intake.minSalary')} hint={t('common.optional')}>
               <TextInput
                 type="number"
                 value={salaryMin}
@@ -100,60 +114,60 @@ export function IntakeStep({
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-            <Field label="City">
+            <Field label={t('intake.city')}>
               <TextInput value={city} onChange={(e) => setCity(e.target.value)} placeholder="Berlin" />
             </Field>
-            <Field label="Radius (km)">
+            <Field label={t('intake.radius')}>
               <TextInput type="number" value={radius} onChange={(e) => setRadius(e.target.value)} />
             </Field>
           </div>
 
-          <label className="flex items-center gap-2 text-sm text-gray-700">
+          <label className="flex items-center gap-2 text-sm text-ink">
             <input type="checkbox" checked={remoteOnly} onChange={(e) => setRemoteOnly(e.target.checked)} />
-            Remote only
+            {t('intake.remoteOnly')}
           </label>
 
-          <Field label="Must-haves" hint="Comma-separated keywords the role should mention">
+          <Field label={t('intake.mustHaves')} hint={t('intake.mustHavesHint')}>
             <TextInput value={mustHaves} onChange={(e) => setMustHaves(e.target.value)} placeholder="Python, GCP" />
           </Field>
-          <Field label="Dealbreakers" hint="Roles mentioning these are hidden">
+          <Field label={t('intake.dealbreakers')} hint={t('intake.dealbreakersHint')}>
             <TextInput value={dealbreakers} onChange={(e) => setDealbreakers(e.target.value)} placeholder="unpaid, on-site only" />
           </Field>
 
           {/* German-market gating (features 2.1 & 2.2). */}
-          <div className="rounded-lg border border-gray-200 p-3">
-            <p className="text-sm font-medium text-gray-700">German market</p>
+          <div className="rounded-lg border border-border p-3">
+            <p className="text-sm font-medium text-ink">{t('intake.germanMarket')}</p>
             <div className="mt-3 grid grid-cols-2 gap-4">
-              <Field label="Your German level">
+              <Field label={t('intake.germanLevel')}>
                 <select
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                  className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink"
                   value={germanLevel}
                   onChange={(e) => setGermanLevel(e.target.value)}
                 >
-                  <option value="">Not specified</option>
+                  <option value="">{t('profile.notSpecified')}</option>
                   {['A1', 'A2', 'B1', 'B2', 'C1', 'C2', 'Native'].map((l) => (
-                    <option key={l} value={l}>{l}</option>
+                    <option key={l} value={l}>{l === 'Native' ? t('intake.levelNative') : l}</option>
                   ))}
                 </select>
               </Field>
-              <label className="flex items-end gap-2 pb-2 text-sm text-gray-700">
+              <label className="flex items-end gap-2 pb-2 text-sm text-ink">
                 <input type="checkbox" checked={needsVisa} onChange={(e) => setNeedsVisa(e.target.checked)} />
-                I need visa sponsorship
+                {t('intake.needVisa')}
               </label>
             </div>
-            <div className="mt-2 space-y-2 text-sm text-gray-700">
+            <div className="mt-2 space-y-2 text-sm text-ink">
               <label className="flex items-center gap-2">
                 <input type="checkbox" checked={hideGerman} onChange={(e) => setHideGerman(e.target.checked)} />
-                Hide roles requiring German above my level
+                {t('search.hideGerman')}
               </label>
               <label className="flex items-center gap-2">
                 <input type="checkbox" checked={hideNoVisa} onChange={(e) => setHideNoVisa(e.target.checked)} />
-                Hide roles without visa sponsorship
+                {t('search.hideNoVisa')}
               </label>
             </div>
           </div>
 
-          <Button onClick={save}>Save & find jobs</Button>
+          <Button onClick={save}>{t('intake.save')}</Button>
         </div>
       </Card>
     </div>

@@ -137,6 +137,13 @@ export type Region = {
   distanceUnit: 'km' | 'mi'
   sources: SourceId[]
   uiLocales: string[]
+  /**
+   * Adzuna's 2-letter country slug for this market (e.g. 'de', 'at', 'ch', 'nl').
+   * Only meaningful when 'adzuna' is in `sources`. Adzuna does not cover every
+   * country (Luxembourg/Liechtenstein have no feed), so those regions omit both
+   * this field and 'adzuna' from `sources`.
+   */
+  adzunaCountry?: string
   resolveLocation: (city: string) => { lat?: number; lng?: number; canonical: string }
 }
 

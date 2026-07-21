@@ -1,12 +1,36 @@
 <!doctype html>
-<html lang="en">
+<html lang="de">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="manifest" href="/manifest.webmanifest" />
-    <meta name="theme-color" content="#4f46e5" />
+    <!-- Brand theme-color, one per scheme so the mobile browser chrome matches. -->
+    <meta name="theme-color" content="#f5f5f3" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0b0b0c" media="(prefers-color-scheme: dark)" />
     <link rel="icon" href="/icon.svg" type="image/svg+xml" />
     <title>Klar — Job Tracker</title>
+    <!--
+      Apply the saved theme BEFORE first paint to avoid a flash of the wrong
+      scheme (FOUC). This must be inline + synchronous and must run before the
+      app bundle. It mirrors resolveTheme() in src/ui/theme.ts.
+    -->
+    <script>
+      (function () {
+        try {
+          var m = localStorage.getItem('klar-theme') || 'system'
+          var dark =
+            m === 'dark' ||
+            (m === 'system' &&
+              window.matchMedia &&
+              window.matchMedia('(prefers-color-scheme: dark)').matches)
+          var root = document.documentElement
+          root.classList.toggle('dark', dark)
+          root.style.colorScheme = dark ? 'dark' : 'light'
+        } catch (e) {
+          /* no-op: default light theme */
+        }
+      })()
+    </script>
   </head>
   <body>
     <div id="root"></div>

@@ -1,5 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
-  <rect width="512" height="512" rx="96" fill="#4f46e5"/>
-  <text x="50%" y="50%" dy="0.35em" text-anchor="middle"
-        font-family="system-ui, sans-serif" font-size="300" font-weight="700" fill="#ffffff">K</text>
+  <!-- Klar app icon / favicon: cobalt tile, white K. monogram (brand). -->
+  <rect width="512" height="512" rx="112" fill="#2C4BFF"/>
+  <text x="188" y="352" text-anchor="middle"
+        font-family="'Space Grotesk', ui-sans-serif, system-ui, sans-serif"
+        font-size="300" font-weight="700" letter-spacing="-12" fill="#FFFFFF">K</text>
+  <!-- The full stop — the fixed brand device — as a solid dot for size independence. -->
+  <circle cx="330" cy="330" r="34" fill="#FFFFFF"/>
 </svg>

@@ -28,6 +28,7 @@ export const regionDE: Region = {
   // BA + Adzuna are German aggregators; Arbeitnow + the ATS trio are global but
   // the verified registry we ship is DACH-focused.
   sources: ['ba', 'adzuna', 'arbeitnow', 'greenhouse', 'lever', 'ashby'],
+  adzunaCountry: 'de',
   uiLocales: ['de', 'en'],
   resolveLocation(city: string) {
     const key = (city || '').trim().toLowerCase()

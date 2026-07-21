@@ -11,6 +11,7 @@ import type {
   MatchResult,
   TrackedJob,
   Dashboard,
+  SearchQuery,
 } from '../types'
 
 /** Key/value settings row (e.g. active profile id, UI locale). Keys, not secrets. */
@@ -21,6 +22,22 @@ export type DashboardRow = Dashboard & { id: string }
 
 /** A cached embedding vector for one job (feature 1.4 semantic pre-filter). */
 export type VectorRow = { jobId: string; embedderId: string; dim: number; vec: number[] }
+
+/** A persisted saved search + the job ids already seen, for "new since last check" (feature 10). */
+export type SavedSearchRow = {
+  id: string
+  name: string
+  query: SearchQuery
+  region?: string
+  employment?: string[]
+  hideList?: string[]
+  maxDistanceKm?: number
+  maxAgeDays?: number
+  seenJobIds: string[]
+  createdAt: string
+  updatedAt: string
+  lastRunAt?: string
+}
 
 /** A cached job fetch, keyed by the search signature. */
 export type JobCacheRow = {
@@ -47,6 +64,7 @@ export class KlarDB extends Dexie {
   tracked!: Table<TrackedJob, string>
   dashboard!: Table<DashboardRow, string>
   vectors!: Table<VectorRow, string>
+  savedSearches!: Table<SavedSearchRow, string>
 
   constructor() {
     super('klar')
@@ -73,6 +91,19 @@ export class KlarDB extends Dexie {
       dashboard: 'id',
       vectors: 'jobId, embedderId',
     })
+    // v3 — adds saved searches for "new since last check" (feature 10). Existing
+    // stores keep their data; the new one starts empty.
+    this.version(3).stores({
+      settings: 'key',
+      profiles: 'id, createdAt',
+      preferences: 'id',
+      jobs: 'queryKey, fetchedAt',
+      matches: 'cacheKey, jobId',
+      tracked: 'jobId, status, updatedAt',
+      dashboard: 'id',
+      vectors: 'jobId, embedderId',
+      savedSearches: 'id, updatedAt',
+    })
   }
 }
 
@@ -89,7 +120,7 @@ export async function setSetting(key: string, value: unknown): Promise<void> {
 }
 
 /** Setting keys that must NEVER be written to an export file (they hold secrets). */
-const SECRET_SETTING_KEYS = new Set(['groqKey', 'groqKeyRemember'])
+const SECRET_SETTING_KEYS = new Set(['groqKey', 'groqKeyRemember', 'adzunaAppId', 'adzunaAppKey'])
 
 /**
  * Export the whole database to a plain object (for the Export button).
@@ -97,7 +128,7 @@ const SECRET_SETTING_KEYS = new Set(['groqKey', 'groqKeyRemember'])
  * secret — the backup is your data, not your credentials.
  */
 export async function exportAll(): Promise<Record<string, unknown[]>> {
-  const [settings, profiles, preferences, jobs, matches, tracked, dashboard, vectors] =
+  const [settings, profiles, preferences, jobs, matches, tracked, dashboard, vectors, savedSearches] =
     await Promise.all([
       db.settings.toArray(),
       db.profiles.toArray(),
@@ -107,9 +138,10 @@ export async function exportAll(): Promise<Record<string, unknown[]>> {
       db.tracked.toArray(),
       db.dashboard.toArray(),
       db.vectors.toArray(),
+      db.savedSearches.toArray(),
     ])
   const safeSettings = settings.filter((s) => !SECRET_SETTING_KEYS.has(s.key))
-  return { settings: safeSettings, profiles, preferences, jobs, matches, tracked, dashboard, vectors }
+  return { settings: safeSettings, profiles, preferences, jobs, matches, tracked, dashboard, vectors, savedSearches }
 }
 
 /**
@@ -120,7 +152,7 @@ export async function exportAll(): Promise<Record<string, unknown[]>> {
 export async function importAll(data: Record<string, unknown[]>): Promise<void> {
   await db.transaction(
     'rw',
-    [db.settings, db.profiles, db.preferences, db.jobs, db.matches, db.tracked, db.dashboard, db.vectors],
+    [db.settings, db.profiles, db.preferences, db.jobs, db.matches, db.tracked, db.dashboard, db.vectors, db.savedSearches],
     async () => {
       // Keep the secret settings (the API key) that live only on this device.
       const preserved: Setting[] = []
@@ -137,6 +169,7 @@ export async function importAll(data: Record<string, unknown[]>): Promise<void> 
         db.tracked.clear(),
         db.dashboard.clear(),
         db.vectors.clear(),
+        db.savedSearches.clear(),
       ])
       if (data.settings) await db.settings.bulkPut(data.settings as Setting[])
       if (preserved.length) await db.settings.bulkPut(preserved)
@@ -147,6 +180,7 @@ export async function importAll(data: Record<string, unknown[]>): Promise<void> 
       if (data.tracked) await db.tracked.bulkPut(data.tracked as TrackedJob[])
       if (data.dashboard) await db.dashboard.bulkPut(data.dashboard as DashboardRow[])
       if (data.vectors) await db.vectors.bulkPut(data.vectors as VectorRow[])
+      if (data.savedSearches) await db.savedSearches.bulkPut(data.savedSearches as SavedSearchRow[])
     },
   )
 }
@@ -162,5 +196,6 @@ export async function wipeAllData(): Promise<void> {
     db.tracked.clear(),
     db.dashboard.clear(),
     db.vectors.clear(),
+    db.savedSearches.clear(),
   ])
 }

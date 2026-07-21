@@ -10,10 +10,11 @@
 // Worker returns a friendly note and the app shows "Adzuna: quota reached".
 // ============================================================================
 import type { SearchQuery } from '../types'
-import type { Adapter } from './types'
+import type { AdapterResult } from './types'
 import { getJson, workerUrl } from '../lib/http'
 import { makeJob, toISO } from './normalize'
 import { stripHtml } from '../lib/html'
+import type { AdzunaKey } from '../settings/adzunaKey'
 
 type AdzunaResponse = {
   results?: AdzunaJob[]
@@ -34,17 +35,48 @@ type AdzunaJob = {
   longitude?: number
 }
 
-export const fetchAdzuna: Adapter = async (q: SearchQuery, opts = {}) => {
+/** Adzuna's 2-letter country slugs → the human label we store on each job. */
+const ADZUNA_COUNTRY_LABELS: Record<string, string> = {
+  de: 'Deutschland',
+  at: 'Österreich',
+  ch: 'Schweiz',
+  nl: 'Niederlande',
+  gb: 'United Kingdom',
+}
+
+/**
+ * Adzuna quotes salaries in the country's OWN currency, so the label has to
+ * follow the country — not a hard-coded EUR. Switzerland (and Liechtenstein, in
+ * a currency union with it) use the Swiss franc; the UK uses sterling. Exported
+ * so the salary-benchmark helper (feature 14) labels its histogram the same way.
+ */
+export const ADZUNA_COUNTRY_CURRENCY: Record<string, string> = {
+  de: 'EUR',
+  at: 'EUR',
+  nl: 'EUR',
+  ch: 'CHF',
+  gb: 'GBP',
+}
+
+export const fetchAdzuna = async (
+  q: SearchQuery,
+  opts: { signal?: AbortSignal; page?: number; key?: AdzunaKey; country?: string } = {},
+): Promise<AdapterResult> => {
   const what = q.what.join(' ')
   const where = q.where?.city ?? ''
   const distance = q.where?.radius_km ?? 25
   const page = opts.page ?? 1
+  const country = (opts.country || 'de').toLowerCase()
+  const countryLabel = ADZUNA_COUNTRY_LABELS[country] ?? country.toUpperCase()
   const qs =
-    `/v1/api/jobs/de/search/${page}?results_per_page=50` +
+    `/v1/api/jobs/${country}/search/${page}?results_per_page=50` +
     `&what=${encodeURIComponent(what)}` +
     (where ? `&where=${encodeURIComponent(where)}&distance=${distance}` : '')
 
-  const data = await getJson<AdzunaResponse>(workerUrl('adzuna', qs), { signal: opts.signal })
+  const data = await getJson<AdzunaResponse>(workerUrl('adzuna', qs), {
+    signal: opts.signal,
+    headers: adzunaKeyHeaders(opts.key),
+  })
   const results = data.results ?? []
 
   const jobs = results
@@ -60,7 +92,7 @@ export const fetchAdzuna: Adapter = async (q: SearchQuery, opts = {}) => {
         location: {
           city: city || undefined,
           region: area.length > 1 ? area[1] : undefined,
-          country: 'Deutschland',
+          country: countryLabel,
           remote: /remote/i.test(`${r.title} ${r.location?.display_name ?? ''}`),
           lat: r.latitude,
           lng: r.longitude,
@@ -72,7 +104,7 @@ export const fetchAdzuna: Adapter = async (q: SearchQuery, opts = {}) => {
         salary: {
           min: r.salary_min,
           max: r.salary_max,
-          currency: 'EUR',
+          currency: ADZUNA_COUNTRY_CURRENCY[country] ?? 'EUR',
           period: 'year',
         },
         raw: r,
@@ -80,4 +112,10 @@ export const fetchAdzuna: Adapter = async (q: SearchQuery, opts = {}) => {
     })
 
   return { jobs }
+}
+
+/** Build the per-request headers that relay a user's Adzuna key to the Worker. */
+export function adzunaKeyHeaders(key?: AdzunaKey): Record<string, string> | undefined {
+  if (!key) return undefined
+  return { 'X-Adzuna-App-Id': key.appId, 'X-Adzuna-App-Key': key.appKey }
 }

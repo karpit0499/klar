@@ -5,6 +5,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { Button, Card, Spinner, Badge } from './atoms'
 import { JobCard } from './JobCard'
 import { JobDrawer } from './JobDrawer'
+import { useT } from '../i18n/LocaleProvider'
+import type { TranslationKey } from '../i18n/translations'
 import { GapSummary } from './GapSummary'
 import { WeightsPanel } from './WeightsPanel'
 import { gatherJobs } from '../sources'
@@ -30,6 +32,7 @@ export function SearchStep({
   apiKey: string
 }) {
   const [jobs, setJobs] = useState<NormalizedJob[]>([])
+  const t = useT()
   const [matches, setMatches] = useState<Record<string, MatchResult>>({})
   const [status, setStatus] = useState<SourceStatus[]>([])
   const [phase, setPhase] = useState<'idle' | 'gathering' | 'matching' | 'done'>('idle')
@@ -119,55 +122,55 @@ export function SearchStep({
       <Card className="p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h2 className="text-lg font-semibold">Find jobs</h2>
-            <p className="text-sm text-gray-600">
-              Searching {query.what.filter(Boolean).join(', ') || 'all roles'}
-              {query.where ? ` near ${query.where.city}` : ''}
+            <h2 className="text-lg font-semibold">{t('search.title')}</h2>
+            <p className="text-sm text-muted">
+              {t('search.searching', {
+                roles: query.what.filter(Boolean).join(', ') || t('search.allRoles'),
+              })}
+              {query.where ? ` ${t('search.near', { city: query.where.city })}` : ''}
               {region ? ` · ${region.label}` : ''}
             </p>
           </div>
           <Button onClick={run} disabled={phase === 'gathering' || phase === 'matching'}>
             {phase === 'gathering' ? (
-              <Spinner label="Gathering…" />
+              <Spinner label={t('search.gathering')} />
             ) : phase === 'matching' ? (
-              <Spinner label="Matching…" />
+              <Spinner label={t('search.matching')} />
             ) : (
-              'Search & match'
+              t('search.run')
             )}
           </Button>
         </div>
 
         {/* Candidate-selection mode (feature 1.4). */}
         <div className="mt-3 flex flex-wrap items-center gap-4 text-sm">
-          <span className="text-gray-600">Pre-filter:</span>
+          <span className="text-muted">{t('search.prefilter')}</span>
           {(['keyword', 'semantic'] as const).map((m) => (
             <label key={m} className="flex items-center gap-1.5">
               <input type="radio" name="mode" checked={mode === m} onChange={() => setMode(m)} />
-              <span className="capitalize">{m}</span>
+              <span>{m === 'keyword' ? t('search.mode.keyword') : t('search.mode.semantic')}</span>
             </label>
           ))}
-          <span className="text-xs text-gray-400">
-            (semantic = cosine similarity on embeddings)
-          </span>
+          <span className="text-xs text-faint">{t('search.mode.hint')}</span>
         </div>
 
         {/* Hard filters (features 2.1 & 2.2). */}
         <div className="mt-2 flex flex-wrap items-center gap-4 text-sm">
           <label className="flex items-center gap-1.5">
             <input type="checkbox" checked={hideGerman} onChange={(e) => setHideGerman(e.target.checked)} />
-            Hide roles requiring German above my level
+            {t('search.hideGerman')}
           </label>
           <label className="flex items-center gap-1.5">
             <input type="checkbox" checked={hideNoVisa} onChange={(e) => setHideNoVisa(e.target.checked)} />
-            Hide roles without visa sponsorship
+            {t('search.hideNoVisa')}
           </label>
         </div>
 
         {status.length > 0 && (
           <div className="mt-3 flex flex-wrap gap-2">
             {status.map((s) => (
-              <Badge key={s.source} tone={s.ok ? 'green' : 'red'}>
-                {sourceLabel(s.source)}: {s.ok ? `${s.count}` : 'failed'}
+              <Badge key={s.source} tone={s.ok ? 'success' : 'danger'}>
+                {t(sourceLabelKey(s.source))}: {s.ok ? `${s.count}` : t('search.failed')}
                 {s.note ? ` (${s.note})` : ''}
               </Badge>
             ))}
@@ -175,21 +178,21 @@ export function SearchStep({
         )}
 
         {phase === 'matching' && progress && (
-          <p className="mt-2 text-sm text-gray-600">
+          <p className="mt-2 text-sm text-muted">
             {progress.phase === 'score'
-              ? `Scoring ${progress.done}/${progress.total} candidates…`
+              ? t('search.scoring', { done: progress.done, total: progress.total })
               : `${progress.phase}…`}
           </p>
         )}
-        {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+        {error && <p className="mt-2 text-sm text-danger">{error}</p>}
 
         {/* Export the current results (feature 3.1). */}
         {hasMatches && (
           <div className="mt-3 flex flex-wrap items-center gap-2">
-            <span className="text-sm text-gray-600">Export:</span>
-            <Button variant="ghost" className="px-3 py-1.5" onClick={() => exportResults('csv')}>CSV</Button>
-            <Button variant="ghost" className="px-3 py-1.5" onClick={() => exportResults('xlsx')}>XLSX</Button>
-            <Button variant="ghost" className="px-3 py-1.5" onClick={() => exportResults('pdf')}>PDF</Button>
+            <span className="text-sm text-muted">{t('search.export')}</span>
+            <Button variant="ghost" size="sm" onClick={() => exportResults('csv')}>CSV</Button>
+            <Button variant="ghost" size="sm" onClick={() => exportResults('xlsx')}>XLSX</Button>
+            <Button variant="ghost" size="sm" onClick={() => exportResults('pdf')}>PDF</Button>
           </div>
         )}
       </Card>
@@ -220,23 +223,25 @@ export function SearchStep({
       {/* Roles hidden by the hard filters, kept visible but segregated (2.1/2.2). */}
       {hasMatches && view.hidden.length > 0 && (
         <details className="mt-6">
-          <summary className="cursor-pointer text-sm font-medium text-gray-600">
-            {view.hidden.length} role{view.hidden.length === 1 ? '' : 's'} hidden by your filters
+          <summary className="cursor-pointer text-sm font-medium text-muted">
+            {view.hidden.length === 1
+              ? t('search.hiddenCountOne')
+              : t('search.hiddenCount', { n: view.hidden.length })}
           </summary>
           <div className="mt-3 space-y-2">
             {view.hidden.map(({ item, reasons }) => (
-              <div key={item.id} className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm">
+              <div key={item.id} className="rounded-lg border border-border bg-surface-2 p-3 text-sm">
                 <div className="flex items-center justify-between gap-2">
-                  <span className="truncate font-medium text-gray-700">
+                  <span className="truncate font-medium text-ink">
                     {item.title} · {item.company}
                   </span>
-                  <a href={item.url} target="_blank" rel="noreferrer" className="shrink-0 text-indigo-600 underline">
-                    Open ↗
+                  <a href={item.url} target="_blank" rel="noreferrer" className="shrink-0 text-accent underline">
+                    {t('card.open')}
                   </a>
                 </div>
                 <div className="mt-1 flex flex-wrap gap-1.5">
                   {reasons.map((r) => (
-                    <Badge key={r} tone="red">{r}</Badge>
+                    <Badge key={r} tone="danger">{r}</Badge>
                   ))}
                 </div>
               </div>
@@ -246,8 +251,8 @@ export function SearchStep({
       )}
 
       {phase === 'done' && shownJobs.length === 0 && (
-        <p className="mt-6 text-center text-sm text-gray-500">
-          No matches. Try broadening your titles or radius.
+        <p className="mt-6 text-center text-sm text-faint">
+          {t('search.noMatches')}
         </p>
       )}
 
@@ -265,12 +270,12 @@ export function SearchStep({
   )
 }
 
-function sourceLabel(s: SourceId | 'ats'): string {
-  const labels: Record<string, string> = {
-    ba: 'Bundesagentur',
-    arbeitnow: 'Arbeitnow',
-    adzuna: 'Adzuna',
-    ats: 'Company boards',
+function sourceLabelKey(s: SourceId | 'ats'): TranslationKey {
+  const keys: Record<string, TranslationKey> = {
+    ba: 'source.ba',
+    arbeitnow: 'source.arbeitnow',
+    adzuna: 'source.adzuna',
+    ats: 'source.ats',
   }
-  return labels[s] ?? s
+  return keys[s] ?? 'source.ats'
 }

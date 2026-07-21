@@ -22,7 +22,10 @@ export const regionNL: Region = {
   label: 'Netherlands',
   currency: 'EUR',
   distanceUnit: 'km',
-  sources: ['arbeitnow', 'greenhouse', 'lever', 'ashby'],
+  // Adzuna does cover the Netherlands, so it joins the region-agnostic sources.
+  // BA stays Germany-only. Arbeitnow lists NL roles; the ATS trio is global.
+  sources: ['adzuna', 'arbeitnow', 'greenhouse', 'lever', 'ashby'],
+  adzunaCountry: 'nl',
   uiLocales: ['nl', 'en'],
   resolveLocation(city: string) {
     const key = (city || '').trim().toLowerCase()

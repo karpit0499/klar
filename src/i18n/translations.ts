@@ -1,0 +1,545 @@
+// ============================================================================
+// Translation dictionary (feature 20). German-first, English second — the brand
+// voice is "German-first (DE UI, EN toggle)". Keys are dotted namespaces
+// (nav.*, search.*, card.*) so related strings stay together and unused keys are
+// easy to spot.
+//
+// The `en` object is the source of truth for the KEY SET: TranslationKey is
+// derived from it, so every key must exist in `en`, and TypeScript will flag any
+// key missing from `de`. That turns "did we translate everything?" into a
+// compile-time check instead of a runtime surprise.
+// ============================================================================
+
+export type Locale = 'de' | 'en'
+
+// English defines the canonical key set.
+const en = {
+  // App shell + navigation
+  'app.tagline': 'job tracker',
+  'nav.aria': 'Main navigation',
+  'nav.ariaMobile': 'Main navigation (mobile)',
+  'nav.dashboard': 'Dashboard',
+  'nav.search': 'Search',
+  'nav.tracker': 'Tracker',
+  'nav.settings': 'Settings',
+  'shell.skipToContent': 'Skip to content',
+  'theme.aria': 'Colour scheme',
+  'theme.light': 'Light',
+  'theme.system': 'System',
+  'theme.dark': 'Dark',
+  'locale.aria': 'Language',
+
+  // Search screen
+  'search.title': 'Find jobs',
+  'search.searching': 'Searching {roles}',
+  'search.allRoles': 'all roles',
+  'search.near': 'near {city}',
+  'search.run': 'Search & match',
+  'search.gathering': 'Gathering…',
+  'search.matching': 'Matching…',
+  'search.prefilter': 'Pre-filter:',
+  'search.mode.keyword': 'keyword',
+  'search.mode.semantic': 'semantic',
+  'search.mode.hint': '(semantic = cosine similarity on embeddings)',
+  'search.hideGerman': 'Hide roles requiring German above my level',
+  'search.hideNoVisa': 'Hide roles without visa sponsorship',
+  'search.scoring': 'Scoring {done}/{total} candidates…',
+  'search.export': 'Export:',
+  'search.hiddenCount': '{n} roles hidden by your filters',
+  'search.hiddenCountOne': '1 role hidden by your filters',
+  'search.noMatches': 'No matches. Try broadening your titles or radius.',
+  'search.failed': 'failed',
+  'source.ba': 'Bundesagentur',
+  'source.arbeitnow': 'Arbeitnow',
+  'source.adzuna': 'Adzuna',
+  'source.ats': 'Company boards',
+
+  // Job card
+  'card.remote': 'Remote',
+  'card.gap': '+ {skill}',
+  'card.details': 'Details',
+  'card.open': 'Open ↗',
+  'card.save': 'Save',
+  'card.saved': 'Saved ✓',
+
+  // Generic
+  'common.close': 'Close',
+  'common.loading': 'Loading…',
+  'common.save': 'Save',
+  'common.edit': 'Edit',
+  'common.add': 'Add',
+  'common.remove': 'remove',
+  'common.reset': 'Reset',
+  'common.optional': 'Optional',
+  'common.copy': 'Copy',
+  'common.copied': 'Copied ✓',
+  'common.drafting': 'Drafting…',
+  'common.regenerate': 'Regenerate',
+  'common.yearsShort': '{years}y',
+
+  // Score factors (shared: WeightsPanel + JobDrawer breakdown)
+  'factor.skills': 'Skills',
+  'factor.salary': 'Salary',
+  'factor.location': 'Location',
+  'factor.seniority': 'Seniority',
+
+  // Application statuses (shared: TrackedDrawer + TrackerBoard)
+  'status.new': 'New',
+  'status.interested': 'Interested',
+  'status.applied': 'Applied',
+  'status.interviewing': 'Interviewing',
+  'status.offer': 'Offer',
+  'status.rejected': 'Rejected',
+  'status.archived': 'Archived',
+
+  // Groq key gate
+  'key.title': 'Connect your free Groq key',
+  'key.intro':
+    "Klar uses Groq's free API for résumé parsing and job matching. Your key is sent only to Groq, directly from your browser — never to our server.",
+  'key.step1Open': 'Open',
+  'key.step1After': 'and create a key (free, ~30 seconds).',
+  'key.step2': 'Paste it below and click Validate.',
+  'key.fieldLabel': 'Groq API key',
+  'key.fieldHint': 'Starts with gsk_…',
+  'key.remember': 'Remember on this device (uncheck on shared computers)',
+  'key.validating': 'Validating…',
+  'key.validateContinue': 'Validate & continue',
+  'key.forget': 'Forget key',
+  'key.keyWorks': 'Key works',
+  'key.keyFailed': 'That key did not work.',
+
+  // Résumé upload (onboarding)
+  'resume.tooShort': 'That looks too short to be a résumé. Paste more text or upload a file.',
+  'resume.parseFailed': 'Parsing failed.',
+  'resume.readFailed': 'Could not read that file.',
+  'resume.title': 'Add your résumé',
+  'resume.intro':
+    'PDF, DOCX, or paste text. Everything is processed in your browser; the file is never uploaded to us.',
+  'resume.chooseFile': 'Click to choose a file',
+  'resume.fileHint': 'PDF or DOCX',
+  'resume.orPaste': '…or paste résumé text',
+  'resume.placeholder': 'Paste your résumé here…',
+  'resume.parsePasted': 'Parse pasted text',
+  'resume.readingFile': 'Reading file…',
+  'resume.parsingAI': 'Parsing résumé with AI…',
+
+  // Profile review
+  'profile.title': 'Does this look right?',
+  'profile.noSummary': 'No summary extracted.',
+  'profile.titles': 'Titles',
+  'profile.noneFound': 'None found',
+  'profile.skillsCount': 'Skills ({n})',
+  'profile.experience': 'Experience',
+  'profile.yearsTotal': '{years} years total',
+  'profile.notSpecified': 'Not specified',
+  'profile.languages': 'Languages',
+  'profile.confirm': 'Looks good — set preferences',
+  'profile.redo': 'Re-upload',
+
+  // Intake / preferences
+  'intake.title': 'What are you looking for?',
+  'intake.targetTitles': 'Target titles',
+  'intake.targetTitlesHint': 'Comma-separated. We search each one.',
+  'intake.seniority': 'Seniority',
+  'intake.minSalary': 'Min salary (€/year)',
+  'intake.city': 'City',
+  'intake.radius': 'Radius (km)',
+  'intake.remoteOnly': 'Remote only',
+  'intake.mustHaves': 'Must-haves',
+  'intake.mustHavesHint': 'Comma-separated keywords the role should mention',
+  'intake.dealbreakers': 'Dealbreakers',
+  'intake.dealbreakersHint': 'Roles mentioning these are hidden',
+  'intake.germanMarket': 'German market',
+  'intake.germanLevel': 'Your German level',
+  'intake.levelNative': 'Native',
+  'intake.needVisa': 'I need visa sponsorship',
+  'intake.save': 'Save & find jobs',
+  'intake.sen.intern': 'Intern',
+  'intake.sen.junior': 'Junior',
+  'intake.sen.mid': 'Mid',
+  'intake.sen.senior': 'Senior',
+  'intake.sen.lead': 'Lead',
+  'intake.sen.exec': 'Executive',
+
+  // Dashboard
+  'dashboard.photoAlt': 'Profile',
+  'dashboard.displayName': 'Display name',
+  'dashboard.namePlaceholder': 'Your name',
+  'dashboard.headline': 'Headline',
+  'dashboard.location': 'Location',
+  'dashboard.title': 'Your dashboard',
+  'dashboard.photo': 'Photo',
+  'dashboard.chooseImage': 'Choose image',
+  'dashboard.removePhoto': 'Remove photo',
+  'dashboard.photoNote': 'Stored only in this browser (max 2MB).',
+  'dashboard.imageFailed': 'Could not read that image.',
+  'dashboard.about': 'About',
+  'dashboard.aboutHint': 'A short description that makes this yours.',
+  'dashboard.aboutPlaceholder': "What you're looking for, what you bring…",
+  'dashboard.links': 'Links',
+  'dashboard.addLink': 'Add link',
+  'dashboard.atAGlance': 'At a glance',
+  'dashboard.skillsLabel': 'Skills:',
+  'dashboard.experienceLabel': 'Experience:',
+  'dashboard.targetLabel': 'Target:',
+  'dashboard.locationLabel': 'Location:',
+
+  // Skill-gap summary
+  'gap.title': 'Your top skill gaps',
+  'gap.lead':
+    'Across your top {considered} matches, {skill} is missing in {count} of them ({pct}%) — your #1 leverage skill.',
+
+  // Weight sliders
+  'weights.title': 'Tune what matters',
+  'weights.hint': 'Adjust a factor and the ranking updates immediately.',
+
+  // Tracked-application drawer
+  'tracked.openPosting': 'Open posting ↗',
+  'tracked.staleNote':
+    "Browsers can't check another site's links, which is why we saved a snapshot — verify it's still live before applying.",
+  'tracked.status': 'Status',
+  'tracked.notes': 'Notes',
+  'tracked.notesPlaceholder': 'Recruiter name, referral, next step…',
+  'tracked.reminders': 'Follow-up reminders',
+  'tracked.noneYet': 'None yet.',
+  'tracked.reminderPlaceholder': 'e.g. ping recruiter',
+  'tracked.contacts': 'Contacts',
+  'tracked.namePlaceholder': 'Name',
+  'tracked.remove': 'Remove from tracker',
+
+  // Tracker board / list
+  'tracker.mayBeExpired': 'may be expired',
+  'tracker.colRole': 'Role',
+  'tracker.colStatus': 'Status',
+  'tracker.colFit': 'Fit',
+  'tracker.colPosting': 'Posting',
+  'tracker.colLink': 'Link',
+  'tracker.title': 'Your applications',
+  'tracker.viewBoard': 'Board',
+  'tracker.viewList': 'List',
+  'tracker.empty': "Nothing tracked yet. Save jobs from the search screen and they'll appear here.",
+  'tracker.remindersDue': 'Reminders due',
+  'tracker.followUp': 'follow up',
+  'tracker.needNudge': 'Applications needing a nudge',
+  'tracker.quietDays': '{n}d quiet',
+
+  // Job detail drawer
+  'drawer.scoreOutOf': '/100',
+  'drawer.confidence': 'confidence {pct}%',
+  'drawer.matchScoreAria': 'Match score',
+  'drawer.gaps': 'Gaps:',
+  'drawer.description': 'Description',
+  'drawer.loadingDescription': 'Loading description…',
+  'drawer.noDescription': 'No description available.',
+  'drawer.descriptionFailed': 'Could not load the description.',
+  'drawer.letterFailed': 'Could not draft the cover letter.',
+  'drawer.coverLetter': 'Cover letter',
+  'drawer.draftCoverLetter': 'Draft cover letter',
+  'drawer.openOriginal': 'Open original posting ↗',
+  'drawer.buildPacket': 'Build application packet',
+  'drawer.saveToTracker': 'Save to tracker',
+  'drawer.added': 'Added ✓',
+  'drawer.alsoPostedOn': 'Also posted on:',
+
+  // Application bundle
+  'bundle.title': 'Application packet',
+  'bundle.tooShort': 'That looks too short to be a résumé.',
+  'bundle.extractionFailed': 'Extraction failed.',
+  'bundle.readFailed': 'Could not read that file.',
+  'bundle.letterFailed': 'Could not draft the cover letter.',
+  'bundle.needResumeTitle': 'One-time detailed résumé',
+  'bundle.needResumeBody':
+    'To tailor your résumé we need a detailed version once. Upload it and we cache it in this browser.',
+  'bundle.chooseFile': 'Choose file',
+  'bundle.readingFile': 'Reading file…',
+  'bundle.extractingResume': 'Extracting résumé…',
+  'bundle.coverage': 'Résumé ↔ posting coverage',
+  'bundle.gap': 'gap: {skill}',
+  'bundle.tailoredResume': 'Tailored résumé · {lang}',
+  'bundle.tailoredHint': 'Reordered and re-emphasised from your facts — nothing invented.',
+  'bundle.downloadDocx': 'Download DOCX',
+  'bundle.printPdf': 'Print / save PDF',
+  'bundle.salary': 'Salary expectation',
+  'bundle.checkingBenchmark': 'Checking the benchmark…',
+  'bundle.noBenchmark': 'No salary benchmark (add an Adzuna key in Settings to enable this).',
+  'bundle.draft': 'Draft',
+  'bundle.downloadTxt': 'Download .txt',
+  'bundle.downloadPacket': 'Download packet',
+  'bundle.packetNote': 'Downloads the tailored résumé.',
+  'bundle.packetNoteWithLetter': 'Downloads the tailored résumé and the cover letter.',
+} as const
+
+export type TranslationKey = keyof typeof en
+
+// German is the default UI language. Typed as Record<TranslationKey, string> so a
+// missing key is a COMPILE error, not a silent fallback.
+const de: Record<TranslationKey, string> = {
+  'app.tagline': 'Job-Tracker',
+  'nav.aria': 'Hauptnavigation',
+  'nav.ariaMobile': 'Hauptnavigation (mobil)',
+  'nav.dashboard': 'Übersicht',
+  'nav.search': 'Suche',
+  'nav.tracker': 'Tracker',
+  'nav.settings': 'Einstellungen',
+  'shell.skipToContent': 'Zum Inhalt springen',
+  'theme.aria': 'Farbschema',
+  'theme.light': 'Hell',
+  'theme.system': 'System',
+  'theme.dark': 'Dunkel',
+  'locale.aria': 'Sprache',
+
+  'search.title': 'Jobs finden',
+  'search.searching': 'Suche nach {roles}',
+  'search.allRoles': 'allen Rollen',
+  'search.near': 'in der Nähe von {city}',
+  'search.run': 'Suchen & matchen',
+  'search.gathering': 'Sammle…',
+  'search.matching': 'Matche…',
+  'search.prefilter': 'Vorfilter:',
+  'search.mode.keyword': 'Stichwort',
+  'search.mode.semantic': 'semantisch',
+  'search.mode.hint': '(semantisch = Kosinus-Ähnlichkeit auf Embeddings)',
+  'search.hideGerman': 'Rollen ausblenden, die mehr Deutsch verlangen als mein Niveau',
+  'search.hideNoVisa': 'Rollen ohne Visa-Sponsoring ausblenden',
+  'search.scoring': 'Bewerte {done}/{total} Kandidaten…',
+  'search.export': 'Export:',
+  'search.hiddenCount': '{n} Rollen durch deine Filter ausgeblendet',
+  'search.hiddenCountOne': '1 Rolle durch deine Filter ausgeblendet',
+  'search.noMatches': 'Keine Treffer — Filter lockern? Titel oder Umkreis erweitern.',
+  'search.failed': 'fehlgeschlagen',
+  'source.ba': 'Bundesagentur',
+  'source.arbeitnow': 'Arbeitnow',
+  'source.adzuna': 'Adzuna',
+  'source.ats': 'Unternehmens-Boards',
+
+  'card.remote': 'Remote',
+  'card.gap': '+ {skill}',
+  'card.details': 'Details',
+  'card.open': 'Öffnen ↗',
+  'card.save': 'Merken',
+  'card.saved': 'Gemerkt ✓',
+
+  'common.close': 'Schließen',
+  'common.loading': 'Lädt…',
+  'common.save': 'Speichern',
+  'common.edit': 'Bearbeiten',
+  'common.add': 'Hinzufügen',
+  'common.remove': 'entfernen',
+  'common.reset': 'Zurücksetzen',
+  'common.optional': 'Optional',
+  'common.copy': 'Kopieren',
+  'common.copied': 'Kopiert ✓',
+  'common.drafting': 'Wird erstellt…',
+  'common.regenerate': 'Neu erstellen',
+  'common.yearsShort': '{years} J.',
+
+  // Score-Faktoren (geteilt: WeightsPanel + JobDrawer-Aufschlüsselung)
+  'factor.skills': 'Kenntnisse',
+  'factor.salary': 'Gehalt',
+  'factor.location': 'Standort',
+  'factor.seniority': 'Level',
+
+  // Bewerbungsstatus (geteilt: TrackedDrawer + TrackerBoard)
+  'status.new': 'Neu',
+  'status.interested': 'Interessiert',
+  'status.applied': 'Beworben',
+  'status.interviewing': 'Im Gespräch',
+  'status.offer': 'Angebot',
+  'status.rejected': 'Abgelehnt',
+  'status.archived': 'Archiviert',
+
+  // Groq-Schlüssel-Gate
+  'key.title': 'Kostenlosen Groq-Schlüssel verbinden',
+  'key.intro':
+    'Klar nutzt die kostenlose Groq-API für Lebenslauf-Analyse und Job-Matching. Dein Schlüssel geht nur an Groq — direkt aus deinem Browser, niemals an unseren Server.',
+  'key.step1Open': 'Öffne',
+  'key.step1After': 'und erstelle einen Schlüssel (kostenlos, ~30 Sekunden).',
+  'key.step2': 'Füge ihn unten ein und klicke auf „Prüfen“.',
+  'key.fieldLabel': 'Groq-API-Schlüssel',
+  'key.fieldHint': 'Beginnt mit gsk_…',
+  'key.remember': 'Auf diesem Gerät merken (auf geteilten Rechnern abwählen)',
+  'key.validating': 'Wird geprüft…',
+  'key.validateContinue': 'Prüfen & weiter',
+  'key.forget': 'Schlüssel vergessen',
+  'key.keyWorks': 'Schlüssel funktioniert',
+  'key.keyFailed': 'Dieser Schlüssel hat nicht funktioniert.',
+
+  // Lebenslauf-Upload (Onboarding)
+  'resume.tooShort': 'Das ist zu kurz für einen Lebenslauf. Füge mehr Text ein oder lade eine Datei hoch.',
+  'resume.parseFailed': 'Analyse fehlgeschlagen.',
+  'resume.readFailed': 'Datei konnte nicht gelesen werden.',
+  'resume.title': 'Lebenslauf hinzufügen',
+  'resume.intro':
+    'PDF, DOCX oder Text einfügen. Alles wird in deinem Browser verarbeitet; die Datei wird nie zu uns hochgeladen.',
+  'resume.chooseFile': 'Zum Auswählen einer Datei klicken',
+  'resume.fileHint': 'PDF oder DOCX',
+  'resume.orPaste': '…oder Lebenslauf-Text einfügen',
+  'resume.placeholder': 'Füge hier deinen Lebenslauf ein…',
+  'resume.parsePasted': 'Eingefügten Text analysieren',
+  'resume.readingFile': 'Datei wird gelesen…',
+  'resume.parsingAI': 'Lebenslauf wird mit KI analysiert…',
+
+  // Profil-Prüfung
+  'profile.title': 'Sieht das richtig aus?',
+  'profile.noSummary': 'Keine Zusammenfassung erkannt.',
+  'profile.titles': 'Titel',
+  'profile.noneFound': 'Nichts gefunden',
+  'profile.skillsCount': 'Kenntnisse ({n})',
+  'profile.experience': 'Erfahrung',
+  'profile.yearsTotal': '{years} Jahre gesamt',
+  'profile.notSpecified': 'Nicht angegeben',
+  'profile.languages': 'Sprachen',
+  'profile.confirm': 'Passt — Präferenzen festlegen',
+  'profile.redo': 'Neu hochladen',
+
+  // Intake / Präferenzen
+  'intake.title': 'Wonach suchst du?',
+  'intake.targetTitles': 'Ziel-Titel',
+  'intake.targetTitlesHint': 'Kommagetrennt. Wir suchen nach jedem.',
+  'intake.seniority': 'Level',
+  'intake.minSalary': 'Mindestgehalt (€/Jahr)',
+  'intake.city': 'Stadt',
+  'intake.radius': 'Umkreis (km)',
+  'intake.remoteOnly': 'Nur Remote',
+  'intake.mustHaves': 'Muss-Kriterien',
+  'intake.mustHavesHint': 'Kommagetrennte Stichwörter, die die Stelle nennen sollte',
+  'intake.dealbreakers': 'Ausschlusskriterien',
+  'intake.dealbreakersHint': 'Stellen, die diese nennen, werden ausgeblendet',
+  'intake.germanMarket': 'Deutscher Markt',
+  'intake.germanLevel': 'Dein Deutsch-Niveau',
+  'intake.levelNative': 'Muttersprachlich',
+  'intake.needVisa': 'Ich brauche Visa-Sponsoring',
+  'intake.save': 'Speichern & Jobs finden',
+  'intake.sen.intern': 'Praktikum',
+  'intake.sen.junior': 'Junior',
+  'intake.sen.mid': 'Mid-Level',
+  'intake.sen.senior': 'Senior',
+  'intake.sen.lead': 'Lead',
+  'intake.sen.exec': 'Führungskraft',
+
+  // Dashboard
+  'dashboard.photoAlt': 'Profil',
+  'dashboard.displayName': 'Anzeigename',
+  'dashboard.namePlaceholder': 'Dein Name',
+  'dashboard.headline': 'Schlagzeile',
+  'dashboard.location': 'Standort',
+  'dashboard.title': 'Dein Dashboard',
+  'dashboard.photo': 'Foto',
+  'dashboard.chooseImage': 'Bild auswählen',
+  'dashboard.removePhoto': 'Foto entfernen',
+  'dashboard.photoNote': 'Nur in diesem Browser gespeichert (max. 2 MB).',
+  'dashboard.imageFailed': 'Bild konnte nicht gelesen werden.',
+  'dashboard.about': 'Über dich',
+  'dashboard.aboutHint': 'Eine kurze Beschreibung, die das zu deinem macht.',
+  'dashboard.aboutPlaceholder': 'Wonach du suchst, was du mitbringst…',
+  'dashboard.links': 'Links',
+  'dashboard.addLink': 'Link hinzufügen',
+  'dashboard.atAGlance': 'Auf einen Blick',
+  'dashboard.skillsLabel': 'Kenntnisse:',
+  'dashboard.experienceLabel': 'Erfahrung:',
+  'dashboard.targetLabel': 'Ziel:',
+  'dashboard.locationLabel': 'Standort:',
+
+  // Skill-Lücken-Zusammenfassung
+  'gap.title': 'Deine größten Skill-Lücken',
+  'gap.lead':
+    'Unter deinen Top-{considered}-Treffern fehlt {skill} in {count} davon ({pct} %) — dein wichtigster Hebel-Skill.',
+
+  // Gewichtungs-Regler
+  'weights.title': 'Gewichte anpassen',
+  'weights.hint': 'Passe einen Faktor an und das Ranking aktualisiert sich sofort.',
+
+  // Bewerbungs-Detail-Drawer
+  'tracked.openPosting': 'Stelle öffnen ↗',
+  'tracked.staleNote':
+    'Browser können Links auf anderen Seiten nicht prüfen — deshalb haben wir eine Momentaufnahme gespeichert. Prüfe vor dem Bewerben, ob die Stelle noch aktiv ist.',
+  'tracked.status': 'Status',
+  'tracked.notes': 'Notizen',
+  'tracked.notesPlaceholder': 'Recruiter-Name, Empfehlung, nächster Schritt…',
+  'tracked.reminders': 'Erinnerungen zum Nachfassen',
+  'tracked.noneYet': 'Noch keine.',
+  'tracked.reminderPlaceholder': 'z. B. Recruiter anschreiben',
+  'tracked.contacts': 'Kontakte',
+  'tracked.namePlaceholder': 'Name',
+  'tracked.remove': 'Aus Tracker entfernen',
+
+  // Tracker-Board / -Liste
+  'tracker.mayBeExpired': 'evtl. abgelaufen',
+  'tracker.colRole': 'Rolle',
+  'tracker.colStatus': 'Status',
+  'tracker.colFit': 'Fit',
+  'tracker.colPosting': 'Anzeige',
+  'tracker.colLink': 'Link',
+  'tracker.title': 'Deine Bewerbungen',
+  'tracker.viewBoard': 'Board',
+  'tracker.viewList': 'Liste',
+  'tracker.empty': 'Noch nichts gespeichert. Speichere Jobs aus der Suche, dann erscheinen sie hier.',
+  'tracker.remindersDue': 'Fällige Erinnerungen',
+  'tracker.followUp': 'nachfassen',
+  'tracker.needNudge': 'Bewerbungen, die einen Anstoß brauchen',
+  'tracker.quietDays': '{n} T. ruhig',
+
+  // Job-Detail-Drawer
+  'drawer.scoreOutOf': '/100',
+  'drawer.confidence': 'Konfidenz {pct} %',
+  'drawer.matchScoreAria': 'Match-Score',
+  'drawer.gaps': 'Lücken:',
+  'drawer.description': 'Beschreibung',
+  'drawer.loadingDescription': 'Beschreibung wird geladen…',
+  'drawer.noDescription': 'Keine Beschreibung verfügbar.',
+  'drawer.descriptionFailed': 'Beschreibung konnte nicht geladen werden.',
+  'drawer.letterFailed': 'Anschreiben konnte nicht erstellt werden.',
+  'drawer.coverLetter': 'Anschreiben',
+  'drawer.draftCoverLetter': 'Anschreiben entwerfen',
+  'drawer.openOriginal': 'Originalanzeige öffnen ↗',
+  'drawer.buildPacket': 'Bewerbungspaket erstellen',
+  'drawer.saveToTracker': 'Im Tracker speichern',
+  'drawer.added': 'Gespeichert ✓',
+  'drawer.alsoPostedOn': 'Auch ausgeschrieben auf:',
+
+  // Bewerbungspaket
+  'bundle.title': 'Bewerbungspaket',
+  'bundle.tooShort': 'Das ist zu kurz für einen Lebenslauf.',
+  'bundle.extractionFailed': 'Extraktion fehlgeschlagen.',
+  'bundle.readFailed': 'Datei konnte nicht gelesen werden.',
+  'bundle.letterFailed': 'Anschreiben konnte nicht erstellt werden.',
+  'bundle.needResumeTitle': 'Einmalig: detaillierter Lebenslauf',
+  'bundle.needResumeBody':
+    'Zum Anpassen deines Lebenslaufs brauchen wir einmalig eine detaillierte Version. Lade sie hoch — wir speichern sie in diesem Browser.',
+  'bundle.chooseFile': 'Datei auswählen',
+  'bundle.readingFile': 'Datei wird gelesen…',
+  'bundle.extractingResume': 'Lebenslauf wird ausgelesen…',
+  'bundle.coverage': 'Lebenslauf ↔ Anzeige – Abdeckung',
+  'bundle.gap': 'Lücke: {skill}',
+  'bundle.tailoredResume': 'Angepasster Lebenslauf · {lang}',
+  'bundle.tailoredHint': 'Aus deinen Fakten umsortiert und neu betont — nichts erfunden.',
+  'bundle.downloadDocx': 'DOCX herunterladen',
+  'bundle.printPdf': 'PDF drucken / speichern',
+  'bundle.salary': 'Gehaltsvorstellung',
+  'bundle.checkingBenchmark': 'Benchmark wird geprüft…',
+  'bundle.noBenchmark': 'Kein Gehalts-Benchmark (Adzuna-Schlüssel in den Einstellungen hinzufügen).',
+  'bundle.draft': 'Entwerfen',
+  'bundle.downloadTxt': '.txt herunterladen',
+  'bundle.downloadPacket': 'Paket herunterladen',
+  'bundle.packetNote': 'Lädt den angepassten Lebenslauf herunter.',
+  'bundle.packetNoteWithLetter': 'Lädt den angepassten Lebenslauf und das Anschreiben herunter.',
+}
+
+export const translations: Record<Locale, Record<TranslationKey, string>> = { de, en }
+
+/**
+ * Look up a key for a locale and fill in {placeholders}. Falls back to English,
+ * then to the raw key, so a missing translation degrades to something readable
+ * rather than a blank.
+ */
+export function translate(
+  locale: Locale,
+  key: TranslationKey,
+  params?: Record<string, string | number>,
+): string {
+  const template = translations[locale]?.[key] ?? translations.en[key] ?? key
+  if (!params) return template
+  return template.replace(/\{(\w+)\}/g, (_, name) =>
+    name in params ? String(params[name]) : `{${name}}`,
+  )
+}

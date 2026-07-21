@@ -11,6 +11,7 @@ import { fetchAdzuna } from './adzuna'
 import { fetchAllAts } from './ats'
 import { dedupeJobs } from './dedup'
 import { WORKER_URL } from '../lib/config'
+import type { AdzunaKey } from '../settings/adzunaKey'
 
 export type GatherOptions = {
   signal?: AbortSignal
@@ -18,6 +19,8 @@ export type GatherOptions = {
   sources?: { ba?: boolean; arbeitnow?: boolean; adzuna?: boolean; ats?: boolean }
   /** Optional active region (feature 8.1). When set, only its sources run. */
   region?: Region
+  /** User-supplied Adzuna credentials, relayed to the Worker per request (feature 4). */
+  adzunaKey?: AdzunaKey
 }
 
 export type GatherResult = {
@@ -66,7 +69,7 @@ export async function gatherJobs(q: SearchQuery, opts: GatherOptions = {}): Prom
   }
   if (enable.adzuna) {
     runners.push(
-      fetchAdzuna(q, { signal: opts.signal })
+      fetchAdzuna(q, { signal: opts.signal, key: opts.adzunaKey, country: opts.region?.adzunaCountry })
         .then((r) => {
           buckets.push(r.jobs)
           status.push({ source: 'adzuna', ok: true, count: r.jobs.length, note: r.note })

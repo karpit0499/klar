@@ -3,11 +3,21 @@
 // not your key — the API key is deliberately excluded from the export file.
 import { useEffect, useRef, useState } from 'react'
 import { Button, Card, Field } from './atoms'
+import { ResumeReupload } from './ResumeReupload'
 import { exportAll, importAll, wipeAllData } from '../db/db'
 import { clearGroqKey } from '../settings/keys'
 import { REGIONS, getActiveRegion, setActiveRegion, DEFAULT_REGION_CODE } from '../regions'
+import type { Profile } from '../types'
 
-export function SettingsStep({ onReset }: { onReset: () => void }) {
+export function SettingsStep({
+  onReset,
+  apiKey,
+  onReplaceProfile,
+}: {
+  onReset: () => void
+  apiKey: string
+  onReplaceProfile: (p: Profile) => void | Promise<void>
+}) {
   const fileRef = useRef<HTMLInputElement>(null)
   const [msg, setMsg] = useState('')
   const [regionCode, setRegionCode] = useState(DEFAULT_REGION_CODE)
@@ -56,12 +66,12 @@ export function SettingsStep({ onReset }: { onReset: () => void }) {
     <div className="mx-auto max-w-2xl p-6">
       <Card className="p-6">
         <h2 className="text-lg font-semibold">Settings & data</h2>
-        <p className="mt-1 text-sm text-gray-600">
+        <p className="mt-1 text-sm text-muted">
           All your data lives in this browser. Export it to back up or move devices.
         </p>
 
         {/* Data-loss warning (feature 6.2). */}
-        <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+        <div className="mt-3 rounded-lg border border-border bg-surface-2 p-3 text-sm text-ink">
           Heads up: because nothing is stored on a server, clearing your browser or switching devices
           wipes everything permanently. Export a backup every so often.
         </div>
@@ -85,22 +95,35 @@ export function SettingsStep({ onReset }: { onReset: () => void }) {
             Delete all local data
           </Button>
         </div>
-        <p className="mt-2 text-xs text-gray-500">
+        <p className="mt-2 text-xs text-faint">
           Your Groq API key is never written to the export file.
         </p>
-        {msg && <p className="mt-3 text-sm text-gray-600">{msg}</p>}
+        {msg && <p className="mt-3 text-sm text-muted">{msg}</p>}
+      </Card>
+
+      {/* Replace résumé (feature 11). */}
+      <Card className="mt-4 p-6">
+        <h2 className="text-lg font-semibold">Résumé</h2>
+        <p className="mt-1 text-sm text-muted">
+          Replace the résumé behind your profile — for a new version or a fresh focus. Parsing
+          happens in your browser; the file is never uploaded. Your tracked jobs and preferences
+          are kept.
+        </p>
+        <div className="mt-3">
+          <ResumeReupload apiKey={apiKey} onReplace={onReplaceProfile} />
+        </div>
       </Card>
 
       {/* Region selector (feature 8.1). */}
       <Card className="mt-4 p-6">
         <h2 className="text-lg font-semibold">Region</h2>
-        <p className="mt-1 text-sm text-gray-600">
+        <p className="mt-1 text-sm text-muted">
           Which market to search. Each region decides which job sources run.
         </p>
         <div className="mt-3 max-w-xs">
           <Field label="Active region">
             <select
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+              className="w-full rounded-lg border border-border px-3 py-2 text-sm"
               value={regionCode}
               onChange={(e) => void changeRegion(e.target.value)}
             >
