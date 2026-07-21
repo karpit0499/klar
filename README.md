@@ -1,4 +1,4 @@
-# Klar v2.1 
+# Klar v2.1
 
 **A privacy-first, AI-assisted job search workspace for Germany and nearby European markets.**
 
