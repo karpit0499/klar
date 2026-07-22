@@ -33,6 +33,31 @@ type Route = keyof typeof UPSTREAMS
 
 /** Adzuna credentials supplied per-request by the user (feature 4). */
 export type UserAdzunaKeys = { appId?: string; appKey?: string }
+export type AdzunaCredentialSelection =
+  | { ok: true; source: 'user' | 'worker'; appId: string; appKey: string }
+  | { ok: false; reason: 'partial_user_credentials' | 'not_configured' }
+
+/** Select one complete pair. User and Worker values are never mixed. */
+export function selectAdzunaCredentials(
+  env: Env,
+  userKeys: UserAdzunaKeys,
+): AdzunaCredentialSelection {
+  const userAppId = userKeys.appId?.trim()
+  const userAppKey = userKeys.appKey?.trim()
+  const hasAnyUserValue = Boolean(userAppId || userAppKey)
+  if (hasAnyUserValue) {
+    if (userAppId && userAppKey) {
+      return { ok: true, source: 'user', appId: userAppId, appKey: userAppKey }
+    }
+    return { ok: false, reason: 'partial_user_credentials' }
+  }
+  const workerAppId = env.ADZUNA_APP_ID?.trim()
+  const workerAppKey = env.ADZUNA_APP_KEY?.trim()
+  if (workerAppId && workerAppKey) {
+    return { ok: true, source: 'worker', appId: workerAppId, appKey: workerAppKey }
+  }
+  return { ok: false, reason: 'not_configured' }
+}
 
 /** Pick the CORS origin to echo, honoring an optional allow-list. */
 export function corsOrigin(requestOrigin: string | null, allowed?: string): string {
@@ -75,17 +100,37 @@ export function buildUpstreamUrl(
   incoming.delete('app_key')
   incoming.forEach((v, k) => url.searchParams.set(k, v))
   if (route === 'adzuna') {
-    const appId = userKeys.appId || env.ADZUNA_APP_ID
-    const appKey = userKeys.appKey || env.ADZUNA_APP_KEY
-    if (appId) url.searchParams.set('app_id', appId)
-    if (appKey) url.searchParams.set('app_key', appKey)
+    const selected = selectAdzunaCredentials(env, userKeys)
+    if (selected.ok) {
+      url.searchParams.set('app_id', selected.appId)
+      url.searchParams.set('app_key', selected.appKey)
+    }
   }
   return url.toString()
 }
 
 /** True when Adzuna credentials are available from EITHER the user or the Worker. */
 export function adzunaConfigured(env: Env, userKeys: UserAdzunaKeys): boolean {
-  return Boolean((userKeys.appId && userKeys.appKey) || (env.ADZUNA_APP_ID && env.ADZUNA_APP_KEY))
+  return selectAdzunaCredentials(env, userKeys).ok
+}
+
+function appError(
+  category: 'credentials' | 'rate_limit' | 'network' | 'source',
+  message: string,
+  action: string,
+  technical: string,
+): Record<string, unknown> {
+  return {
+    category,
+    message,
+    dataSafe: true,
+    available: 'Other job sources and saved local data remain available.',
+    action: {
+      label: action,
+      kind: category === 'credentials' ? 'open_settings' : 'retry',
+    },
+    technical,
+  }
 }
 
 function json(body: unknown, status: number, origin: string): Response {
@@ -126,13 +171,29 @@ export default {
       appKey: request.headers.get('X-Adzuna-App-Key') || undefined,
     }
 
+    if (route === 'adzuna') {
+      const selected = selectAdzunaCredentials(env, userKeys)
+      if (!selected.ok) {
+        const partial = selected.reason === 'partial_user_credentials'
+        return json(
+          {
+            error: appError(
+              'credentials',
+              partial
+                ? 'Adzuna needs both the App ID and App key from the same account.'
+                : 'Adzuna credentials are not configured.',
+              partial ? 'Enter both Adzuna values' : 'Add Adzuna credentials in Settings',
+              selected.reason,
+            ),
+          },
+          partial ? 400 : 503,
+          origin,
+        )
+      }
+    }
+
     const rest = '/' + segments.slice(1).join('/')
     const upstreamUrl = buildUpstreamUrl(route, rest, url.search, env, userKeys)
-
-    // Adzuna needs a key (user or secret). If neither exists, fail clearly.
-    if (route === 'adzuna' && !adzunaConfigured(env, userKeys)) {
-      return json({ error: 'adzuna_not_configured', results: [], count: 0 }, 200, origin)
-    }
 
     const headers: Record<string, string> = { Accept: 'application/json' }
     if (route === 'ba') headers['X-API-Key'] = 'jobboerse-jobsuche'
@@ -140,15 +201,59 @@ export default {
     let upstream: Response
     try {
       upstream = await fetch(upstreamUrl, { headers })
-    } catch {
-      return json({ error: 'upstream_unreachable' }, 502, origin)
+    } catch (error) {
+      return json(
+        { error: appError('network', 'The upstream job source could not be reached.', 'Try again', error instanceof Error ? error.message : 'upstream_unreachable') },
+        502,
+        origin,
+      )
+    }
+
+    const sourceName = route === 'adzuna' ? 'Adzuna' : 'Bundesagentur'
+
+    if (upstream.status === 401 || upstream.status === 403) {
+      return json(
+        { error: appError(
+          route === 'adzuna' ? 'credentials' : 'source',
+          `${sourceName} rejected the request.`,
+          route === 'adzuna' ? 'Check credentials in Settings' : 'Retry this source',
+          `upstream_http_${upstream.status}`,
+        ) },
+        upstream.status,
+        origin,
+      )
+    }
+    if (upstream.status === 429) {
+      return json(
+        { error: appError('rate_limit', `${sourceName} has reached its request limit.`, 'Try again later', 'upstream_http_429') },
+        429,
+        origin,
+      )
+    }
+    if (upstream.status >= 500) {
+      return json(
+        { error: appError('source', `${sourceName} is temporarily unavailable.`, 'Try again later', `upstream_http_${upstream.status}`) },
+        502,
+        origin,
+      )
     }
 
     // Adzuna returns an HTML error page when the daily free-tier cap is hit.
     const contentType = upstream.headers.get('content-type') ?? ''
     if (!contentType.includes('application/json')) {
-      const note = route === 'adzuna' ? 'quota reached or non-JSON response' : 'non-JSON upstream'
-      return json({ error: note, results: [], count: 0 }, 200, origin)
+      const rateLimited = route === 'adzuna'
+      return json(
+        {
+          error: appError(
+            rateLimited ? 'rate_limit' : 'source',
+            rateLimited ? 'Adzuna returned a quota or rate-limit response.' : 'The source returned an unreadable response.',
+            rateLimited ? 'Try again later' : 'Retry the source',
+            'non_json_upstream',
+          ),
+        },
+        rateLimited ? 429 : 502,
+        origin,
+      )
     }
 
     // Stream the JSON back with CORS headers attached.

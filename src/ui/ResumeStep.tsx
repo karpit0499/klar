@@ -5,6 +5,8 @@ import { extractText } from '../parse/extract'
 import { parseProfile } from '../parse/profile'
 import type { Profile } from '../types'
 import { useT } from '../i18n/LocaleProvider'
+import { ErrorNotice } from './ErrorNotice'
+import { toAppError, type AppErrorData } from '../errors/appError'
 
 export function ResumeStep({
   apiKey,
@@ -16,14 +18,18 @@ export function ResumeStep({
   const t = useT()
 
   const [busy, setBusy] = useState<'' | 'extracting' | 'parsing'>('')
-  const [error, setError] = useState('')
+  const [error, setError] = useState<AppErrorData | null>(null)
   const [pasted, setPasted] = useState('')
   const [fileName, setFileName] = useState('')
 
   async function handleText(rawText: string) {
-    setError('')
+    setError(null)
     if (rawText.trim().length < 30) {
-      setError(t('resume.tooShort'))
+      setError({
+        category: 'validation', message: t('resume.tooShort'), dataSafe: true,
+        available: 'No profile data has been changed.',
+        action: { label: t('resume.chooseFile'), kind: 'choose_file' },
+      })
       return
     }
     setBusy('parsing')
@@ -31,14 +37,18 @@ export function ResumeStep({
       const profile = await parseProfile(rawText, apiKey)
       onParsed(profile)
     } catch (e) {
-      setError(e instanceof Error ? e.message : t('resume.parseFailed'))
+      setError(toAppError(e, {
+        category: 'parsing', message: t('resume.parseFailed'), dataSafe: true,
+        available: 'No profile data has been changed.',
+        action: { label: t('resume.parsePasted'), kind: 'retry' },
+      }))
     } finally {
       setBusy('')
     }
   }
 
   async function handleFile(file: File) {
-    setError('')
+    setError(null)
     setFileName(file.name)
     setBusy('extracting')
     try {
@@ -47,7 +57,11 @@ export function ResumeStep({
       await handleText(text)
     } catch (e) {
       setBusy('')
-      setError(e instanceof Error ? e.message : t('resume.readFailed'))
+      setError(toAppError(e, {
+        category: 'parsing', message: t('resume.readFailed'), dataSafe: true,
+        available: 'No profile data has been changed.',
+        action: { label: t('resume.chooseFile'), kind: 'choose_file' },
+      }))
     }
   }
 
@@ -88,7 +102,7 @@ export function ResumeStep({
           </div>
         </div>
 
-        {error && <p className="mt-3 text-sm text-danger">{error}</p>}
+        {error && <div className="mt-3"><ErrorNotice error={error} /></div>}
       </Card>
     </div>
   )

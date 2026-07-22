@@ -177,7 +177,16 @@ export type CoverageReport = {
 export function coverageReport(job: NormalizedJob, profile: Profile): CoverageReport {
   const terms = extractJdTerms(job, profile.skills.map((s) => s.name))
   const have = profileSkillSet(profile)
-  const rawText = profile.rawText.toLowerCase()
+  // Confirmed profiles intentionally do not retain the raw résumé text. Build a
+  // safe backstop corpus from reviewed structured facts when rawText is absent.
+  const rawText = (profile.rawText ?? [
+    profile.summary,
+    ...profile.titles.map((item) => item.title),
+    ...profile.skills.map((item) => item.name),
+    ...profile.domains,
+    ...profile.education.flatMap((item) => [item.degree, item.field, item.institution]),
+    ...profile.certifications,
+  ].filter(Boolean).join(' ')).toLowerCase()
 
   const covered: string[] = []
   const missing: string[] = []

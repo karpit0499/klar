@@ -1,14 +1,19 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Button, Card, Field, TextInput } from './atoms'
 import { PreferenceControls } from './PreferenceControls'
 import { ResumeReupload } from './ResumeReupload'
-import { exportAll, importAll, wipeAllData } from '../db/db'
+import { SafetyCenter } from './SafetyCenter'
+import { ErrorNotice } from './ErrorNotice'
+import { wipeAllData } from '../db/db'
 import { clearGroqKey } from '../settings/keys'
 import { clearAdzunaKey, loadAdzunaKey, saveAdzunaKey } from '../settings/adzunaKey'
 import { REGIONS, getActiveRegion, setActiveRegion, DEFAULT_REGION_CODE } from '../regions'
 import { useT } from '../i18n/LocaleProvider'
 import type { TranslationKey } from '../i18n/translations'
 import type { Profile } from '../types'
+import { testAdzunaConnection } from '../settings/adzunaConnection'
+import { toAppError, type AppErrorData } from '../errors/appError'
+import { lockVault } from '../crypto/vault'
 
 export function SettingsStep({
   onReset,
@@ -20,22 +25,30 @@ export function SettingsStep({
   onReplaceProfile: (profile: Profile) => void | Promise<void>
 }) {
   const t = useT()
-  const fileRef = useRef<HTMLInputElement>(null)
   const [message, setMessage] = useState('')
   const [regionCode, setRegionCode] = useState(DEFAULT_REGION_CODE)
   const [adzunaAppId, setAdzunaAppId] = useState('')
   const [adzunaAppKey, setAdzunaAppKey] = useState('')
   const [hasAdzunaKey, setHasAdzunaKey] = useState(false)
   const [adzunaMessage, setAdzunaMessage] = useState('')
+  const [adzunaTesting, setAdzunaTesting] = useState(false)
+  const [adzunaError, setAdzunaError] = useState<AppErrorData | null>(null)
 
   useEffect(() => {
     void getActiveRegion().then((region) => setRegionCode(region.code))
-    void loadAdzunaKey().then((credentials) => {
-      if (!credentials) return
-      setAdzunaAppId(credentials.appId)
-      setAdzunaAppKey(credentials.appKey)
-      setHasAdzunaKey(true)
-    })
+    void loadAdzunaKey()
+      .then((credentials) => {
+        if (!credentials) return
+        setAdzunaAppId(credentials.appId)
+        setAdzunaAppKey(credentials.appKey)
+        setHasAdzunaKey(true)
+      })
+      .catch((error) => setAdzunaError(toAppError(error, {
+        message: 'Klar could not read the saved Adzuna credentials.',
+        dataSafe: true,
+        available: 'Other sources remain available.',
+        action: { label: 'Enter a complete pair', kind: 'open_settings' },
+      })))
   }, [])
 
   async function changeRegion(code: string) {
@@ -45,15 +58,25 @@ export function SettingsStep({
   }
 
   async function saveAdzuna() {
+    setAdzunaError(null)
     const appId = adzunaAppId.trim()
     const appKey = adzunaAppKey.trim()
     if (!appId || !appKey) {
       setAdzunaMessage(t('settings.adzunaBothRequired'))
       return
     }
-    await saveAdzunaKey(appId, appKey)
-    setHasAdzunaKey(true)
-    setAdzunaMessage(t('settings.adzunaSaved'))
+    try {
+      await saveAdzunaKey(appId, appKey)
+      setHasAdzunaKey(true)
+      setAdzunaMessage(t('settings.adzunaSaved'))
+    } catch (error) {
+      setAdzunaError(toAppError(error, {
+        message: t('settings.adzunaBothRequired'),
+        dataSafe: true,
+        available: 'Other job sources remain available.',
+        action: { label: t('settings.adzunaBothRequired'), kind: 'open_settings' },
+      }))
+    }
   }
 
   async function removeAdzuna() {
@@ -64,36 +87,19 @@ export function SettingsStep({
     setAdzunaMessage(t('settings.adzunaRemoved'))
   }
 
-  async function doExport() {
-    const data = await exportAll()
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const anchor = document.createElement('a')
-    anchor.href = url
-    anchor.download = `klar-export-${new Date().toISOString().slice(0, 10)}.json`
-    anchor.click()
-    URL.revokeObjectURL(url)
-    setMessage(t('settings.exported'))
-  }
-
-  async function doImport(file: File) {
-    try {
-      const text = await file.text()
-      await importAll(JSON.parse(text))
-      setMessage(t('settings.imported'))
-      setTimeout(() => location.reload(), 600)
-    } catch (error) {
-      setMessage(
-        t('settings.importFailed', {
-          error: error instanceof Error ? error.message : String(error),
-        }),
-      )
-    }
+  async function testAdzuna() {
+    setAdzunaTesting(true)
+    setAdzunaError(null)
+    const result = await testAdzunaConnection({ appId: adzunaAppId.trim(), appKey: adzunaAppKey.trim() })
+    if (result.ok) setAdzunaMessage(t('settings.adzunaWorks'))
+    else setAdzunaError(result.error)
+    setAdzunaTesting(false)
   }
 
   async function wipe() {
     if (!confirm(t('settings.deleteConfirm'))) return
     await wipeAllData()
+    lockVault()
     await clearGroqKey()
     onReset()
   }
@@ -110,27 +116,14 @@ export function SettingsStep({
             {t('settings.dataWarning')}
           </div>
           <div className="mt-4 flex flex-wrap gap-3">
-            <Button onClick={doExport}>{t('settings.export')}</Button>
-            <Button variant="ghost" onClick={() => fileRef.current?.click()}>
-              {t('settings.import')}
-            </Button>
-            <input
-              ref={fileRef}
-              type="file"
-              accept="application/json"
-              className="hidden"
-              onChange={(event) => {
-                const file = event.target.files?.[0]
-                if (file) void doImport(file)
-              }}
-            />
             <Button variant="danger" onClick={wipe}>
               {t('settings.deleteAll')}
             </Button>
           </div>
-          <p className="mt-3 text-sm text-faint">{t('settings.credentialsExcluded')}</p>
           {message && <p className="mt-3 wrap-anywhere text-base text-muted">{message}</p>}
         </Card>
+
+        <SafetyCenter apiKey={apiKey} />
 
         <Card className="mt-4 p-4 sm:p-6">
           <h2 className="text-xl font-semibold text-ink">{t('preferences.title')}</h2>
@@ -170,6 +163,13 @@ export function SettingsStep({
           </div>
           <div className="mt-4 flex flex-wrap gap-3">
             <Button onClick={saveAdzuna}>{t('common.save')}</Button>
+            <Button
+              variant="ghost"
+              disabled={adzunaTesting || !adzunaAppId.trim() || !adzunaAppKey.trim()}
+              onClick={() => void testAdzuna()}
+            >
+              {adzunaTesting ? t('settings.adzunaTesting') : t('settings.adzunaTest')}
+            </Button>
             {hasAdzunaKey && (
               <Button variant="ghost" onClick={removeAdzuna}>
                 {t('settings.adzunaRemove')}
@@ -178,6 +178,7 @@ export function SettingsStep({
           </div>
           <p className="mt-3 text-sm text-faint">{t('settings.adzunaPrivacy')}</p>
           {adzunaMessage && <p className="mt-3 text-base text-muted">{adzunaMessage}</p>}
+          {adzunaError && <div className="mt-3"><ErrorNotice error={adzunaError} /></div>}
         </Card>
 
         <Card className="mt-4 p-4 sm:p-6">

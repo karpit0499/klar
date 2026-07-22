@@ -10,7 +10,8 @@
 // ============================================================================
 import type { NormalizedJob, Preferences, Profile } from '../types'
 import { cosineSim, defaultEmbedder, type TextEmbedder } from './embeddings'
-import { db, type VectorRow } from '../db/db'
+import type { VectorRow } from '../db/db'
+import { getVectors, putVectors } from '../storage/careerData'
 
 /** The text we embed for a job (title carries the strongest signal). */
 export function jobText(job: NormalizedJob): string {
@@ -55,16 +56,6 @@ function survivesHardDrops(job: NormalizedJob, prefs: Preferences): boolean {
   return true
 }
 
-/** Fetch a job's vector from the cache, or compute + store it (browser only). */
-async function getOrComputeVector(job: NormalizedJob, embedder: TextEmbedder): Promise<number[]> {
-  const row = await db.vectors.get(job.id)
-  if (row && row.embedderId === embedder.id && row.dim === embedder.dim) return row.vec
-  const vec = embedder.embed(jobText(job))
-  const fresh: VectorRow = { jobId: job.id, embedderId: embedder.id, dim: embedder.dim, vec }
-  await db.vectors.put(fresh)
-  return vec
-}
-
 /**
  * The semantic counterpart to `prefilter`: applies hard drops, ranks the rest by
  * cosine similarity (using the cached vectors), and returns the top `limit`.
@@ -79,10 +70,19 @@ export async function semanticPrefilter(
   const survivors = jobs.filter((j) => survivesHardDrops(j, prefs))
   const queryVec = embedder.embed(buildQueryText(profile, prefs))
   const scored: Scored[] = []
-  for (const job of survivors) {
-    const vec = await getOrComputeVector(job, embedder)
+  const cached = await getVectors(survivors.map((job) => job.id))
+  const freshRows: VectorRow[] = []
+  survivors.forEach((job, index) => {
+    const row = cached[index]
+    const vec = row && row.embedderId === embedder.id && row.dim === embedder.dim
+      ? row.vec
+      : embedder.embed(jobText(job))
+    if (!row || row.embedderId !== embedder.id || row.dim !== embedder.dim) {
+      freshRows.push({ jobId: job.id, embedderId: embedder.id, dim: embedder.dim, vec })
+    }
     scored.push({ job, score: cosineSim(queryVec, vec) })
-  }
+  })
+  await putVectors(freshRows)
   scored.sort((a, b) => b.score - a.score)
   return scored.slice(0, limit).map((s) => s.job)
 }

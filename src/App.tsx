@@ -16,12 +16,17 @@ import { TrackerBoard } from './ui/TrackerBoard'
 import { SettingsStep } from './ui/SettingsStep'
 import { DashboardStep } from './ui/DashboardStep'
 import { PreferenceControls } from './ui/PreferenceControls'
+import { VaultGate } from './ui/VaultGate'
 import { useT } from './i18n/LocaleProvider'
 import type { TranslationKey } from './i18n/translations'
-import { db } from './db/db'
 import { DEFAULT_WEIGHTS } from './match/weights'
 import { loadGroqKey } from './settings/keys'
 import type { Preferences, Profile } from './types'
+import { getVaultStatus } from './crypto/vault'
+import { loadCurrentProfile, persistProfile } from './profile/store'
+import { clearOnboardingProgress, saveOnboardingProgress } from './onboarding/setupState'
+import { clearResumeData } from './settings/resumeData'
+import { loadPreferences, savePreferences } from './storage/careerData'
 
 type Tab = 'dashboard' | 'search' | 'tracker' | 'settings'
 
@@ -30,41 +35,46 @@ export default function App() {
   const [checkedKey, setCheckedKey] = useState(false)
   const [draftProfile, setDraftProfile] = useState<Profile | null>(null)
   const [tab, setTab] = useState<Tab>('dashboard')
+  const [unlockRevision, setUnlockRevision] = useState(0)
+
+  const vaultStatus = useLiveQuery(getVaultStatus, [unlockRevision], undefined)
 
   useEffect(() => {
+    if (vaultStatus === undefined || vaultStatus === 'locked') return
+    setCheckedKey(false)
     void loadGroqKey().then((key) => {
       if (key) setApiKey(key)
       setCheckedKey(true)
     })
-  }, [])
+  }, [vaultStatus, unlockRevision])
 
   const profile = useLiveQuery(async () => {
-    const rows = await db.profiles.orderBy('createdAt').reverse().limit(1).toArray()
-    return rows[0] ?? null
-  }, [], undefined)
+    if (vaultStatus === undefined || vaultStatus === 'locked') return null
+    return loadCurrentProfile()
+  }, [vaultStatus, unlockRevision], undefined)
 
   const prefs = useLiveQuery(
-    async () => (await db.preferences.get('current')) ?? null,
-    [],
+    loadPreferences,
+    [vaultStatus, unlockRevision],
     undefined,
   )
 
-  async function persistProfile(nextProfile: Profile) {
-    const id = `${Date.now()}`
-    await db.profiles.put({ ...nextProfile, id, createdAt: new Date().toISOString() })
-  }
-
   async function saveProfile(nextProfile: Profile) {
     await persistProfile(nextProfile)
+    await saveOnboardingProgress('preferences')
     setDraftProfile(null)
   }
 
   async function replaceProfile(nextProfile: Profile) {
     await persistProfile(nextProfile)
+    // The detailed résumé belongs to the previous upload and must not silently
+    // power generators after the reviewed profile has been replaced.
+    await clearResumeData()
   }
 
   async function savePrefs(nextPrefs: Preferences) {
-    await db.preferences.put({ ...nextPrefs, id: 'current' })
+    await savePreferences(nextPrefs)
+    await clearOnboardingProgress()
   }
 
   function fullReset() {
@@ -78,6 +88,16 @@ export default function App() {
     // scroll offset across navigation can open a shorter screen halfway down.
     window.scrollTo({ top: 0, left: 0, behavior: 'auto' })
     setTab(nextTab)
+  }
+
+  if (vaultStatus === undefined) return null
+
+  if (vaultStatus === 'locked') {
+    return (
+      <Shell tab={tab} setTab={changeTab} minimal>
+        <VaultGate onUnlocked={() => setUnlockRevision((value) => value + 1)} />
+      </Shell>
+    )
   }
 
   if (!checkedKey) return null
@@ -107,7 +127,13 @@ export default function App() {
   if (profile === null) {
     return (
       <Shell tab={tab} setTab={changeTab} minimal>
-        <ResumeStep apiKey={apiKey} onParsed={setDraftProfile} />
+        <ResumeStep
+          apiKey={apiKey}
+          onParsed={(nextProfile) => {
+            void saveOnboardingProgress('profile-review')
+            setDraftProfile(nextProfile)
+          }}
+        />
       </Shell>
     )
   }

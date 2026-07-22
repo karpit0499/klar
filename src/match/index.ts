@@ -10,7 +10,8 @@ import { prefilter } from './prefilter'
 import { semanticPrefilter } from './semantic'
 import { isFailedMatchPlaceholder, rerankAll } from './rerank'
 import { fetchBaDetail } from '../sources/ba'
-import { db, type MatchRow } from '../db/db'
+import type { MatchRow } from '../db/db'
+import { deleteMatchRows, getMatchRows, putMatchRows } from '../storage/careerData'
 
 /** A stable fingerprint of the profile+prefs that influence scoring. */
 export function matchContextHash(profile: Profile, prefs: Preferences): string {
@@ -65,7 +66,7 @@ export async function runMatching(
       : prefilter(jobs, profile, prefs, MATCH.candidateLimit)
 
   // 2. Split cached vs. uncached.
-  const cachedRows = await db.matches.bulkGet(candidates.map((c) => key(c.id)))
+  const cachedRows = await getMatchRows(candidates.map((c) => key(c.id)))
   const cached: MatchResult[] = []
   const todo: NormalizedJob[] = []
   const staleKeys: string[] = []
@@ -77,7 +78,7 @@ export async function runMatching(
       if (row) staleKeys.push(key(c.id))
     }
   })
-  if (staleKeys.length) await db.matches.bulkDelete(staleKeys)
+  if (staleKeys.length) await deleteMatchRows(staleKeys)
 
   // 3. Enrich BA descriptions for the ones we'll actually score.
   opts.onProgress?.({ phase: 'enrich', done: 0, total: todo.length })
@@ -93,7 +94,7 @@ export async function runMatching(
   // 5. Persist fresh scores.
   if (fresh.length) {
     const rows: MatchRow[] = fresh.map((m) => ({ ...m, cacheKey: key(m.jobId) }))
-    await db.matches.bulkPut(rows)
+    await putMatchRows(rows)
   }
 
   // 6. Merge + sort best-first.

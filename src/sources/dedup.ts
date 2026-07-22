@@ -48,7 +48,7 @@ function mergeInto(a: NormalizedJob, b: NormalizedJob): NormalizedJob {
   const also = [...(primary.also_on ?? []), ...(secondary.also_on ?? [])]
   // Record the secondary's own source+url unless it's already the primary's.
   if (secondary.url && secondary.url !== primary.url) {
-    also.push({ source: secondary.source, url: secondary.url })
+    also.push({ source: secondary.source, source_id: secondary.source_id, url: secondary.url })
   }
   // De-dupe the also_on list by url.
   const seen = new Set<string>()

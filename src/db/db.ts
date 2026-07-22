@@ -13,6 +13,7 @@ import type {
   Dashboard,
   SearchQuery,
 } from '../types'
+import type { CipherEnvelope } from '../crypto/resumeCrypto'
 
 /** Key/value settings row (e.g. active profile id, UI locale). Keys, not secrets. */
 export type Setting = { key: string; value: unknown }
@@ -34,9 +35,25 @@ export type SavedSearchRow = {
   maxDistanceKm?: number
   maxAgeDays?: number
   seenJobIds: string[]
+  /** v2.2 identities include merged sources and a content fingerprint. */
+  seenIdentities?: { value: string; lastSeenAt: string }[]
   createdAt: string
   updatedAt: string
   lastRunAt?: string
+}
+
+/**
+ * The encrypted-at-rest boundary. Content and credentials use separate
+ * ciphertexts so a standard backup can preserve encrypted content while
+ * excluding credentials byte-for-byte.
+ */
+export type VaultRow = {
+  id: 'primary'
+  version: 1
+  content: CipherEnvelope
+  credentials?: CipherEnvelope
+  createdAt: string
+  updatedAt: string
 }
 
 /** A cached job fetch, keyed by the search signature. */
@@ -65,6 +82,7 @@ export class KlarDB extends Dexie {
   dashboard!: Table<DashboardRow, string>
   vectors!: Table<VectorRow, string>
   savedSearches!: Table<SavedSearchRow, string>
+  vault!: Table<VaultRow, string>
 
   constructor() {
     super('klar')
@@ -104,6 +122,26 @@ export class KlarDB extends Dexie {
       vectors: 'jobId, embedderId',
       savedSearches: 'id, updatedAt',
     })
+    // v4 — v2.2 encrypted vault. Existing plaintext data is not moved until
+    // the user explicitly enables encryption and confirms the warning.
+    this.version(4).stores({
+      settings: 'key',
+      profiles: 'id, createdAt',
+      preferences: 'id',
+      jobs: 'queryKey, fetchedAt',
+      matches: 'cacheKey, jobId',
+      tracked: 'jobId, status, updatedAt',
+      dashboard: 'id',
+      vectors: 'jobId, embedderId',
+      savedSearches: 'id, updatedAt',
+      vault: 'id, updatedAt',
+    }).upgrade(async (transaction) => {
+      // Raw résumé text was a v2.1 debugging convenience. v2.2 removes it from
+      // every confirmed stored profile during the in-place upgrade.
+      await transaction.table('profiles').toCollection().modify((row: Record<string, unknown>) => {
+        delete row.rawText
+      })
+    })
   }
 }
 
@@ -119,73 +157,7 @@ export async function setSetting(key: string, value: unknown): Promise<void> {
   await db.settings.put({ key, value })
 }
 
-/** Setting keys that must NEVER be written to an export file (they hold secrets). */
-const SECRET_SETTING_KEYS = new Set(['groqKey', 'groqKeyRemember', 'adzunaAppId', 'adzunaAppKey'])
-
-/**
- * Export the whole database to a plain object (for the Export button).
- * The Groq API key is deliberately stripped so a backup file never contains a
- * secret — the backup is your data, not your credentials.
- */
-export async function exportAll(): Promise<Record<string, unknown[]>> {
-  const [settings, profiles, preferences, jobs, matches, tracked, dashboard, vectors, savedSearches] =
-    await Promise.all([
-      db.settings.toArray(),
-      db.profiles.toArray(),
-      db.preferences.toArray(),
-      db.jobs.toArray(),
-      db.matches.toArray(),
-      db.tracked.toArray(),
-      db.dashboard.toArray(),
-      db.vectors.toArray(),
-      db.savedSearches.toArray(),
-    ])
-  const safeSettings = settings.filter((s) => !SECRET_SETTING_KEYS.has(s.key))
-  return { settings: safeSettings, profiles, preferences, jobs, matches, tracked, dashboard, vectors, savedSearches }
-}
-
-/**
- * Replace the database contents from an exported object (Import button).
- * The locally stored API key is preserved across the import (it isn't in the
- * file), so restoring a backup never signs you out.
- */
-export async function importAll(data: Record<string, unknown[]>): Promise<void> {
-  await db.transaction(
-    'rw',
-    [db.settings, db.profiles, db.preferences, db.jobs, db.matches, db.tracked, db.dashboard, db.vectors, db.savedSearches],
-    async () => {
-      // Keep the secret settings (the API key) that live only on this device.
-      const preserved: Setting[] = []
-      for (const key of SECRET_SETTING_KEYS) {
-        const row = await db.settings.get(key)
-        if (row) preserved.push(row)
-      }
-      await Promise.all([
-        db.settings.clear(),
-        db.profiles.clear(),
-        db.preferences.clear(),
-        db.jobs.clear(),
-        db.matches.clear(),
-        db.tracked.clear(),
-        db.dashboard.clear(),
-        db.vectors.clear(),
-        db.savedSearches.clear(),
-      ])
-      if (data.settings) await db.settings.bulkPut(data.settings as Setting[])
-      if (preserved.length) await db.settings.bulkPut(preserved)
-      if (data.profiles) await db.profiles.bulkPut(data.profiles as ProfileRow[])
-      if (data.preferences) await db.preferences.bulkPut(data.preferences as PreferencesRow[])
-      if (data.jobs) await db.jobs.bulkPut(data.jobs as JobCacheRow[])
-      if (data.matches) await db.matches.bulkPut(data.matches as MatchRow[])
-      if (data.tracked) await db.tracked.bulkPut(data.tracked as TrackedJob[])
-      if (data.dashboard) await db.dashboard.bulkPut(data.dashboard as DashboardRow[])
-      if (data.vectors) await db.vectors.bulkPut(data.vectors as VectorRow[])
-      if (data.savedSearches) await db.savedSearches.bulkPut(data.savedSearches as SavedSearchRow[])
-    },
-  )
-}
-
-/** Wipe every store (feature 6.1 delete-all). Clears the new dashboard + vectors too. */
+/** Wipe every store (feature 6.1 delete-all), including v2.2 vault data. */
 export async function wipeAllData(): Promise<void> {
   await Promise.all([
     db.settings.clear(),
@@ -197,5 +169,6 @@ export async function wipeAllData(): Promise<void> {
     db.dashboard.clear(),
     db.vectors.clear(),
     db.savedSearches.clear(),
+    db.vault.clear(),
   ])
 }
