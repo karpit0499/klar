@@ -4,6 +4,7 @@
 //  easier to test and tree-shake than a class hierarchy.)
 // ============================================================================
 import type { NormalizedJob, SearchQuery, SourceId } from '../types'
+import type { AppErrorData } from '../errors/appError'
 
 export type AdapterResult = {
   jobs: NormalizedJob[]
@@ -19,7 +20,9 @@ export type Adapter = (
 /** One line in the per-source status banner shown to the user. */
 export type SourceStatus = {
   source: SourceId | 'ats'
+  requested: true
   ok: boolean
   count: number
   note?: string
+  error?: AppErrorData
 }

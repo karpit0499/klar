@@ -15,6 +15,8 @@ import { loadAdzunaKey } from '../settings/adzunaKey'
 import { getActiveRegion } from '../regions'
 import { draftCoverLetter } from '../llm/coverLetter'
 import { useT } from '../i18n/LocaleProvider'
+import { ErrorNotice } from './ErrorNotice'
+import { toAppError, type AppErrorData } from '../errors/appError'
 
 function downloadText(filename: string, text: string): void {
   const blob = new Blob([text], { type: 'text/plain;charset=utf-8' })
@@ -57,13 +59,13 @@ export function ApplicationBundle({
     Partial<Record<ResumeLanguage, AiTailoredResume>>
   >({})
   const [tailoringLanguage, setTailoringLanguage] = useState<ResumeLanguage | null>(null)
-  const [tailoringError, setTailoringError] = useState('')
+  const [tailoringError, setTailoringError] = useState<AppErrorData | null>(null)
   const [region, setRegion] = useState<Region | undefined>(undefined)
   const [extractBusy, setExtractBusy] = useState<'' | 'reading' | 'parsing'>('')
-  const [extractError, setExtractError] = useState('')
+  const [extractError, setExtractError] = useState<AppErrorData | null>(null)
   const [letter, setLetter] = useState('')
   const [letterBusy, setLetterBusy] = useState(false)
-  const [letterError, setLetterError] = useState('')
+  const [letterError, setLetterError] = useState<AppErrorData | null>(null)
   const [salaryLine, setSalaryLine] = useState<string | null>(null)
   const [salaryBusy, setSalaryBusy] = useState(true)
   const [hasSalaryKey, setHasSalaryKey] = useState(false)
@@ -104,9 +106,13 @@ export function ApplicationBundle({
   }, [job, region])
 
   async function extractDetailed(text: string) {
-    setExtractError('')
+    setExtractError(null)
     if (text.trim().length < 30) {
-      setExtractError(t('bundle.tooShort'))
+      setExtractError({
+        category: 'validation', message: t('bundle.tooShort'), dataSafe: true,
+        available: 'Your saved résumé remains unchanged.',
+        action: { label: t('bundle.chooseFile'), kind: 'choose_file' },
+      })
       return
     }
     setExtractBusy('parsing')
@@ -116,14 +122,18 @@ export function ApplicationBundle({
       setResume(data)
       setTailoredByLanguage({})
     } catch (error) {
-      setExtractError(error instanceof Error ? error.message : t('bundle.extractionFailed'))
+      setExtractError(toAppError(error, {
+        category: 'parsing', message: t('bundle.extractionFailed'), dataSafe: true,
+        available: 'Your saved résumé remains unchanged.',
+        action: { label: t('bundle.chooseFile'), kind: 'choose_file' },
+      }))
     } finally {
       setExtractBusy('')
     }
   }
 
   async function onFile(file: File) {
-    setExtractError('')
+    setExtractError(null)
     setExtractBusy('reading')
     try {
       const { text } = await extractText(file)
@@ -131,35 +141,45 @@ export function ApplicationBundle({
       await extractDetailed(text)
     } catch (error) {
       setExtractBusy('')
-      setExtractError(error instanceof Error ? error.message : t('bundle.readFailed'))
+      setExtractError(toAppError(error, {
+        category: 'parsing', message: t('bundle.readFailed'), dataSafe: true,
+        available: 'Your saved résumé remains unchanged.',
+        action: { label: t('bundle.chooseFile'), kind: 'choose_file' },
+      }))
     }
   }
 
   async function makeTailoredResume(language: ResumeLanguage) {
     if (!resume) return
-    setTailoringError('')
+    setTailoringError(null)
     setTailoringLanguage(language)
     try {
       const result = await tailorResumeWithAi(resume, job, profile, apiKey, language)
       setTailoredByLanguage((current) => ({ ...current, [language]: result }))
     } catch (error) {
-      setTailoringError(
-        t('bundle.resumeFailed', {
-          error: error instanceof Error ? error.message : String(error),
-        }),
-      )
+      setTailoringError(toAppError(error, {
+        category: 'parsing',
+        message: t('bundle.resumeFailed', { error: '' }).replace(/:\s*$/, ''),
+        dataSafe: true,
+        available: 'Your source résumé and previous output remain unchanged.',
+        action: { label: t('common.regenerate'), kind: 'retry' },
+      }))
     } finally {
       setTailoringLanguage(null)
     }
   }
 
   async function makeLetter() {
-    setLetterError('')
+    setLetterError(null)
     setLetterBusy(true)
     try {
       setLetter(await draftCoverLetter(profile, job, apiKey, match))
     } catch (error) {
-      setLetterError(error instanceof Error ? error.message : t('bundle.letterFailed'))
+      setLetterError(toAppError(error, {
+        category: 'parsing', message: t('bundle.letterFailed'), dataSafe: true,
+        available: 'Your résumé and saved workspace remain unchanged.',
+        action: { label: t('common.regenerate'), kind: 'retry' },
+      }))
     } finally {
       setLetterBusy(false)
     }
@@ -245,7 +265,7 @@ export function ApplicationBundle({
               {extractBusy === 'reading' && <Spinner label={t('bundle.readingFile')} />}
               {extractBusy === 'parsing' && <Spinner label={t('bundle.extractingResume')} />}
             </div>
-            {extractError && <p className="mt-2 wrap-anywhere text-danger">{extractError}</p>}
+            {extractError && <div className="mt-2"><ErrorNotice error={extractError} /></div>}
           </div>
         )}
 
@@ -265,7 +285,7 @@ export function ApplicationBundle({
                       aria-checked={selected}
                       onClick={() => {
                         setResumeLanguage(language)
-                        setTailoringError('')
+                        setTailoringError(null)
                       }}
                       className={`flex min-h-[64px] flex-col items-center justify-center rounded-md border px-2 py-2 text-sm font-medium transition ${
                         selected
@@ -296,7 +316,7 @@ export function ApplicationBundle({
                   )}
                 </Button>
               </div>
-              {tailoringError && <p className="mt-3 wrap-anywhere text-danger">{tailoringError}</p>}
+              {tailoringError && <div className="mt-3"><ErrorNotice error={tailoringError} /></div>}
             </section>
 
             {currentTailored && (
@@ -373,7 +393,7 @@ export function ApplicationBundle({
                       )}
                     </Button>
                   </div>
-                  {letterError && <p className="mt-2 wrap-anywhere text-danger">{letterError}</p>}
+                  {letterError && <div className="mt-2"><ErrorNotice error={letterError} /></div>}
                   {letter && (
                     <div className="mt-2">
                       <textarea

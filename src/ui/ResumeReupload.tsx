@@ -4,6 +4,8 @@ import { extractText } from '../parse/extract'
 import { parseProfile } from '../parse/profile'
 import { useT } from '../i18n/LocaleProvider'
 import type { Profile } from '../types'
+import { ErrorNotice } from './ErrorNotice'
+import { toAppError, type AppErrorData } from '../errors/appError'
 
 export function ResumeReupload({
   apiKey,
@@ -14,30 +16,38 @@ export function ResumeReupload({
 }) {
   const t = useT()
   const [busy, setBusy] = useState<'' | 'extracting' | 'parsing'>('')
-  const [error, setError] = useState('')
+  const [error, setError] = useState<AppErrorData | null>(null)
   const [preview, setPreview] = useState<Profile | null>(null)
   const [pasted, setPasted] = useState('')
   const [fileName, setFileName] = useState('')
   const [showPaste, setShowPaste] = useState(false)
 
   async function parse(rawText: string) {
-    setError('')
+    setError(null)
     if (rawText.trim().length < 30) {
-      setError(t('settings.reuploadTooShort'))
+      setError({
+        category: 'validation', message: t('settings.reuploadTooShort'), dataSafe: true,
+        available: 'Your current profile remains unchanged.',
+        action: { label: t('settings.reuploadChoose'), kind: 'choose_file' },
+      })
       return
     }
     setBusy('parsing')
     try {
       setPreview(await parseProfile(rawText, apiKey))
     } catch (parseError) {
-      setError(parseError instanceof Error ? parseError.message : t('settings.reuploadParseFailed'))
+      setError(toAppError(parseError, {
+        category: 'parsing', message: t('settings.reuploadParseFailed'), dataSafe: true,
+        available: 'Your current profile remains unchanged.',
+        action: { label: t('settings.reuploadParse'), kind: 'retry' },
+      }))
     } finally {
       setBusy('')
     }
   }
 
   async function onFile(file: File) {
-    setError('')
+    setError(null)
     setFileName(file.name)
     setBusy('extracting')
     try {
@@ -46,7 +56,11 @@ export function ResumeReupload({
       await parse(text)
     } catch (readError) {
       setBusy('')
-      setError(readError instanceof Error ? readError.message : t('settings.reuploadReadFailed'))
+      setError(toAppError(readError, {
+        category: 'parsing', message: t('settings.reuploadReadFailed'), dataSafe: true,
+        available: 'Your current profile remains unchanged.',
+        action: { label: t('settings.reuploadChoose'), kind: 'choose_file' },
+      }))
     }
   }
 
@@ -151,7 +165,7 @@ export function ResumeReupload({
         </div>
       )}
 
-      {error && <p className="mt-2 wrap-anywhere text-danger">{error}</p>}
+      {error && <div className="mt-2"><ErrorNotice error={error} /></div>}
     </div>
   )
 }

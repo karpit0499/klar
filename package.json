@@ -1,7 +1,7 @@
 {
   "name": "klar",
   "private": true,
-  "version": "1.0.0",
+  "version": "2.2.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -29,6 +29,7 @@
     "@types/react-dom": "^18.3.7",
     "@vitejs/plugin-react": "^4.7.0",
     "autoprefixer": "^10.5.4",
+    "fake-indexeddb": "^6.2.5",
     "postcss": "^8.5.20",
     "tailwindcss": "^3.4.19",
     "tsx": "^4.23.1",

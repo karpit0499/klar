@@ -10,10 +10,19 @@
 // The diff (`splitNewJobs`, `unionSeen`) is pure + testable; the CRUD is thin
 // Dexie access with a live-query hook for the UI.
 // ============================================================================
-import { useLiveQuery } from 'dexie-react-hooks'
-import { db, type SavedSearchRow } from '../db/db'
+import type { SavedSearchRow } from '../db/db'
 import type { EmploymentCategory } from '../match/employment'
 import type { NormalizedJob, SearchQuery } from '../types'
+import { normalizeKey, stableHash } from '../lib/hash'
+import {
+  deleteSavedSearchRow,
+  getSavedSearchRow,
+  putSavedSearchRow,
+  useSavedSearchRows,
+} from '../storage/careerData'
+
+const MAX_SEEN_IDENTITIES = 5_000
+const SEEN_TTL_MS = 180 * 86_400_000
 
 export type SavedSearchInput = {
   name: string
@@ -27,7 +36,7 @@ export type SavedSearchInput = {
 
 /** Live list of saved searches for the UI (re-renders on any change). */
 export function useSavedSearches(): SavedSearchRow[] {
-  return useLiveQuery(() => db.savedSearches.orderBy('updatedAt').reverse().toArray(), [], [])
+  return useSavedSearchRows()
 }
 
 /** Create a new saved search (starts with no jobs seen). */
@@ -47,16 +56,16 @@ export async function createSavedSearch(input: SavedSearchInput): Promise<string
     createdAt: now,
     updatedAt: now,
   }
-  await db.savedSearches.put(row)
+  await putSavedSearchRow(row)
   return id
 }
 
 export async function deleteSavedSearch(id: string): Promise<void> {
-  await db.savedSearches.delete(id)
+  await deleteSavedSearchRow(id)
 }
 
 export async function getSavedSearch(id: string): Promise<SavedSearchRow | undefined> {
-  return db.savedSearches.get(id)
+  return getSavedSearchRow(id)
 }
 
 // --- Pure diff helpers (the heart of "new since last check") ------------------
@@ -77,7 +86,69 @@ export function splitNewJobs(
 export function unionSeen(seenJobIds: string[], currentJobs: NormalizedJob[]): string[] {
   const set = new Set(seenJobIds)
   for (const j of currentJobs) set.add(j.id)
-  return Array.from(set)
+  return Array.from(set).slice(-MAX_SEEN_IDENTITIES)
+}
+
+/** Stable identity independent of a source-specific posting id. */
+export function contentFingerprint(job: NormalizedJob): string {
+  const descriptionHead = normalizeKey(job.description).split(' ').slice(0, 40).join(' ')
+  return `content:${stableHash([
+    normalizeKey(job.company),
+    normalizeKey(job.title),
+    normalizeKey(job.location.city ?? ''),
+    descriptionHead,
+  ].join('|'))}`
+}
+
+/** Include the primary id, every merged source identity, and content fingerprint. */
+export function jobIdentities(job: NormalizedJob): string[] {
+  const identities = new Set<string>([
+    `job:${job.id}`,
+    `source:${job.source}:${job.source_id}`,
+    contentFingerprint(job),
+  ])
+  for (const merged of job.also_on ?? []) {
+    identities.add(
+      merged.source_id
+        ? `source:${merged.source}:${merged.source_id}`
+        : `source-url:${merged.source}:${stableHash(merged.url)}`,
+    )
+  }
+  return [...identities]
+}
+
+export function mergeSeenIdentities(
+  existing: { value: string; lastSeenAt: string }[],
+  currentJobs: NormalizedJob[],
+  now = new Date(),
+): { value: string; lastSeenAt: string }[] {
+  const cutoff = now.getTime() - SEEN_TTL_MS
+  const map = new Map(
+    existing
+      .filter((entry) => new Date(entry.lastSeenAt).getTime() >= cutoff)
+      .map((entry) => [entry.value, entry]),
+  )
+  const stamp = now.toISOString()
+  for (const job of currentJobs) {
+    for (const value of jobIdentities(job)) map.set(value, { value, lastSeenAt: stamp })
+  }
+  return [...map.values()]
+    .sort((a, b) => a.lastSeenAt.localeCompare(b.lastSeenAt))
+    .slice(-MAX_SEEN_IDENTITIES)
+}
+
+export function splitBySeenIdentities(
+  currentJobs: NormalizedJob[],
+  seen: { value: string; lastSeenAt: string }[],
+): { fresh: NormalizedJob[]; seen: NormalizedJob[] } {
+  const known = new Set(seen.map((entry) => entry.value))
+  const fresh: NormalizedJob[] = []
+  const alreadySeen: NormalizedJob[] = []
+  for (const job of currentJobs) {
+    const target = jobIdentities(job).some((identity) => known.has(identity)) ? alreadySeen : fresh
+    target.push(job)
+  }
+  return { fresh, seen: alreadySeen }
 }
 
 /**
@@ -86,12 +157,22 @@ export function unionSeen(seenJobIds: string[], currentJobs: NormalizedJob[]): s
  * Returns the fresh jobs (to badge in the UI). Persists the updated seen set.
  */
 export async function recordRun(id: string, currentJobs: NormalizedJob[]): Promise<NormalizedJob[]> {
-  const row = await db.savedSearches.get(id)
+  const row = await getSavedSearchRow(id)
   if (!row) return []
-  const { fresh } = splitNewJobs(currentJobs, row.seenJobIds)
+  const firstRun = !row.lastRunAt
+  const legacySeen = (row.seenJobIds ?? []).map((jobId) => ({
+    value: `job:${jobId}`,
+    lastSeenAt: row.updatedAt,
+  }))
+  const known = row.seenIdentities?.length ? row.seenIdentities : legacySeen
+  // The first run establishes a baseline; existing results are not mislabeled
+  // as newly published jobs.
+  const { fresh } = firstRun ? { fresh: [] as NormalizedJob[] } : splitBySeenIdentities(currentJobs, known)
   row.seenJobIds = unionSeen(row.seenJobIds, currentJobs)
-  row.lastRunAt = new Date().toISOString()
+  const now = new Date()
+  row.seenIdentities = mergeSeenIdentities(known, currentJobs, now)
+  row.lastRunAt = now.toISOString()
   row.updatedAt = row.lastRunAt
-  await db.savedSearches.put(row)
+  await putSavedSearchRow(row)
   return fresh
 }

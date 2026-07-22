@@ -7,6 +7,7 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db, type DashboardRow } from '../db/db'
 import type { Dashboard } from '../types'
+import { getVaultStatus, readSensitiveContent, updateSensitiveContent } from '../crypto/vault'
 
 const ID = 'me'
 
@@ -21,6 +22,15 @@ export const EMPTY_DASHBOARD: Dashboard = {
 /** Live dashboard for React components (re-renders on any change). */
 export function useDashboard(): Dashboard | undefined {
   return useLiveQuery(async () => {
+    const vault = await getVaultStatus()
+    if (vault === 'unlocked') {
+      const content = await readSensitiveContent()
+      const row = content?.dashboard.find((item) => item.id === ID)
+      return row ? stripId(row) : EMPTY_DASHBOARD
+    }
+    if (vault === 'locked') {
+      await readSensitiveContent()
+    }
     const row = await db.dashboard.get(ID)
     return row ? stripId(row) : EMPTY_DASHBOARD
   }, [], undefined)
@@ -28,6 +38,17 @@ export function useDashboard(): Dashboard | undefined {
 
 /** Persist the dashboard (single row). */
 export async function saveDashboard(data: Dashboard): Promise<void> {
+  const vault = await getVaultStatus()
+  if (vault === 'unlocked') {
+    await updateSensitiveContent((content) => {
+      content.dashboard = [{ ...data, id: ID }]
+    })
+    return
+  }
+  if (vault === 'locked') {
+    await readSensitiveContent()
+    return
+  }
   await db.dashboard.put({ ...data, id: ID })
 }
 

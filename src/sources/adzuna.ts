@@ -15,6 +15,7 @@ import { getJson, workerUrl } from '../lib/http'
 import { makeJob, toISO } from './normalize'
 import { stripHtml } from '../lib/html'
 import type { AdzunaKey } from '../settings/adzunaKey'
+import { AppError } from '../errors/appError'
 
 type AdzunaResponse = {
   results?: AdzunaJob[]
@@ -117,5 +118,18 @@ export const fetchAdzuna = async (
 /** Build the per-request headers that relay a user's Adzuna key to the Worker. */
 export function adzunaKeyHeaders(key?: AdzunaKey): Record<string, string> | undefined {
   if (!key) return undefined
-  return { 'X-Adzuna-App-Id': key.appId, 'X-Adzuna-App-Key': key.appKey }
+  const appId = key.appId.trim()
+  const appKey = key.appKey.trim()
+  if (!appId && !appKey) return undefined
+  if (!appId || !appKey) {
+    throw new AppError({
+      category: 'credentials',
+      message: 'Adzuna needs both the App ID and App key from the same account.',
+      dataSafe: true,
+      available: 'Other job sources remain available.',
+      action: { label: 'Enter both Adzuna values', kind: 'open_settings' },
+      technical: 'partial_adzuna_credentials',
+    })
+  }
+  return { 'X-Adzuna-App-Id': appId, 'X-Adzuna-App-Key': appKey }
 }

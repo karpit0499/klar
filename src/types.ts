@@ -36,7 +36,7 @@ export type NormalizedJob = {
   fetched_at: string
   raw?: unknown              // original payload, for debugging
   /** When merged during dedup, all the sources this job was seen on. */
-  also_on?: { source: SourceId; url: string }[]
+  also_on?: { source: SourceId; source_id?: string; url: string }[]
 }
 
 /** Parsed résumé profile (produced by the LLM parse step). */
@@ -49,7 +49,8 @@ export type Profile = {
   education: { degree?: string; field?: string; institution?: string }[]
   languages: { lang: string; level?: string }[]  // e.g. German B2, English C1
   certifications: string[]
-  rawText: string                                 // kept for re-parse/debug
+  /** Temporary during extraction/review; removed before confirmed persistence. */
+  rawText?: string
 }
 
 /** User preferences captured by the intake wizard. */

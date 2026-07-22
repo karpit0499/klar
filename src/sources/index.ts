@@ -12,6 +12,7 @@ import { fetchAllAts } from './ats'
 import { dedupeJobs } from './dedup'
 import { WORKER_URL } from '../lib/config'
 import type { AdzunaKey } from '../settings/adzunaKey'
+import { AppError, serializeAppError, toAppError } from '../errors/appError'
 
 export type GatherOptions = {
   signal?: AbortSignal
@@ -26,21 +27,29 @@ export type GatherOptions = {
 export type GatherResult = {
   jobs: NormalizedJob[]
   status: SourceStatus[]
+  sourcesRequested: (SourceStatus['source'])[]
+  rawCount: number
+  duplicatesRemoved: number
 }
 
-export async function gatherJobs(q: SearchQuery, opts: GatherOptions = {}): Promise<GatherResult> {
+export type SourcePlan = { ba: boolean; arbeitnow: boolean; adzuna: boolean; ats: boolean }
+
+/** Pure source-selection plan used by the gatherer and the repeatable smoke suite. */
+export function resolveSourcePlan(opts: Pick<GatherOptions, 'sources' | 'region'> = {}): SourcePlan {
   const sel = opts.sources ?? {}
-  // A region, when supplied, restricts which sources are even eligible.
   const allow = (id: 'ba' | 'arbeitnow' | 'adzuna' | 'greenhouse' | 'lever' | 'ashby') =>
     !opts.region || opts.region.sources.includes(id)
   const atsAllowed = allow('greenhouse') || allow('lever') || allow('ashby')
-  const enable = {
+  return {
     ba: (sel.ba ?? true) && allow('ba'),
     arbeitnow: (sel.arbeitnow ?? true) && allow('arbeitnow'),
-    // Adzuna needs the Worker (+ key); default on only when a Worker URL exists.
     adzuna: (sel.adzuna ?? Boolean(WORKER_URL)) && allow('adzuna'),
     ats: (sel.ats ?? true) && atsAllowed,
   }
+}
+
+export async function gatherJobs(q: SearchQuery, opts: GatherOptions = {}): Promise<GatherResult> {
+  const enable = resolveSourcePlan(opts)
 
   const status: SourceStatus[] = []
   const buckets: NormalizedJob[][] = []
@@ -52,9 +61,9 @@ export async function gatherJobs(q: SearchQuery, opts: GatherOptions = {}): Prom
       fetchBa(q, { signal: opts.signal })
         .then((r) => {
           buckets.push(r.jobs)
-          status.push({ source: 'ba', ok: true, count: r.jobs.length, note: r.note })
+          status.push({ source: 'ba', requested: true, ok: true, count: r.jobs.length, note: r.note })
         })
-        .catch((e) => status.push({ source: 'ba', ok: false, count: 0, note: shortErr(e) })),
+        .catch((e) => status.push(failedStatus('ba', e))),
     )
   }
   if (enable.arbeitnow) {
@@ -62,9 +71,9 @@ export async function gatherJobs(q: SearchQuery, opts: GatherOptions = {}): Prom
       fetchArbeitnow(q, { signal: opts.signal })
         .then((r) => {
           buckets.push(r.jobs)
-          status.push({ source: 'arbeitnow', ok: true, count: r.jobs.length })
+          status.push({ source: 'arbeitnow', requested: true, ok: true, count: r.jobs.length })
         })
-        .catch((e) => status.push({ source: 'arbeitnow', ok: false, count: 0, note: shortErr(e) })),
+        .catch((e) => status.push(failedStatus('arbeitnow', e))),
     )
   }
   if (enable.adzuna) {
@@ -72,9 +81,9 @@ export async function gatherJobs(q: SearchQuery, opts: GatherOptions = {}): Prom
       fetchAdzuna(q, { signal: opts.signal, key: opts.adzunaKey, country: opts.region?.adzunaCountry })
         .then((r) => {
           buckets.push(r.jobs)
-          status.push({ source: 'adzuna', ok: true, count: r.jobs.length, note: r.note })
+          status.push({ source: 'adzuna', requested: true, ok: true, count: r.jobs.length, note: r.note })
         })
-        .catch((e) => status.push({ source: 'adzuna', ok: false, count: 0, note: shortErr(e) })),
+        .catch((e) => status.push(failedStatus('adzuna', e))),
     )
   }
   if (enable.ats) {
@@ -84,24 +93,49 @@ export async function gatherJobs(q: SearchQuery, opts: GatherOptions = {}): Prom
           buckets.push(r.jobs)
           status.push({
             source: 'ats',
+            requested: true,
             ok: true,
             count: r.jobs.length,
             note: `${r.okCompanies} companies${r.failedCompanies ? `, ${r.failedCompanies} skipped` : ''}`,
           })
         })
-        .catch((e) => status.push({ source: 'ats', ok: false, count: 0, note: shortErr(e) })),
+        .catch((e) => status.push(failedStatus('ats', e))),
     )
   }
 
   await Promise.all(runners)
 
-  const jobs = dedupeJobs(buckets.flat())
+  const rawJobs = buckets.flat()
+  const jobs = dedupeJobs(rawJobs)
   // Stable order: newest first, then by title.
   jobs.sort((a, b) => (b.posted_at ?? '').localeCompare(a.posted_at ?? '') || a.title.localeCompare(b.title))
-  return { jobs, status }
+  const order: SourceStatus['source'][] = ['ba', 'arbeitnow', 'adzuna', 'ats']
+  status.sort((a, b) => order.indexOf(a.source) - order.indexOf(b.source))
+  return {
+    jobs,
+    status,
+    sourcesRequested: status.map((item) => item.source),
+    rawCount: rawJobs.length,
+    duplicatesRemoved: rawJobs.length - jobs.length,
+  }
 }
 
-function shortErr(e: unknown): string {
-  const m = e instanceof Error ? e.message : String(e)
-  return m.length > 120 ? m.slice(0, 117) + '…' : m
+function failedStatus(source: SourceStatus['source'], error: unknown): SourceStatus {
+  const appError = error instanceof AppError
+    ? error
+    : toAppError(error, {
+        category: 'source',
+        message: `${source} could not complete this search.`,
+        dataSafe: true,
+        available: 'Other requested sources can still return results.',
+        action: { label: 'Retry this search', kind: 'retry' },
+      })
+  return {
+    source,
+    requested: true,
+    ok: false,
+    count: 0,
+    note: appError.message,
+    error: serializeAppError(appError),
+  }
 }

@@ -5,13 +5,15 @@ import { loadGroqKey, saveGroqKey, clearGroqKey, isRemembered } from '../setting
 import { loadAdzunaKey, saveAdzunaKey } from '../settings/adzunaKey'
 import { pingGroqKey } from '../llm/groq'
 import { useT } from '../i18n/LocaleProvider'
+import { ErrorNotice } from './ErrorNotice'
+import type { AppErrorData } from '../errors/appError'
 
 export function KeyGate({ onReady }: { onReady: (key: string) => void }) {
   const t = useT()
   const [key, setKey] = useState('')
   const [remember, setRemember] = useState(true)
   const [status, setStatus] = useState<'idle' | 'checking' | 'ok' | 'error'>('idle')
-  const [error, setError] = useState('')
+  const [error, setError] = useState<AppErrorData | null>(null)
   const [hasStored, setHasStored] = useState(false)
   const [adzunaAppId, setAdzunaAppId] = useState('')
   const [adzunaAppKey, setAdzunaAppKey] = useState('')
@@ -42,16 +44,20 @@ export function KeyGate({ onReady }: { onReady: (key: string) => void }) {
     if (!cleanKey) return
     if ((cleanAppId && !cleanAppKey) || (!cleanAppId && cleanAppKey)) {
       setStatus('error')
-      setError(t('key.adzunaBothRequired'))
+      setError({
+        category: 'credentials', message: t('key.adzunaBothRequired'), dataSafe: true,
+        available: 'Other job sources remain available.',
+        action: { label: t('key.adzunaBothRequired'), kind: 'open_settings' },
+      })
       return
     }
 
     setStatus('checking')
-    setError('')
+    setError(null)
     const result = await pingGroqKey(cleanKey)
     if (!result.ok) {
       setStatus('error')
-      setError(result.error || t('key.keyFailed'))
+      setError(result.error)
       return
     }
 
@@ -169,7 +175,7 @@ export function KeyGate({ onReady }: { onReady: (key: string) => void }) {
             {status === 'ok' && <Badge tone="success">{t('key.keyWorks')}</Badge>}
           </div>
 
-          {status === 'error' && <p className="mt-3 text-base text-danger">{error}</p>}
+          {status === 'error' && error && <div className="mt-3"><ErrorNotice error={error} /></div>}
         </Card>
       </div>
     </div>

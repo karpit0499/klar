@@ -12,17 +12,42 @@
 // ============================================================================
 import { getSetting, setSetting, db } from '../db/db'
 import type { ResumeData } from '../resume/types'
+import { getVaultStatus, readSensitiveContent, updateSensitiveContent } from '../crypto/vault'
 
 const RESUME_DATA_KEY = 'resumeDataV1'
 
 export async function saveResumeData(data: ResumeData): Promise<void> {
+  const vault = await getVaultStatus()
+  if (vault === 'unlocked') {
+    await updateSensitiveContent((content) => { content.resumeData = data })
+    return
+  }
+  if (vault === 'locked') {
+    await readSensitiveContent()
+    return
+  }
   await setSetting(RESUME_DATA_KEY, data)
 }
 
 export async function loadResumeData(): Promise<ResumeData | undefined> {
+  const vault = await getVaultStatus()
+  if (vault === 'unlocked') return (await readSensitiveContent())?.resumeData
+  if (vault === 'locked') {
+    await readSensitiveContent()
+    return undefined
+  }
   return getSetting<ResumeData>(RESUME_DATA_KEY)
 }
 
 export async function clearResumeData(): Promise<void> {
+  const vault = await getVaultStatus()
+  if (vault === 'unlocked') {
+    await updateSensitiveContent((content) => { delete content.resumeData })
+    return
+  }
+  if (vault === 'locked') {
+    await readSensitiveContent()
+    return
+  }
   await db.settings.delete(RESUME_DATA_KEY)
 }
