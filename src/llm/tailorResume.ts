@@ -1,4 +1,4 @@
-import type { NormalizedJob, Profile } from '../types'
+import type { NormalizedJob } from '../types'
 import { tailorResume, type TailoredResume } from '../resume/tailor'
 import type { ResumeData, ResumeLanguage } from '../resume/types'
 import { extractJson, groqChat } from './groq'
@@ -209,7 +209,6 @@ Rules:
 function userPrompt(
   source: ResumeData,
   job: NormalizedJob,
-  profile: Profile,
 ): string {
   const indexedSourceResume = {
     ...source,
@@ -223,9 +222,10 @@ function userPrompt(
       // Explicitly label every bullet so the model does not
       // have to calculate or guess its position.
       bullets: role.bullets.map(
-        (text, sourceBulletIndex) => ({
+        (bullet, sourceBulletIndex) => ({
           sourceBulletIndex,
-          text,
+          evidenceId: bullet.id,
+          text: bullet.text,
         }),
       ),
     })),
@@ -244,9 +244,7 @@ function userPrompt(
         description: job.description,
       },
 
-      candidateSkills: profile.skills.map(
-        (skill) => skill.name,
-      ),
+      candidateSkills: source.skills.flatMap((group) => group.items.map((skill) => skill.name)),
 
       sourceResume: indexedSourceResume,
     },
@@ -258,14 +256,13 @@ function userPrompt(
 export async function tailorResumeWithAi(
   source: ResumeData,
   job: NormalizedJob,
-  profile: Profile,
   apiKey: string,
   language: ResumeLanguage,
 ): Promise<AiTailoredResume> {
   const raw = await groqChat({
     apiKey,
     system: systemPrompt(language),
-    user: userPrompt(source, job, profile),
+    user: userPrompt(source, job),
     json: true,
     temperature: 0,
     maxTokens: 4096,
@@ -278,7 +275,7 @@ export async function tailorResumeWithAi(
 
   validateTailoringResponse(parsed, source)
 
-  const deterministic = tailorResume(source, { ...job, language }, profile)
+  const deterministic = tailorResume(source, { ...job, language })
   const rewrites = new Map(parsed.experience.map((item) => [item.sourceIndex, item]))
   const experience = deterministic.data.experience.map((item, sourceIndex) => {
     const rewrite = rewrites.get(sourceIndex)
@@ -286,7 +283,14 @@ export async function tailorResumeWithAi(
     return {
       ...item,
       title: rewrite.title.trim(),
-      bullets: rewrite.bullets.map((bullet) => bullet.text.trim()),
+      bullets: rewrite.bullets.map((bullet, bulletIndex) => {
+        const sources = bullet.sourceBulletIndexes.map((index) => source.experience[sourceIndex].bullets[index])
+        return {
+          id: `tailored-${item.id}-${bulletIndex}`,
+          text: bullet.text.trim(),
+          evidenceRefs: [...new Set(sources.flatMap((sourceBullet) => [sourceBullet.id, ...sourceBullet.evidenceRefs]))],
+        }
+      }),
     }
   })
   const projectRewrites = new Map(parsed.projects.map((item) => [item.sourceIndex, item]))

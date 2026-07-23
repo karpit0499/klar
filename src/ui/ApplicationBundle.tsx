@@ -1,15 +1,12 @@
 import { useEffect, useState } from 'react'
 import { Badge, Button, Spinner } from './atoms'
 import { useScrollLock } from './useScrollLock'
-import type { MatchResult, NormalizedJob, Profile, Region } from '../types'
+import type { MatchResult, NormalizedJob, Region } from '../types'
 import type { ResumeData, ResumeLanguage } from '../resume/types'
 import { pickLanguage } from '../resume/tailor'
 import { tailorResumeWithAi, type AiTailoredResume } from '../llm/tailorResume'
 import { downloadResumeDocx } from '../resume/docx'
 import { printResumeAsPdf } from '../resume/pdf'
-import { extractResumeData } from '../resume/extract'
-import { extractText } from '../parse/extract'
-import { loadResumeData, saveResumeData } from '../settings/resumeData'
 import { fetchSalaryBenchmark, salaryExpectationLine } from '../salary/adzuna'
 import { loadAdzunaKey } from '../settings/adzunaKey'
 import { getActiveRegion } from '../regions'
@@ -38,14 +35,16 @@ function fileStem(job: NormalizedJob): string {
 
 export function ApplicationBundle({
   job,
-  profile,
+  resume,
   apiKey,
+  requireGroq,
   match,
   onClose,
 }: {
   job: NormalizedJob
-  profile: Profile
-  apiKey: string
+  resume: ResumeData
+  apiKey?: string
+  requireGroq: (action: string) => Promise<string | null>
   match?: MatchResult
   onClose: () => void
 }) {
@@ -54,15 +53,12 @@ export function ApplicationBundle({
 
   const suggestedLanguage = pickLanguage(job)
   const [resumeLanguage, setResumeLanguage] = useState<ResumeLanguage>(suggestedLanguage)
-  const [resume, setResume] = useState<ResumeData | null | undefined>(undefined)
   const [tailoredByLanguage, setTailoredByLanguage] = useState<
     Partial<Record<ResumeLanguage, AiTailoredResume>>
   >({})
   const [tailoringLanguage, setTailoringLanguage] = useState<ResumeLanguage | null>(null)
   const [tailoringError, setTailoringError] = useState<AppErrorData | null>(null)
   const [region, setRegion] = useState<Region | undefined>(undefined)
-  const [extractBusy, setExtractBusy] = useState<'' | 'reading' | 'parsing'>('')
-  const [extractError, setExtractError] = useState<AppErrorData | null>(null)
   const [letter, setLetter] = useState('')
   const [letterBusy, setLetterBusy] = useState(false)
   const [letterError, setLetterError] = useState<AppErrorData | null>(null)
@@ -71,7 +67,6 @@ export function ApplicationBundle({
   const [hasSalaryKey, setHasSalaryKey] = useState(false)
 
   useEffect(() => {
-    void loadResumeData().then((data) => setResume(data ?? null))
     void getActiveRegion().then(setRegion)
   }, [])
 
@@ -105,56 +100,13 @@ export function ApplicationBundle({
     }
   }, [job, region])
 
-  async function extractDetailed(text: string) {
-    setExtractError(null)
-    if (text.trim().length < 30) {
-      setExtractError({
-        category: 'validation', message: t('bundle.tooShort'), dataSafe: true,
-        available: 'Your saved résumé remains unchanged.',
-        action: { label: t('bundle.chooseFile'), kind: 'choose_file' },
-      })
-      return
-    }
-    setExtractBusy('parsing')
-    try {
-      const data = await extractResumeData(text, apiKey)
-      await saveResumeData(data)
-      setResume(data)
-      setTailoredByLanguage({})
-    } catch (error) {
-      setExtractError(toAppError(error, {
-        category: 'parsing', message: t('bundle.extractionFailed'), dataSafe: true,
-        available: 'Your saved résumé remains unchanged.',
-        action: { label: t('bundle.chooseFile'), kind: 'choose_file' },
-      }))
-    } finally {
-      setExtractBusy('')
-    }
-  }
-
-  async function onFile(file: File) {
-    setExtractError(null)
-    setExtractBusy('reading')
-    try {
-      const { text } = await extractText(file)
-      setExtractBusy('')
-      await extractDetailed(text)
-    } catch (error) {
-      setExtractBusy('')
-      setExtractError(toAppError(error, {
-        category: 'parsing', message: t('bundle.readFailed'), dataSafe: true,
-        available: 'Your saved résumé remains unchanged.',
-        action: { label: t('bundle.chooseFile'), kind: 'choose_file' },
-      }))
-    }
-  }
-
   async function makeTailoredResume(language: ResumeLanguage) {
-    if (!resume) return
     setTailoringError(null)
     setTailoringLanguage(language)
     try {
-      const result = await tailorResumeWithAi(resume, job, profile, apiKey, language)
+      const key = apiKey ?? await requireGroq(t('bundle.generateResume'))
+      if (!key) return
+      const result = await tailorResumeWithAi(resume, job, key, language)
       setTailoredByLanguage((current) => ({ ...current, [language]: result }))
     } catch (error) {
       setTailoringError(toAppError(error, {
@@ -173,7 +125,9 @@ export function ApplicationBundle({
     setLetterError(null)
     setLetterBusy(true)
     try {
-      setLetter(await draftCoverLetter(profile, job, apiKey, match))
+      const key = apiKey ?? await requireGroq(t('bundle.draft'))
+      if (!key) return
+      setLetter(await draftCoverLetter(resume, job, key, match))
     } catch (error) {
       setLetterError(toAppError(error, {
         category: 'parsing', message: t('bundle.letterFailed'), dataSafe: true,
@@ -237,39 +191,7 @@ export function ApplicationBundle({
           </Button>
         </div>
 
-        {resume === undefined && (
-          <div className="mt-6">
-            <Spinner label={t('common.loading')} />
-          </div>
-        )}
-
-        {resume === null && (
-          <div className="mt-5 rounded-lg border border-border bg-surface-2 p-4 text-base">
-            <p className="font-medium text-ink">{t('bundle.needResumeTitle')}</p>
-            <p className="mt-1 leading-relaxed text-muted">{t('bundle.needResumeBody')}</p>
-            <div className="mt-3 flex flex-wrap items-center gap-3">
-              <label className="inline-flex">
-                <input
-                  type="file"
-                  accept=".pdf,.docx,.txt,.md"
-                  className="hidden"
-                  onChange={(event) => {
-                    const file = event.target.files?.[0]
-                    if (file) void onFile(file)
-                  }}
-                />
-                <span className="inline-flex min-h-tap cursor-pointer items-center rounded-md border border-border bg-surface px-4 py-2.5 font-medium text-ink hover:bg-surface-2">
-                  {t('bundle.chooseFile')}
-                </span>
-              </label>
-              {extractBusy === 'reading' && <Spinner label={t('bundle.readingFile')} />}
-              {extractBusy === 'parsing' && <Spinner label={t('bundle.extractingResume')} />}
-            </div>
-            {extractError && <div className="mt-2"><ErrorNotice error={extractError} /></div>}
-          </div>
-        )}
-
-        {resume && (
+        {(
           <>
             <section className="mt-5 rounded-lg border border-border p-4">
               <h3 className="text-base font-semibold text-ink">{t('bundle.languagePrompt')}</h3>

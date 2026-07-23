@@ -1,8 +1,8 @@
 // ============================================================================
 // Export results & the tracker (features 3.1 & 3.2). Everything is client-side:
 //   • CSV  — built as a string and downloaded as a Blob (no dependency).
-//   • XLSX — via SheetJS, loaded with a dynamic import() so the ~1MB library is
-//            code-split and only fetched when the user actually exports.
+//   • XLSX — via write-excel-file, loaded with a dynamic import() so the library
+//            is code-split and only fetched when the user actually exports.
 //   • PDF  — a long ranked list paginates badly through a PDF library, so we use
 //            the browser's own print-to-PDF via window.print(). Nothing here
 //            ever touches the Worker.
@@ -60,9 +60,15 @@ export function trackedToRows(rows: TrackedJob[]): Row[] {
 
 /** Escape one CSV cell per RFC 4180 (quote if it contains a comma, quote, or newline). */
 function csvCell(value: string | number): string {
-  const s = String(value ?? '')
+  const s = String(safeSpreadsheetCell(value))
   if (/[",\n\r]/.test(s)) return '"' + s.replace(/"/g, '""') + '"'
   return s
+}
+
+/** Prevent user-controlled text from becoming a spreadsheet formula. */
+export function safeSpreadsheetCell(value: string | number): string | number {
+  if (typeof value !== 'string') return value
+  return /^[\t\r ]*[=+\-@]/.test(value) ? `'${value}` : value
 }
 
 /** Serialize rows to a CSV string. Columns come from the first row's keys. */
@@ -74,6 +80,20 @@ export function rowsToCsv(rows: Row[]): string {
     lines.push(headers.map((h) => csvCell(row[h] ?? '')).join(','))
   }
   return lines.join('\r\n')
+}
+
+/** Convert rows into the primitive cell matrix used by the safe XLSX writer. */
+export function rowsToSheetData(rows: Row[]): Array<Array<string | number>> {
+  if (rows.length === 0) return []
+  const headers = Object.keys(rows[0])
+  return [
+    headers,
+    ...rows.map((row) => headers.map((header) => safeSpreadsheetCell(row[header] ?? ''))),
+  ]
+}
+
+export function safeSheetName(value: string): string {
+  return value.replace(/[\\/*?:[\]]/g, ' ').trim().slice(0, 31) || 'Sheet1'
 }
 
 // --- Browser download helpers (not exercised in Node tests) ------------------
@@ -94,13 +114,13 @@ export function downloadCsv(filename: string, rows: Row[]): void {
   downloadBlob(filename, rowsToCsv(rows), 'text/csv;charset=utf-8')
 }
 
-/** Download rows as an XLSX file (SheetJS is loaded on demand). */
+/** Download rows as an XLSX file without parsing untrusted workbook input. */
 export async function downloadXlsx(filename: string, sheetName: string, rows: Row[]): Promise<void> {
-  const XLSX = await import('xlsx')
-  const ws = XLSX.utils.json_to_sheet(rows)
-  const wb = XLSX.utils.book_new()
-  XLSX.utils.book_append_sheet(wb, ws, sheetName.slice(0, 31) || 'Sheet1')
-  XLSX.writeFile(wb, filename)
+  const { default: writeExcelFile } = await import('write-excel-file/browser')
+  await writeExcelFile(rowsToSheetData(rows), {
+    sheet: safeSheetName(sheetName),
+    stickyRowsCount: rows.length > 0 ? 1 : 0,
+  }).toFile(filename)
 }
 
 /**

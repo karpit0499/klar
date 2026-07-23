@@ -6,13 +6,13 @@ export function PreferenceControls({ compact = false }: { compact?: boolean }) {
   const { mode, setMode } = useTheme()
 
   return (
-    <div className={`flex w-full flex-col ${compact ? 'gap-1.5' : 'gap-3'}`}>
-      <div className="flex min-h-tap items-center justify-between gap-3">
-        <span className="text-sm font-medium text-muted">{t('preferences.language')}</span>
+    <div className={compact ? 'flex shrink-0 flex-nowrap items-center gap-2' : 'flex w-full flex-col gap-3'}>
+      <div className={compact ? 'flex items-center' : 'flex min-h-tap items-center justify-between gap-3'}>
+        <span className={compact ? 'sr-only' : 'text-sm font-medium text-muted'}>{t('preferences.language')}</span>
         <LocaleToggle />
       </div>
-      <div className="flex min-h-tap items-center justify-between gap-3">
-        <span className="text-sm font-medium text-muted">{t('preferences.appearance')}</span>
+      <div className={compact ? 'flex items-center' : 'flex min-h-tap items-center justify-between gap-3'}>
+        <span className={compact ? 'sr-only' : 'text-sm font-medium text-muted'}>{t('preferences.appearance')}</span>
         <ThemeToggle mode={mode} setMode={setMode} />
       </div>
     </div>

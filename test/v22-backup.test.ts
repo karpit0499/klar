@@ -24,8 +24,8 @@ await db.preferences.put({
 
 const standard = await createStandardBackup()
 assert.equal(standard.format, 'klar-backup')
-assert.equal(standard.schemaVersion, 4)
-assert.equal(standard.klarVersion, '2.2.0')
+assert.equal(standard.schemaVersion, 5)
+assert.equal(standard.klarVersion, '2.3.0')
 assert.ok(standard.integrity.digest.length === 64)
 assert.equal(JSON.stringify(standard).includes('invalid-but-secret-key'), false)
 
@@ -53,9 +53,9 @@ assert.equal(complete.workspace.settings.some((row) => /groq|adzuna/i.test(row.k
 assert.ok(complete.workspace.vault[0]?.credentials?.ct)
 await parseAndValidateBackup(complete)
 const mixed = structuredClone(complete)
-mixed.workspace.profiles.push({
-  id: 'readable', createdAt: '2026-07-22T00:00:00.000Z', summary: '', titles: [], skills: [],
-  domains: [], education: [], languages: [], certifications: [],
+mixed.workspace.resumes.push({
+  id: 'current', createdAt: '2026-07-22T00:00:00.000Z', updatedAt: '2026-07-22T00:00:00.000Z', revision: 1,
+  data: { schemaVersion: 2, contact: { name: '', links: [] }, experience: [], education: [], skills: [], languages: [], projects: [], certifications: [], evidence: [] },
 })
 await assert.rejects(parseAndValidateBackup(mixed), /cannot be mixed/i)
 
@@ -70,7 +70,7 @@ for (const [label, legacy] of [
 ] as const) {
   const migrated = await migrateLegacyBackup(legacy)
   assert.equal(migrated.migration?.from, label)
-  assert.equal((await parseAndValidateBackup(migrated)).schemaVersion, 4)
+  assert.equal((await parseAndValidateBackup(migrated)).schemaVersion, 5)
 }
 
 const legacyWithReadableCredentials = await migrateLegacyBackup({
@@ -87,7 +87,7 @@ const legacyWithReadableCredentials = await migrateLegacyBackup({
   preferences: [], jobs: [], matches: [], tracked: [],
 })
 assert.equal(JSON.stringify(legacyWithReadableCredentials).includes('must-disappear'), false)
-assert.equal(legacyWithReadableCredentials.workspace.profiles[0]?.rawText, undefined)
+assert.equal(JSON.stringify(legacyWithReadableCredentials.workspace.resumes).includes('rawText'), false)
 
 console.log('v22-backup.test.ts: all tests passed')
 

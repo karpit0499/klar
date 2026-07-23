@@ -14,12 +14,13 @@ import { coerceResumeData, buildResumeExtractionPrompt } from '../src/resume/ext
 import { resumeDocxDocument } from '../src/resume/docx.ts'
 import { makeJob } from '../src/sources/normalize.ts'
 import type { ResumeData } from '../src/resume/types.ts'
+import { normalizeResume } from '../src/resume/canonical.ts'
 import type { NormalizedJob, Profile } from '../src/types.ts'
 
 let passed = 0, failed = 0
 const ok = (c: boolean, m: string) => { c ? passed++ : (failed++, console.error('  ✗', m)) }
 
-const resume: ResumeData = {
+const resume: ResumeData = normalizeResume({
   contact: { name: 'Kace Doe', email: 'kace@example.com', phone: '+49 30 1234',
     location: 'Berlin, Deutschland', links: [{ label: 'GitHub', url: 'https://github.com/karpit0499' }] },
   summary: 'Data scientist.',
@@ -42,7 +43,7 @@ const resume: ResumeData = {
   languages: [{ lang: 'German', level: 'C1' }, { lang: 'English', level: 'Native' }],
   projects: [{ name: 'reco-engine', summary: 'Recommender', tech: ['TensorFlow', 'BigQuery'], link: 'https://x' }],
   certifications: ['GCP Professional ML Engineer'],
-}
+})
 const profile: Profile = {
   summary: 'DS', titles: [{ title: 'Data Scientist' }],
   skills: [{ name: 'Python' }, { name: 'SQL' }, { name: 'Kubernetes' }, { name: 'GCP' }, { name: 'BigQuery' }, { name: 'TensorFlow' }],
@@ -64,13 +65,13 @@ ok(pickLanguage(jd('We are looking for a data scientist to join us.')) === 'en',
   const jdTerms = ['Kubernetes', 'GCP', 'Python']
   const out = tailorSkills(resume.skills, jdTerms)
   ok(out[0].group === 'Cloud', 'tailor: group with most JD hits floats to top')
-  ok(out.find((g) => g.group === 'Programming')!.items[0] === 'Python', 'tailor: JD item leads within its group')
+  ok(out.find((g) => g.group === 'Programming')!.items[0].name === 'Python', 'tailor: JD item leads within its group')
 }
 
 // ---- tailorBullets: JD-mentioning bullets lead -----------------------------
 {
   const out = tailorBullets(resume.experience[0].bullets, ['Kubernetes', 'TensorFlow'])
-  ok(/Kubernetes|TensorFlow/.test(out[0]), 'tailor: a JD-relevant bullet leads')
+  ok(/Kubernetes|TensorFlow/.test(out[0].text), 'tailor: a JD-relevant bullet leads')
   ok(out.length === 3, 'tailor: no bullets lost in reordering')
 }
 
@@ -78,13 +79,13 @@ ok(pickLanguage(jd('We are looking for a data scientist to join us.')) === 'en',
 {
   const t = tailorResume(resume, jd('Seeking ML Engineer: Python, Kubernetes, GCP, BigQuery, TensorFlow.', 'ML Engineer', 'en'), profile)
   ok(t.language === 'en', 'e2e: language chosen')
-  ok(t.data.skills[0].group === 'Cloud' || t.data.skills[0].items.includes('Python'), 'e2e: skills reordered toward JD')
+  ok(t.data.skills[0].group === 'Cloud' || t.data.skills[0].items.some((item) => item.name === 'Python'), 'e2e: skills reordered toward JD')
   ok(t.coverage.covered.length > 0, 'e2e: coverage attached')
   ok(t.data.experience.length === resume.experience.length, 'e2e: no experience dropped')
   ok(!!t.data.summary && /Kace|Data Scientist|focus/.test(t.data.summary), 'e2e: tailored summary built from facts')
   // No fabrication: every skill in the output existed in the input.
-  const inputSkills = new Set(resume.skills.flatMap((g) => g.items.map((s) => s.toLowerCase())))
-  const outputSkills = t.data.skills.flatMap((g) => g.items.map((s) => s.toLowerCase()))
+  const inputSkills = new Set(resume.skills.flatMap((g) => g.items.map((s) => s.name.toLowerCase())))
+  const outputSkills = t.data.skills.flatMap((g) => g.items.map((s) => s.name.toLowerCase()))
   ok(outputSkills.every((s) => inputSkills.has(s)), 'e2e: no skill fabricated (output ⊆ input)')
 }
 

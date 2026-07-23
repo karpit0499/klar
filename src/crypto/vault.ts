@@ -1,5 +1,5 @@
 // ============================================================================
-// Complete encrypted-at-rest boundary (v2.2).
+// Complete encrypted-at-rest boundary (v2.3).
 //
 // Sensitive career/document content and API credentials are encrypted in two
 // separate AES-GCM envelopes. Decrypted data exists only in this module's
@@ -13,17 +13,17 @@ import {
   type JobCacheRow,
   type MatchRow,
   type PreferencesRow,
-  type ProfileRow,
   type SavedSearchRow,
   type VaultRow,
   type VectorRow,
 } from '../db/db'
 import type { TrackedJob } from '../types'
-import type { ResumeData } from '../resume/types'
+import type { CanonicalResumeRow, ResumeDraftRow, ResumeSnapshotRow } from '../resume/types'
+import { normalizeResume, resumeFromLegacyProfile } from '../resume/canonical'
 import { decryptJSON, encryptJSON } from './resumeCrypto'
 import { AppError, lockedVaultError, toAppError } from '../errors/appError'
 
-const RESUME_DATA_KEY = 'resumeDataV1'
+const LEGACY_RESUME_DATA_KEY = 'resumeDataV1'
 const GROQ_KEY = 'groqKey'
 const GROQ_REMEMBER = 'groqKeyRemember'
 const ADZUNA_ID = 'adzunaAppId'
@@ -31,9 +31,10 @@ const ADZUNA_KEY = 'adzunaAppKey'
 const SESSION_GROQ_KEY = 'klar.groqKey'
 
 export type SensitiveContent = {
-  version: 1
-  profiles: ProfileRow[]
-  resumeData?: ResumeData
+  version: 2
+  canonicalResume?: CanonicalResumeRow
+  resumeHistory: ResumeSnapshotRow[]
+  resumeDraft?: ResumeDraftRow
   preferences: PreferencesRow[]
   jobs: JobCacheRow[]
   matches: MatchRow[]
@@ -85,7 +86,8 @@ export async function unlockVault(passphrase: string): Promise<void> {
   })
   lockVault()
   try {
-    const content = await decryptJSON<SensitiveContent>(row.content, passphrase)
+    const decrypted = await decryptJSON<unknown>(row.content, passphrase)
+    const content = migrateSensitiveContent(decrypted)
     const credentials = row.credentials
       ? await decryptJSON<VaultCredentials>(row.credentials, passphrase)
       : emptyCredentials()
@@ -95,7 +97,10 @@ export async function unlockVault(passphrase: string): Promise<void> {
     unlockedContent = content
     unlockedCredentials = credentials
     sessionPassphrase = passphrase
-    await db.vault.update('primary', { updatedAt: new Date().toISOString() })
+    await db.vault.update('primary', {
+      content: await encryptJSON(content, passphrase),
+      updatedAt: new Date().toISOString(),
+    })
   } catch (error) {
     // Wrong passphrases and damaged ciphertext never write or replace stored data.
     lockVault()
@@ -140,7 +145,9 @@ export async function enableVault(
   }
 
   const [
-    profiles,
+    resumes,
+    resumeHistory,
+    resumeDrafts,
     preferences,
     jobs,
     matches,
@@ -148,14 +155,15 @@ export async function enableVault(
     tracked,
     vectors,
     savedSearches,
-    resumeData,
     storedGroq,
     groqRemember,
     appId,
     appKey,
   ] =
     await Promise.all([
-      db.profiles.toArray(),
+      db.resumes.toArray(),
+      db.resumeHistory.toArray(),
+      db.resumeDrafts.toArray(),
       db.preferences.toArray(),
       db.jobs.toArray(),
       db.matches.toArray(),
@@ -163,7 +171,6 @@ export async function enableVault(
       db.tracked.toArray(),
       db.vectors.toArray(),
       db.savedSearches.toArray(),
-      getSetting<ResumeData>(RESUME_DATA_KEY),
       getSetting<string>(GROQ_KEY),
       getSetting<boolean>(GROQ_REMEMBER),
       getSetting<string>(ADZUNA_ID),
@@ -171,9 +178,10 @@ export async function enableVault(
     ])
 
   const content: SensitiveContent = {
-    version: 1,
-    profiles: profiles.map(({ rawText: _rawText, ...profile }) => profile),
-    resumeData,
+    version: 2,
+    canonicalResume: resumes.find((row) => row.id === 'current'),
+    resumeHistory,
+    resumeDraft: resumeDrafts.find((row) => row.id === 'onboarding'),
     preferences,
     jobs,
     matches,
@@ -214,6 +222,9 @@ export async function enableVault(
       [
         db.vault,
         db.profiles,
+        db.resumes,
+        db.resumeHistory,
+        db.resumeDrafts,
         db.preferences,
         db.jobs,
         db.matches,
@@ -227,6 +238,9 @@ export async function enableVault(
         await db.vault.put(row)
         await Promise.all([
           db.profiles.clear(),
+          db.resumes.clear(),
+          db.resumeHistory.clear(),
+          db.resumeDrafts.clear(),
           db.preferences.clear(),
           db.jobs.clear(),
           db.matches.clear(),
@@ -234,7 +248,7 @@ export async function enableVault(
           db.tracked.clear(),
           db.vectors.clear(),
           db.savedSearches.clear(),
-          db.settings.bulkDelete([RESUME_DATA_KEY, GROQ_KEY, GROQ_REMEMBER, ADZUNA_ID, ADZUNA_KEY]),
+          db.settings.bulkDelete([LEGACY_RESUME_DATA_KEY, GROQ_KEY, GROQ_REMEMBER, ADZUNA_ID, ADZUNA_KEY]),
         ])
       },
     )
@@ -263,6 +277,9 @@ export async function disableVault(): Promise<void> {
     [
       db.vault,
       db.profiles,
+      db.resumes,
+      db.resumeHistory,
+      db.resumeDrafts,
       db.preferences,
       db.jobs,
       db.matches,
@@ -275,6 +292,9 @@ export async function disableVault(): Promise<void> {
     async () => {
       await Promise.all([
         db.profiles.clear(),
+        db.resumes.clear(),
+        db.resumeHistory.clear(),
+        db.resumeDrafts.clear(),
         db.preferences.clear(),
         db.jobs.clear(),
         db.matches.clear(),
@@ -283,7 +303,9 @@ export async function disableVault(): Promise<void> {
         db.vectors.clear(),
         db.savedSearches.clear(),
       ])
-      if (content.profiles.length) await db.profiles.bulkPut(content.profiles)
+      if (content.canonicalResume) await db.resumes.put(content.canonicalResume)
+      if (content.resumeHistory.length) await db.resumeHistory.bulkPut(content.resumeHistory)
+      if (content.resumeDraft) await db.resumeDrafts.put(content.resumeDraft)
       if (content.preferences.length) await db.preferences.bulkPut(content.preferences)
       if (content.jobs.length) await db.jobs.bulkPut(content.jobs)
       if (content.matches.length) await db.matches.bulkPut(content.matches)
@@ -291,7 +313,6 @@ export async function disableVault(): Promise<void> {
       if (content.tracked.length) await db.tracked.bulkPut(content.tracked)
       if (content.vectors.length) await db.vectors.bulkPut(content.vectors)
       if (content.savedSearches.length) await db.savedSearches.bulkPut(content.savedSearches)
-      if (content.resumeData) await db.settings.put({ key: RESUME_DATA_KEY, value: content.resumeData })
       if (credentials.groqKey) await db.settings.put({ key: GROQ_KEY, value: credentials.groqKey })
       await db.settings.put({ key: GROQ_REMEMBER, value: credentials.groqRemember ?? true })
       if (credentials.adzuna) {
@@ -412,8 +433,9 @@ export function assertSensitiveContent(value: unknown): asserts value is Sensiti
   const content = value as Partial<SensitiveContent>
   if (
     !content ||
-    content.version !== 1 ||
-    !Array.isArray(content.profiles) ||
+    content.version !== 2 ||
+    (content.canonicalResume != null && (content.canonicalResume as CanonicalResumeRow).id !== 'current') ||
+    !Array.isArray(content.resumeHistory) ||
     !Array.isArray(content.preferences) ||
     !Array.isArray(content.jobs) ||
     !Array.isArray(content.matches) ||
@@ -427,6 +449,52 @@ export function assertSensitiveContent(value: unknown): asserts value is Sensiti
   ) {
     throw new Error('The decrypted content vault has an invalid structure.')
   }
+}
+
+/** Upgrade v2.2 vault plaintext in memory; the caller re-encrypts it atomically. */
+export function migrateSensitiveContent(value: unknown): SensitiveContent {
+  const legacy = value as {
+    version?: number
+    profiles?: Array<Record<string, unknown>>
+    resumeData?: unknown
+    preferences?: PreferencesRow[]
+    jobs?: JobCacheRow[]
+    matches?: MatchRow[]
+    dashboard?: DashboardRow[]
+    tracked?: TrackedJob[]
+    vectors?: VectorRow[]
+    savedSearches?: SavedSearchRow[]
+    packets?: unknown[]
+    originalFiles?: unknown[]
+    knowledgeBase?: unknown[]
+  }
+  if (legacy?.version === 2) {
+    assertSensitiveContent(value)
+    return structuredClone(value)
+  }
+  if (!legacy || legacy.version !== 1) throw new Error('The decrypted content vault has an unsupported version.')
+  const latest = [...(legacy.profiles ?? [])].sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))[0]
+  const profile = latest as unknown as import('../types').Profile | undefined
+  const data = legacy.resumeData
+    ? normalizeResume(legacy.resumeData, 'migration')
+    : profile
+      ? resumeFromLegacyProfile(profile)
+      : undefined
+  const now = new Date().toISOString()
+  const content: SensitiveContent = {
+    version: 2,
+    canonicalResume: data ? { id: 'current', data, createdAt: String(latest?.createdAt ?? now), updatedAt: now, revision: 1 } : undefined,
+    resumeHistory: data ? [{
+      id: `migration-${Date.now()}`, data: structuredClone(data), createdAt: now,
+      reason: 'migration', name: 'Automatic v2.3 migration snapshot',
+    }] : [],
+    preferences: legacy.preferences ?? [], jobs: legacy.jobs ?? [], matches: [],
+    dashboard: legacy.dashboard ?? [], tracked: legacy.tracked ?? [], vectors: [],
+    savedSearches: legacy.savedSearches ?? [], packets: legacy.packets ?? [],
+    originalFiles: legacy.originalFiles ?? [], knowledgeBase: legacy.knowledgeBase ?? [],
+  }
+  assertSensitiveContent(content)
+  return content
 }
 
 export function assertCredentials(value: unknown): asserts value is VaultCredentials {

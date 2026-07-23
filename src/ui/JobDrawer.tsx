@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { Button, Badge, Spinner } from './atoms'
 import { ApplicationBundle } from './ApplicationBundle'
-import type { MatchResult, NormalizedJob, Profile } from '../types'
+import type { MatchResult, NormalizedJob } from '../types'
+import type { ResumeData } from '../resume/types'
 import { fetchBaDetail } from '../sources/ba'
 import { addToTracker } from '../tracker/store'
 import { FACTOR_KEYS } from '../match/weights'
@@ -46,8 +47,9 @@ export function JobDrawer({
   job,
   match,
   score,
-  profile,
+  resume,
   apiKey,
+  requireGroq,
   saved,
   onClose,
 }: {
@@ -55,8 +57,9 @@ export function JobDrawer({
   match?: MatchResult
   /** Composite (re-weighted) headline score; falls back to fitScore. */
   score?: number
-  profile: Profile
-  apiKey: string
+  resume: ResumeData
+  apiKey?: string
+  requireGroq: (action: string) => Promise<string | null>
   saved: boolean
   onClose: () => void
 }) {
@@ -104,7 +107,9 @@ export function JobDrawer({
     setLetterErr('')
     setLetterBusy(true)
     try {
-      const text = await draftCoverLetter(profile, { ...job, description }, apiKey, match)
+      const key = apiKey ?? await requireGroq(t('drawer.draftCoverLetter'))
+      if (!key) return
+      const text = await draftCoverLetter(resume, { ...job, description }, key, match)
       setLetter(text)
     } catch (e) {
       setLetterErr(e instanceof Error ? e.message : t('drawer.letterFailed'))
@@ -281,8 +286,9 @@ export function JobDrawer({
       {showBundle && (
         <ApplicationBundle
           job={{ ...job, description }}
-          profile={profile}
+          resume={resume}
           apiKey={apiKey}
+          requireGroq={requireGroq}
           match={match}
           onClose={() => setShowBundle(false)}
         />

@@ -20,8 +20,9 @@ import {
 } from '../src/search/savedSearches'
 import { regionDE } from '../src/regions/de'
 import { AppError } from '../src/errors/appError'
-import { detectLocalSetupState, saveOnboardingProgress } from '../src/onboarding/setupState'
-import { persistProfile } from '../src/profile/store'
+import { clearOnboardingProgress, detectLocalSetupState, saveOnboardingProgress } from '../src/onboarding/setupState'
+import { resumeFromLegacyProfile } from '../src/resume/canonical'
+import { saveCanonicalResume } from '../src/resume/store'
 
 await resetDb()
 
@@ -121,27 +122,34 @@ assert.ok(pruned.length <= 5_000)
 assert.equal(pruned.some((entry) => entry.value.startsWith('old:')), false)
 
 // Setup-state detection distinguishes absent, interrupted, and complete workspaces.
-assert.deepEqual(await detectLocalSetupState(), { kind: 'absent', resumeAt: 'resume' })
-await saveOnboardingProgress('profile-review')
+assert.deepEqual(await detectLocalSetupState(), { kind: 'absent', resumeAt: 'welcome', discoveryMode: 'career' })
+await saveOnboardingProgress('review')
 assert.deepEqual(await detectLocalSetupState(), {
-  kind: 'partial', resumeAt: 'profile-review', hasProfile: false, hasPreferences: false,
+  kind: 'partial', resumeAt: 'review', discoveryMode: 'career',
+  hasResume: false, hasDraft: false, hasPreferences: false,
+  capabilities: {
+    canDiscoverCareer: false, canDiscoverFlexible: false,
+    canPrepareApplications: false, canUseResumeMatching: false,
+  },
 })
 
 await db.matches.put({
   cacheKey: 'old', jobId: 'j', fitScore: 50, verdict: 'good', rationale: '', matchedSkills: [],
   missingSkills: [], redFlags: [], scoredAt: '2026-01-01T00:00:00.000Z', modelVersion: 'old',
 })
-await persistProfile({
+await saveCanonicalResume(resumeFromLegacyProfile({
   summary: '', titles: [], skills: [], domains: [], education: [], languages: [], certifications: [],
   rawText: 'temporary extraction text',
-})
+}), { reason: 'migration' })
 assert.equal(await db.matches.count(), 0, 'profile changes clear obsolete match caches')
-assert.equal((await db.profiles.toArray())[0]?.rawText, undefined)
+assert.equal(await db.profiles.count(), 0)
+assert.equal((await db.resumes.get('current'))?.data.schemaVersion, 2)
 await db.preferences.put({
   id: 'current', targetTitles: [], fields: [], seniority: 'mid',
   salary: { currency: 'EUR', period: 'year' }, locations: [], workAuth: {}, languages: [],
   mustHaves: [], dealbreakers: [],
 })
+await clearOnboardingProgress()
 assert.equal((await detectLocalSetupState()).kind, 'complete')
 
 const modeled = new AppError({

@@ -6,7 +6,7 @@
 import type { MatchResult, NormalizedJob, Preferences, Profile } from '../types'
 import { MATCH } from '../lib/config'
 import { stableHash } from '../lib/hash'
-import { prefilter } from './prefilter'
+import { prefilter, scoreJob } from './prefilter'
 import { semanticPrefilter } from './semantic'
 import { isFailedMatchPlaceholder, rerankAll } from './rerank'
 import { fetchBaDetail } from '../sources/ba'
@@ -47,7 +47,7 @@ export async function runMatching(
   jobs: NormalizedJob[],
   profile: Profile,
   prefs: Preferences,
-  apiKey: string,
+  apiKey: string | undefined,
   opts: {
     onProgress?: (p: MatchProgress) => void
     signal?: AbortSignal
@@ -64,6 +64,23 @@ export async function runMatching(
     opts.prefilterMode === 'semantic'
       ? await semanticPrefilter(jobs, profile, prefs, MATCH.candidateLimit)
       : prefilter(jobs, profile, prefs, MATCH.candidateLimit)
+
+  // Local discovery remains available without an API key. The user is asked
+  // for Groq only when an explicitly AI-dependent action is invoked.
+  if (!apiKey) {
+    const local = candidates.map((job) => {
+      const fitScore = Math.max(0, Math.min(100, Math.round(scoreJob(job, profile, prefs))))
+      return {
+        jobId: job.id, fitScore,
+        verdict: fitScore >= 75 ? 'strong' as const : fitScore >= 55 ? 'good' as const : fitScore >= 35 ? 'stretch' as const : 'weak' as const,
+        rationale: 'Local keyword ranking. Connect Groq from an AI action for a richer explanation.',
+        matchedSkills: profile.skills.map((skill) => skill.name).filter((skill) => job.description.toLowerCase().includes(skill.toLowerCase())),
+        missingSkills: [], redFlags: [], scoredAt: new Date().toISOString(), modelVersion: 'local-v2.3',
+      }
+    }).sort((a, b) => b.fitScore - a.fitScore)
+    opts.onProgress?.({ phase: 'done', done: local.length, total: local.length })
+    return local
+  }
 
   // 2. Split cached vs. uncached.
   const cachedRows = await getMatchRows(candidates.map((c) => key(c.id)))
