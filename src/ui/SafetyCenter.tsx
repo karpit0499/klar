@@ -9,15 +9,17 @@ import {
 } from '../backup/backup'
 import { disableVault, enableVault, getVaultStatus, lockVault } from '../crypto/vault'
 import { toAppError, type AppErrorData } from '../errors/appError'
-import { useT } from '../i18n/LocaleProvider'
+import { useLocale, useT } from '../i18n/LocaleProvider'
 import { Button, Card, Field, TextInput } from './atoms'
 import { ErrorNotice } from './ErrorNotice'
 
-export function SafetyCenter({ apiKey }: { apiKey: string }) {
+export function SafetyCenter({ apiKey }: { apiKey?: string }) {
   const t = useT()
+  const { locale } = useLocale()
   const fileRef = useRef<HTMLInputElement>(null)
   const vaultStatus = useLiveQuery(getVaultStatus, [], undefined)
   const [backupPassword, setBackupPassword] = useState('')
+  const [restorePassword, setRestorePassword] = useState('')
   const [passphrase, setPassphrase] = useState('')
   const [confirmPassphrase, setConfirmPassphrase] = useState('')
   const [acknowledged, setAcknowledged] = useState(false)
@@ -111,6 +113,11 @@ export function SafetyCenter({ apiKey }: { apiKey: string }) {
       <section className="mt-4 rounded-lg border border-border p-4">
         <h3 className="font-semibold text-ink">{t('safety.import')}</h3>
         <p className="mt-1 text-sm leading-relaxed text-muted">{t('safety.importHint')}</p>
+        <div className="mt-3 max-w-sm">
+          <Field label={locale === 'de' ? 'Sicherungspasswort (nur für verschlüsselte Sicherungen)' : 'Backup password (only for encrypted backups)'}>
+            <TextInput type="password" value={restorePassword} onChange={(event) => setRestorePassword(event.target.value)} />
+          </Field>
+        </div>
         <Button variant="ghost" className="mt-3" onClick={() => fileRef.current?.click()}>
           {t('safety.import')}
         </Button>
@@ -123,7 +130,7 @@ export function SafetyCenter({ apiKey }: { apiKey: string }) {
             const file = event.target.files?.[0]
             if (!file) return
             void action('import', async () => {
-              await importBackup(JSON.parse(await file.text()))
+              await importBackup(JSON.parse(await file.text()), restorePassword || undefined)
               setMessage(t('safety.restored'))
               setTimeout(() => location.reload(), 600)
             })

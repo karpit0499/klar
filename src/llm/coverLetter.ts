@@ -1,72 +1,53 @@
-// ============================================================================
-// Cover-letter draft builder (feature 7.1). Everything it needs is already in
-// scope: the parsed profile and the full job description in the drawer. We ask
-// the LLM for a concise, specific letter that cites two concrete matching
-// skills and avoids clichés. The prompt builder is pure (unit-testable); the
-// call reuses the same direct-to-Groq client as résumé parsing and matching.
-// ============================================================================
 import type { MatchResult, NormalizedJob, Profile } from '../types'
+import type { ResumeData } from '../resume/types'
+import { resumeFromLegacyProfile } from '../resume/canonical'
 import { groqChat } from './groq'
 
-const SYSTEM = `You are a concise career writer. You write specific, non-generic cover letters grounded ONLY in facts from the candidate's profile and the job description. You never invent employers, dates, or skills the candidate doesn't have. You avoid clichés like "I am a hard-working team player" and "I am excited about this opportunity".`
+const SYSTEM = `You are a concise career writer. Write a specific cover letter grounded only in the supplied verified résumé evidence and job description. Never invent employers, dates, tools, responsibilities, qualifications, clients, certifications, or metrics. Do not expose evidence ids in the letter.`
 
-/** Build the (deterministic, testable) cover-letter prompt for one job. */
 export function buildCoverLetterPrompt(
-  profile: Profile,
+  source: ResumeData | Profile,
   job: NormalizedJob,
   match?: MatchResult,
 ): string {
-  const candidate = {
-    summary: profile.summary,
-    titles: profile.titles.map((t) => t.title),
-    skills: profile.skills.map((s) => s.name),
-    totalYears: profile.totalYears,
-    domains: profile.domains,
+  const resume = isResumeData(source) ? source : resumeFromLegacyProfile(source)
+  const verifiedEvidence = {
+    summary: resume.summary,
+    roles: resume.experience.map((role) => ({
+      evidenceId: role.id, title: role.title, company: role.company,
+      start: role.start, end: role.end, current: role.current,
+      achievements: role.bullets.map((bullet) => ({ evidenceId: bullet.id, text: bullet.text })),
+    })),
+    skills: resume.skills.flatMap((group) => group.items.map((item) => ({ evidenceId: item.id, name: item.name }))),
+    projects: resume.projects.map((project) => ({ evidenceId: project.id, name: project.name, summary: project.summary, tech: project.tech })),
+    education: resume.education.map((item) => ({ evidenceId: item.id, degree: item.degree, field: item.field, institution: item.institution })),
+    certifications: resume.certifications.map((item) => ({ evidenceId: item.id, name: item.name, issuer: item.issuer })),
   }
   return [
-    'Write a cover letter for this candidate and this specific role.',
-    '',
-    'CANDIDATE PROFILE:',
-    JSON.stringify(candidate),
-    '',
-    'JOB:',
-    JSON.stringify({
-      title: job.title,
-      company: job.company,
-      location: job.location.city ?? (job.location.remote ? 'Remote' : ''),
-      description: job.description.slice(0, 3000),
-    }),
-    match?.matchedSkills?.length
-      ? `\nSkills already known to overlap: ${match.matchedSkills.join(', ')}`
-      : '',
-    '',
-    'REQUIREMENTS:',
-    '- 180–260 words, 3 short paragraphs.',
-    '- Cite at least TWO concrete skills the candidate has that this role needs.',
-    '- Reference the company and role by name.',
-    '- No clichés, no filler, no invented facts.',
-    '- Plain text only. Start with "Dear Hiring Team," and end with "Best regards,".',
-    '- Do NOT include a date or postal addresses.',
-  ]
-    .filter(Boolean)
-    .join('\n')
+    'Write a cover letter of 220–320 words.',
+    'Open with the exact role and company. Use at least TWO concrete skills or achievements from verified evidence.',
+    'Use the match overlap only as a relevance hint; it is not additional evidence.',
+    'No clichés, generic enthusiasm, or unsupported claims.',
+    'If evidence is thin, stay concise instead of filling gaps. End with a direct, calm close.',
+    '', 'VERIFIED RÉSUMÉ EVIDENCE:', JSON.stringify(verifiedEvidence, null, 2),
+    '', 'JOB:', JSON.stringify({ title: job.title, company: job.company, description: job.description }, null, 2),
+    ...(match ? ['', 'MATCH CONTEXT (not additional evidence):', JSON.stringify({ matchedSkills: match.matchedSkills, missingSkills: match.missingSkills, rationale: match.rationale }, null, 2)] : []),
+  ].join('\n')
 }
 
-/** Generate a cover-letter draft. Returns editable plain text. */
 export async function draftCoverLetter(
-  profile: Profile,
+  source: ResumeData | Profile,
   job: NormalizedJob,
   apiKey: string,
   match?: MatchResult,
   signal?: AbortSignal,
 ): Promise<string> {
-  const text = await groqChat({
-    apiKey,
-    system: SYSTEM,
-    user: buildCoverLetterPrompt(profile, job, match),
-    temperature: 0.4,
-    maxTokens: 700,
-    signal,
+  return groqChat({
+    apiKey, system: SYSTEM, user: buildCoverLetterPrompt(source, job, match),
+    temperature: 0.3, maxTokens: 900, signal,
   })
-  return text.trim()
+}
+
+function isResumeData(value: ResumeData | Profile): value is ResumeData {
+  return 'experience' in value && 'contact' in value
 }

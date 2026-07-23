@@ -14,6 +14,8 @@ import type {
   SearchQuery,
 } from '../types'
 import type { CipherEnvelope } from '../crypto/resumeCrypto'
+import type { CanonicalResumeRow, ResumeDraftRow, ResumeSnapshotRow } from '../resume/types'
+import { normalizeResume, resumeFromLegacyProfile } from '../resume/canonical'
 
 /** Key/value settings row (e.g. active profile id, UI locale). Keys, not secrets. */
 export type Setting = { key: string; value: unknown }
@@ -83,6 +85,9 @@ export class KlarDB extends Dexie {
   vectors!: Table<VectorRow, string>
   savedSearches!: Table<SavedSearchRow, string>
   vault!: Table<VaultRow, string>
+  resumes!: Table<CanonicalResumeRow, string>
+  resumeHistory!: Table<ResumeSnapshotRow, string>
+  resumeDrafts!: Table<ResumeDraftRow, string>
 
   constructor() {
     super('klar')
@@ -142,6 +147,50 @@ export class KlarDB extends Dexie {
         delete row.rawText
       })
     })
+    // v5 — v2.3 promotes the rich résumé to the sole career-fact source.
+    // Existing plaintext ResumeData is normalized; old thin profiles are used
+    // only when no rich résumé exists. The transaction is atomic, and the
+    // migration snapshot provides a recoverable pre-edit version.
+    this.version(5).stores({
+      settings: 'key',
+      profiles: 'id, createdAt',
+      preferences: 'id',
+      jobs: 'queryKey, fetchedAt',
+      matches: 'cacheKey, jobId',
+      tracked: 'jobId, status, updatedAt',
+      dashboard: 'id',
+      vectors: 'jobId, embedderId',
+      savedSearches: 'id, updatedAt',
+      vault: 'id, updatedAt',
+      resumes: 'id, updatedAt',
+      resumeHistory: 'id, createdAt, name',
+      resumeDrafts: 'id, updatedAt',
+    }).upgrade(async (transaction) => {
+      const settings = transaction.table('settings')
+      const profiles = transaction.table('profiles')
+      const oldResume = (await settings.get('resumeDataV1'))?.value
+      const profileRows = await profiles.toArray() as ProfileRow[]
+      const latest = [...profileRows].sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0]
+      const data = oldResume
+        ? normalizeResume(oldResume, 'migration')
+        : latest
+          ? resumeFromLegacyProfile(latest)
+          : undefined
+      if (data) {
+        const now = new Date().toISOString()
+        data.reviewedAt = data.reviewedAt ?? latest?.createdAt ?? now
+        const row: CanonicalResumeRow = { id: 'current', data, createdAt: latest?.createdAt ?? now, updatedAt: now, revision: 1 }
+        await transaction.table('resumes').put(row)
+        await transaction.table('resumeHistory').put({
+          id: `migration-${Date.now()}`, data: structuredClone(data), createdAt: now,
+          reason: 'migration', name: 'Automatic v2.3 migration snapshot',
+        } satisfies ResumeSnapshotRow)
+      }
+      await Promise.all([
+        profiles.clear(), settings.delete('resumeDataV1'),
+        transaction.table('matches').clear(), transaction.table('vectors').clear(),
+      ])
+    })
   }
 }
 
@@ -170,5 +219,8 @@ export async function wipeAllData(): Promise<void> {
     db.vectors.clear(),
     db.savedSearches.clear(),
     db.vault.clear(),
+    db.resumes.clear(),
+    db.resumeHistory.clear(),
+    db.resumeDrafts.clear(),
   ])
 }

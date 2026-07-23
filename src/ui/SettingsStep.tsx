@@ -2,15 +2,17 @@ import { useEffect, useState } from 'react'
 import { Button, Card, Field, TextInput } from './atoms'
 import { PreferenceControls } from './PreferenceControls'
 import { ResumeReupload } from './ResumeReupload'
+import { ResumeEditor } from './ResumeEditor'
+import { ResumeHistory } from './ResumeHistory'
 import { SafetyCenter } from './SafetyCenter'
 import { ErrorNotice } from './ErrorNotice'
 import { wipeAllData } from '../db/db'
 import { clearGroqKey } from '../settings/keys'
 import { clearAdzunaKey, loadAdzunaKey, saveAdzunaKey } from '../settings/adzunaKey'
 import { REGIONS, getActiveRegion, setActiveRegion, DEFAULT_REGION_CODE } from '../regions'
-import { useT } from '../i18n/LocaleProvider'
+import { useLocale, useT } from '../i18n/LocaleProvider'
 import type { TranslationKey } from '../i18n/translations'
-import type { Profile } from '../types'
+import type { ResumeData } from '../resume/types'
 import { testAdzunaConnection } from '../settings/adzunaConnection'
 import { toAppError, type AppErrorData } from '../errors/appError'
 import { lockVault } from '../crypto/vault'
@@ -18,13 +20,27 @@ import { lockVault } from '../crypto/vault'
 export function SettingsStep({
   onReset,
   apiKey,
-  onReplaceProfile,
+  requireGroq,
+  resume,
+  onSaveResume,
+  onReplaceResume,
+  onResumeChanged,
+  onEditFlexible,
+  onAddResume,
 }: {
   onReset: () => void
-  apiKey: string
-  onReplaceProfile: (profile: Profile) => void | Promise<void>
+  apiKey?: string
+  requireGroq: (action: string) => Promise<string | null>
+  resume?: ResumeData
+  onSaveResume?: (resume: ResumeData) => void | Promise<void>
+  onReplaceResume?: (resume: ResumeData) => void | Promise<void>
+  onResumeChanged?: () => void
+  onEditFlexible?: () => void
+  onAddResume?: () => void
 }) {
   const t = useT()
+  const { locale } = useLocale()
+  const de = locale === 'de'
   const [message, setMessage] = useState('')
   const [regionCode, setRegionCode] = useState(DEFAULT_REGION_CODE)
   const [adzunaAppId, setAdzunaAppId] = useState('')
@@ -33,6 +49,8 @@ export function SettingsStep({
   const [adzunaMessage, setAdzunaMessage] = useState('')
   const [adzunaTesting, setAdzunaTesting] = useState(false)
   const [adzunaError, setAdzunaError] = useState<AppErrorData | null>(null)
+  const [resumeDraft, setResumeDraft] = useState<ResumeData | null>(() => resume ? structuredClone(resume) : null)
+  const [resumeSaved, setResumeSaved] = useState('')
 
   useEffect(() => {
     void getActiveRegion().then((region) => setRegionCode(region.code))
@@ -50,6 +68,8 @@ export function SettingsStep({
         action: { label: 'Enter a complete pair', kind: 'open_settings' },
       })))
   }, [])
+
+  useEffect(() => { setResumeDraft(resume ? structuredClone(resume) : null) }, [resume])
 
   async function changeRegion(code: string) {
     setRegionCode(code)
@@ -125,6 +145,17 @@ export function SettingsStep({
 
         <SafetyCenter apiKey={apiKey} />
 
+        {(onEditFlexible || onAddResume) && (
+          <Card className="mt-4 p-4 sm:p-6">
+            <h2 className="text-xl font-semibold text-ink">{de ? 'Flexible Arbeit' : 'Flexible Work'}</h2>
+            <p className="mt-1 text-base text-muted">{de ? 'Passe Orte, Arbeitsarten und Verfügbarkeit an oder ergänze einen Lebenslauf für Karrierejobs.' : 'Adjust locations, work types, and availability, or add a résumé for career roles.'}</p>
+            <div className="mt-4 flex flex-wrap gap-3">
+              {onEditFlexible && <Button onClick={onEditFlexible}>{de ? 'Flexible Suche bearbeiten' : 'Edit flexible search'}</Button>}
+              {onAddResume && <Button variant="ghost" onClick={onAddResume}>{de ? 'Lebenslauf hinzufügen' : 'Add résumé'}</Button>}
+            </div>
+          </Card>
+        )}
+
         <Card className="mt-4 p-4 sm:p-6">
           <h2 className="text-xl font-semibold text-ink">{t('preferences.title')}</h2>
           <p className="mt-1 text-base text-muted">{t('preferences.intro')}</p>
@@ -181,13 +212,35 @@ export function SettingsStep({
           {adzunaError && <div className="mt-3"><ErrorNotice error={adzunaError} /></div>}
         </Card>
 
-        <Card className="mt-4 p-4 sm:p-6">
+        {resumeDraft && onSaveResume && <Card className="mt-4 p-4 sm:p-6">
           <h2 className="text-xl font-semibold text-ink">{t('settings.resumeTitle')}</h2>
           <p className="mt-1 text-base leading-relaxed text-muted">{t('settings.resumeIntro')}</p>
           <div className="mt-4">
-            <ResumeReupload apiKey={apiKey} onReplace={onReplaceProfile} />
+            <ResumeEditor
+              value={resumeDraft}
+              onChange={setResumeDraft}
+              onSave={() => void (async () => {
+                await onSaveResume(resumeDraft)
+                setResumeSaved(de ? 'Gespeichert' : 'Saved')
+                setTimeout(() => setResumeSaved(''), 1500)
+              })()}
+            />
+            {resumeSaved && <p className="mt-2 text-sm text-success">{resumeSaved}</p>}
           </div>
-        </Card>
+        </Card>}
+
+        {onReplaceResume && <Card className="mt-4 p-4 sm:p-6">
+          <h2 className="text-xl font-semibold text-ink">{de ? 'Lebenslauf ersetzen' : 'Replace résumé'}</h2>
+          <p className="mt-1 text-base leading-relaxed text-muted">{de ? 'Prüfe jeden Abschnitt vor dem vollständigen Ersetzen. Klar speichert die aktuelle Version automatisch.' : 'Preview every section before a full replacement. Klar saves the current version automatically.'}</p>
+          <div className="mt-4">
+            <ResumeReupload apiKey={apiKey} requireGroq={requireGroq} onReplace={onReplaceResume} />
+          </div>
+        </Card>}
+
+        {onResumeChanged && <Card className="mt-4 p-4 sm:p-6">
+          <h2 className="text-xl font-semibold text-ink">{de ? 'Lebenslauf-Verlauf' : 'Résumé history'}</h2>
+          <div className="mt-4"><ResumeHistory onRestored={onResumeChanged} /></div>
+        </Card>}
 
         <Card className="mt-4 p-4 sm:p-6">
           <h2 className="text-xl font-semibold text-ink">{t('settings.regionTitle')}</h2>

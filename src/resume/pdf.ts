@@ -34,7 +34,7 @@ export function resumeToHtml(data: ResumeData, lang: ResumeLanguage): string {
       parts.push(`<p class="role"><strong>${esc([e.title, e.company, e.city].filter(Boolean).join(' — '))}</strong></p>`)
       const range = formatDateRange(e.start, e.end, e.current, lang)
       if (range) parts.push(`<p class="dates">${esc(range)}</p>`)
-      if (e.bullets.length) parts.push(`<ul>${e.bullets.map((b) => `<li>${esc(b)}</li>`).join('')}</ul>`)
+      if (e.bullets.length) parts.push(`<ul>${e.bullets.map((b) => `<li>${esc(b.text)}</li>`).join('')}</ul>`)
     }
   }
   if (data.education.length) {
@@ -50,7 +50,7 @@ export function resumeToHtml(data: ResumeData, lang: ResumeLanguage): string {
   if (data.skills.length) {
     parts.push(`<h2>${esc(H.skills)}</h2>`)
     for (const g of data.skills) {
-      parts.push(`<p>${g.group ? `<strong>${esc(g.group)}:</strong> ` : ''}${esc(g.items.join(', '))}</p>`)
+      parts.push(`<p>${g.group ? `<strong>${esc(g.group)}:</strong> ` : ''}${esc(g.items.map((item) => item.name).join(', '))}</p>`)
     }
   }
   if (data.languages.length) {
@@ -65,7 +65,7 @@ export function resumeToHtml(data: ResumeData, lang: ResumeLanguage): string {
     }
   }
   if (data.certifications.length) {
-    parts.push(`<h2>${esc(H.certifications)}</h2><p>${esc(data.certifications.join(', '))}</p>`)
+    parts.push(`<h2>${esc(H.certifications)}</h2><p>${esc(data.certifications.map((item) => item.name).join(', '))}</p>`)
   }
 
   return `<!doctype html><html lang="${lang}"><head><meta charset="utf-8">

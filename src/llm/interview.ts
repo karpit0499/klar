@@ -1,77 +1,47 @@
-// ============================================================================
-// Per-job interview prep (feature 17). From the JD + profile, generate likely
-// questions, how the candidate's background answers each, and talking points for
-// the gaps. A natural extension of the existing Groq layer — the prompt builder
-// is pure (testable); the call + defensive parse mirror the re-rank pattern.
-// ============================================================================
 import type { NormalizedJob, Profile } from '../types'
-import { groqChat, extractJson } from './groq'
+import type { ResumeData } from '../resume/types'
+import { resumeFromLegacyProfile } from '../resume/canonical'
+import { extractJson, groqChat } from './groq'
 
-const SYSTEM = `You are an experienced interview coach. You prepare a candidate for a specific role using ONLY facts from their profile and the job description. You never invent experience. Reply with ONE JSON object and nothing else.`
+const SYSTEM = `You are an interview coach. Use only the supplied verified résumé achievements and the job description. Never invent experience. Return one JSON object only.`
 
-export type InterviewQuestion = {
-  question: string
-  /** How the candidate's actual background answers it (or "" if it's a gap). */
-  answer: string
-  /** True when this probes a gap the candidate should prepare a story for. */
-  isGap: boolean
-}
 export type InterviewPrep = {
-  questions: InterviewQuestion[]
-  talkingPoints: string[]  // strengths to steer toward
-  gapStrategies: string[]  // how to handle the weak spots honestly
+  likelyQuestions: { question: string; evidenceIds: string[]; answerOutline: string[] }[]
+  questionsToAsk: string[]
+  gapsToPrepare: string[]
 }
 
-/** Deterministic, testable prompt for interview prep. */
-export function buildInterviewPrompt(profile: Profile, job: NormalizedJob): string {
-  const candidate = {
-    titles: profile.titles.map((t) => t.title),
-    skills: profile.skills.map((s) => s.name),
-    totalYears: profile.totalYears,
-    domains: profile.domains,
-  }
+export function buildInterviewPrompt(source: ResumeData | Profile, job: NormalizedJob): string {
+  const resume = isResumeData(source) ? source : resumeFromLegacyProfile(source)
+  const evidence = resume.experience.map((role) => ({
+    id: role.id, title: role.title, company: role.company, start: role.start, end: role.end, current: role.current,
+    achievements: role.bullets.map((bullet) => ({ id: bullet.id, text: bullet.text })),
+  }))
   return [
-    'Prepare this candidate for an interview for the role below.',
-    '',
-    'CANDIDATE:', JSON.stringify(candidate),
-    '',
-    'ROLE:', JSON.stringify({
-      title: job.title, company: job.company,
-      description: job.description.slice(0, 3000),
-    }),
-    '',
-    'Return JSON with EXACTLY these keys:',
-    'questions: array of 6-8 { question (string), answer (string: how THIS candidate answers it,',
-    '  drawing on their real background; empty string if they lack the experience), isGap (boolean) },',
-    'talkingPoints: string[] (3-5 strengths to steer the conversation toward),',
-    'gapStrategies: string[] (2-4 honest ways to handle areas they are weak in).',
-    'Mix behavioural and role-specific technical questions. Never fabricate experience.',
+    'Prepare this candidate for the role.',
+    'Return { likelyQuestions: [{ question, evidenceIds, answerOutline }], questionsToAsk, gapsToPrepare }.',
+    'Every answer outline must cite only evidenceIds present below. Keep unsupported gaps explicit.',
+    '', 'VERIFIED EVIDENCE:', JSON.stringify(evidence, null, 2),
+    '', 'SKILLS:', JSON.stringify(resume.skills.flatMap((group) => group.items.map((item) => ({ id: item.id, name: item.name })))),
+    '', 'JOB:', JSON.stringify({ title: job.title, company: job.company, description: job.description }, null, 2),
   ].join('\n')
 }
 
-type RawPrep = Partial<InterviewPrep>
-
-/** Coerce the model JSON into a complete InterviewPrep (never throws on shape). */
-export function coerceInterviewPrep(raw: RawPrep): InterviewPrep {
-  const arr = <T>(v: unknown): T[] => (Array.isArray(v) ? (v as T[]) : [])
+export async function generateInterviewPrep(
+  source: ResumeData | Profile,
+  job: NormalizedJob,
+  apiKey: string,
+  signal?: AbortSignal,
+): Promise<InterviewPrep> {
+  const raw = await groqChat({ apiKey, system: SYSTEM, user: buildInterviewPrompt(source, job), json: true, temperature: 0, maxTokens: 1800, signal })
+  const parsed = extractJson<Partial<InterviewPrep>>(raw)
   return {
-    questions: arr<Partial<InterviewQuestion>>(raw.questions).map((q) => ({
-      question: q.question ?? '',
-      answer: q.answer ?? '',
-      isGap: Boolean(q.isGap),
-    })).filter((q) => q.question),
-    talkingPoints: arr<string>(raw.talkingPoints),
-    gapStrategies: arr<string>(raw.gapStrategies),
+    likelyQuestions: Array.isArray(parsed.likelyQuestions) ? parsed.likelyQuestions : [],
+    questionsToAsk: Array.isArray(parsed.questionsToAsk) ? parsed.questionsToAsk : [],
+    gapsToPrepare: Array.isArray(parsed.gapsToPrepare) ? parsed.gapsToPrepare : [],
   }
 }
 
-/** Generate interview prep for one job. */
-export async function generateInterviewPrep(
-  profile: Profile, job: NormalizedJob, apiKey: string, signal?: AbortSignal,
-): Promise<InterviewPrep> {
-  const text = await groqChat({
-    apiKey, system: SYSTEM, user: buildInterviewPrompt(profile, job),
-    json: true, temperature: 0.3, maxTokens: 2048, signal,
-  })
-  return coerceInterviewPrep(extractJson<RawPrep>(text))
+function isResumeData(value: ResumeData | Profile): value is ResumeData {
+  return 'experience' in value && 'contact' in value
 }

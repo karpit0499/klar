@@ -21,6 +21,7 @@ import { jobsToRows, downloadCsv, downloadXlsx, printRowsAsPdf } from '../export
 import type {
   MatchResult, NormalizedJob, Preferences, Profile, Region, ScoreWeights, SearchQuery, SourceId,
 } from '../types'
+import type { ResumeData } from '../resume/types'
 import type { SourceStatus } from '../sources/types'
 import {
   applyLocalFiltersWithDiagnostics,
@@ -43,13 +44,17 @@ import {
 } from '../search/savedSearches'
 
 export function SearchStep({
+  resume,
   profile,
   prefs,
   apiKey,
+  requireGroq,
 }: {
+  resume: ResumeData
   profile: Profile
   prefs: Preferences
-  apiKey: string
+  apiKey?: string
+  requireGroq: (action: string) => Promise<string | null>
 }) {
   const [jobs, setJobs] = useState<NormalizedJob[]>([])
   const t = useT()
@@ -469,8 +474,9 @@ export function SearchStep({
           job={open}
           match={matches[open.id]}
           score={matches[open.id] ? compositeScore(matches[open.id], weights) : undefined}
-          profile={profile}
+          resume={resume}
           apiKey={apiKey}
+          requireGroq={requireGroq}
           saved={savedIds.has(open.id)}
           onClose={() => setOpen(null)}
         />

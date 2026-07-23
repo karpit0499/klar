@@ -71,7 +71,7 @@ export function resumeDocxDocument(data: ResumeData, lang: ResumeLanguage): Docu
       children.push(line(head, { bold: true }))
       const range = formatDateRange(e.start, e.end, e.current, lang)
       if (range) children.push(line(range, { italics: true }))
-      for (const b of e.bullets) children.push(bullet(b))
+      for (const b of e.bullets) children.push(bullet(b.text))
     }
   }
 
@@ -91,7 +91,7 @@ export function resumeDocxDocument(data: ResumeData, lang: ResumeLanguage): Docu
   if (data.skills.length) {
     children.push(heading(H.skills))
     for (const g of data.skills) {
-      children.push(line(`${g.group ? g.group + ': ' : ''}${g.items.join(', ')}`))
+      children.push(line(`${g.group ? g.group + ': ' : ''}${g.items.map((item) => item.name).join(', ')}`))
     }
   }
 
@@ -115,7 +115,7 @@ export function resumeDocxDocument(data: ResumeData, lang: ResumeLanguage): Docu
   // --- Certifications --------------------------------------------------------
   if (data.certifications.length) {
     children.push(heading(H.certifications))
-    children.push(line(data.certifications.join(', ')))
+    children.push(line(data.certifications.map((item) => item.name).join(', ')))
   }
 
   return new Document({

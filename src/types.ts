@@ -6,6 +6,72 @@
 export type SourceId =
   | 'ba' | 'arbeitnow' | 'adzuna' | 'greenhouse' | 'lever' | 'ashby'
 
+export type DiscoveryMode = 'career' | 'flexible' | 'both'
+
+export type FlexibleEmployment =
+  | 'minijob'
+  | 'part_time'
+  | 'working_student'
+  | 'temporary'
+  | 'seasonal'
+  | 'weekend'
+  | 'evening'
+  | 'night'
+
+export type FlexibleRoleFamily =
+  | 'shelf_stocking'
+  | 'cashier'
+  | 'sales_assistant'
+  | 'picking_packing'
+  | 'warehouse'
+  | 'parcel_sorting'
+  | 'delivery'
+  | 'kitchen'
+  | 'counter_service'
+  | 'waiting_service'
+  | 'cleaning'
+  | 'housekeeping'
+  | 'reception'
+  | 'event_staff'
+  | 'customer_service'
+  | 'other'
+
+export type WorkplaceType =
+  | 'supermarket'
+  | 'retail_store'
+  | 'drugstore'
+  | 'warehouse'
+  | 'parcel_hub'
+  | 'restaurant'
+  | 'cafe'
+  | 'hotel'
+  | 'delivery'
+  | 'event'
+  | 'other'
+
+export type FlexibleWorkPreferences = {
+  employment: FlexibleEmployment[]
+  roleFamilies: FlexibleRoleFamily[]
+  workplaces: WorkplaceType[]
+  locations: { city: string; radius_km: number }[]
+  schedule?: {
+    days?: string[]
+    periods?: ('morning' | 'day' | 'evening' | 'night')[]
+    maxHoursPerWeek?: number
+  }
+  languageComfort?: { german?: string; english?: string }
+  physicalWork?: 'yes' | 'limited' | 'no_preference'
+  hasDrivingLicence?: boolean
+  hasBike?: boolean
+  earliestStart?: string
+}
+
+export type FieldProvenance = {
+  method: 'api' | 'feed' | 'structured_data' | 'visible_text' | 'inferred'
+  source: string
+  observedAt: string
+}
+
 export type NormalizedJob = {
   id: string                 // stable hash of `${source}:${source_id}` — the dedup key
   source: SourceId
@@ -37,6 +103,19 @@ export type NormalizedJob = {
   raw?: unknown              // original payload, for debugging
   /** When merged during dedup, all the sources this job was seen on. */
   also_on?: { source: SourceId; source_id?: string; url: string }[]
+  /** Forward-compatible Flexible Work fields. All are optional in v2.3. */
+  kind?: 'vacancy' | 'open_entry'
+  canonicalEmployer?: string
+  brand?: string
+  roleFamilies?: FlexibleRoleFamily[]
+  workplaces?: WorkplaceType[]
+  employment?: FlexibleEmployment[]
+  weeklyHours?: { min?: number; max?: number }
+  scheduleTags?: ('morning' | 'day' | 'evening' | 'night' | 'weekend')[]
+  validThrough?: string
+  lastVerifiedAt?: string
+  sourceConfidence?: 'published' | 'structured' | 'inferred' | 'unknown'
+  fieldProvenance?: Record<string, FieldProvenance>
 }
 
 /** Parsed résumé profile (produced by the LLM parse step). */
@@ -73,6 +152,9 @@ export type Preferences = {
   hideGermanAboveLevel?: boolean
   /** Hard filter: hide roles that state they don't sponsor visas (feature 2.2). */
   hideNoVisaSponsorship?: boolean
+  /** v2.3 foundation for the résumé-optional Flexible Work experience. */
+  discoveryMode?: DiscoveryMode
+  flexibleWork?: FlexibleWorkPreferences
 }
 
 /** Per-factor weighting used to build an explainable composite score (0–1 each). */

@@ -14,6 +14,7 @@ import { loadGroqKey, saveGroqKey } from '../src/settings/keys'
 import { loadAdzunaKey } from '../src/settings/adzunaKey'
 import { createCompleteEncryptedBackup, createStandardBackup } from '../src/backup/backup'
 import type { Profile, TrackedJob } from '../src/types'
+import { normalizeResume } from '../src/resume/canonical'
 
 const PASSPHRASE = 'correct horse battery staple'
 
@@ -29,7 +30,13 @@ const profile: Profile = {
   certifications: [],
   rawText: 'THIS RAW RESUME TEXT MUST NOT SURVIVE CONFIRMATION',
 }
-await db.profiles.put({ ...profile, id: 'p1', createdAt: '2026-07-22T10:00:00.000Z' })
+const canonical = normalizeResume({
+  contact: { name: 'Ada', links: [] }, summary: profile.summary,
+  experience: [{ title: 'Platform Engineer', company: 'Private Co', start: '01/2022', current: true, bullets: ['Private achievement'] }],
+  education: [], skills: [{ group: 'Engineering', items: ['TypeScript'] }],
+  languages: profile.languages, projects: [], certifications: [],
+})
+await db.resumes.put({ id: 'current', data: canonical, createdAt: '2026-07-22T10:00:00.000Z', updatedAt: '2026-07-22T10:00:00.000Z', revision: 1 })
 await db.dashboard.put({ id: 'me', displayName: 'Ada', headline: 'Engineer', about: 'Private', location: 'Berlin', links: [] })
 const tracked: TrackedJob = {
   jobId: 'j1',
@@ -75,6 +82,7 @@ await enableVault(
 )
 assert.equal(await getVaultStatus(), 'unlocked')
 assert.equal(await db.profiles.count(), 0)
+assert.equal(await db.resumes.count(), 0)
 assert.equal(await db.dashboard.count(), 0)
 assert.equal(await db.tracked.count(), 0)
 assert.equal(await db.preferences.count(), 0)
@@ -95,7 +103,7 @@ for (const secret of ['gsk_super_secret', 'adzuna_id_secret', 'adzuna_key_secret
 }
 
 const content = await readSensitiveContent()
-assert.equal(content?.profiles[0]?.rawText, undefined, 'confirmed raw résumé text is removed')
+assert.equal(content?.canonicalResume?.data.contact.name, 'Ada')
 assert.equal(content?.preferences[0]?.targetTitles[0], 'Private platform role')
 assert.equal(content?.savedSearches[0]?.name, 'Private saved search')
 assert.equal(await loadGroqKey(), 'gsk_super_secret')
@@ -188,6 +196,7 @@ async function exerciseV3Upgrade() {
   })
   legacy.close()
   await db.open()
-  assert.equal((await db.profiles.get('legacy-profile'))?.rawText, undefined)
+  assert.equal(await db.profiles.get('legacy-profile'), undefined)
+  assert.equal((await db.resumes.get('current'))?.data.schemaVersion, 2)
   assert.equal((await db.preferences.get('current'))?.targetTitles[0], 'Keep me')
 }

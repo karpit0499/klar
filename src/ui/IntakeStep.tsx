@@ -81,15 +81,15 @@ export function IntakeStep({
   }
 
   return (
-    <div className="mx-auto max-w-2xl p-6">
-      <Card className="p-6">
+    <div className="mx-auto max-w-2xl p-4 sm:p-6">
+      <Card className="p-4 sm:p-6">
         <h2 className="text-lg font-semibold text-ink">{t('intake.title')}</h2>
         <div className="mt-4 space-y-4">
           <Field label={t('intake.targetTitles')} hint={t('intake.targetTitlesHint')}>
             <TextInput value={titles} onChange={(e) => setTitles(e.target.value)} placeholder="Data Scientist, ML Engineer" />
           </Field>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid gap-4 sm:grid-cols-2">
             <Field label={t('intake.seniority')}>
               <select
                 className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink"
@@ -113,7 +113,7 @@ export function IntakeStep({
             </Field>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid gap-4 sm:grid-cols-2">
             <Field label={t('intake.city')}>
               <TextInput value={city} onChange={(e) => setCity(e.target.value)} placeholder="Berlin" />
             </Field>
@@ -137,7 +137,7 @@ export function IntakeStep({
           {/* German-market gating (features 2.1 & 2.2). */}
           <div className="rounded-lg border border-border p-3">
             <p className="text-sm font-medium text-ink">{t('intake.germanMarket')}</p>
-            <div className="mt-3 grid grid-cols-2 gap-4">
+            <div className="mt-3 grid gap-4 sm:grid-cols-2">
               <Field label={t('intake.germanLevel')}>
                 <select
                   className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink"
