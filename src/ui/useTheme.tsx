@@ -3,8 +3,14 @@
 // state, persists changes, and applies them. The toggle is a 3-way segmented
 // control (Light / System / Dark) that is fully keyboard- and screen-reader-
 // friendly (radiogroup semantics + visible focus ring from index.css).
+//
+// v2.3.1: icons are crisp lucide-react glyphs (Sun / Monitor / Moon) instead of
+// raw Unicode characters, which rendered inconsistently (e.g. a colour emoji sun
+// on Apple platforms) and failed non-text contrast. Inactive icons use text-muted
+// so they clear the WCAG contrast threshold in both themes.
 // ============================================================================
 import { useEffect, useState } from 'react'
+import { Moon, Monitor, Sun, type LucideIcon } from 'lucide-react'
 import { type ThemeMode, applyTheme, getStoredTheme, storeTheme, resolveTheme } from './theme'
 import { useT } from '../i18n/LocaleProvider'
 import type { TranslationKey } from '../i18n/translations'
@@ -24,10 +30,10 @@ export function useTheme(): {
   return { mode, resolved: resolveTheme(mode), setMode: setModeState }
 }
 
-const OPTIONS: { value: ThemeMode; labelKey: TranslationKey; glyph: string }[] = [
-  { value: 'light', labelKey: 'theme.light', glyph: '☀' },
-  { value: 'system', labelKey: 'theme.system', glyph: '◐' },
-  { value: 'dark', labelKey: 'theme.dark', glyph: '☾' },
+const OPTIONS: { value: ThemeMode; labelKey: TranslationKey; Icon: LucideIcon }[] = [
+  { value: 'light', labelKey: 'theme.light', Icon: Sun },
+  { value: 'system', labelKey: 'theme.system', Icon: Monitor },
+  { value: 'dark', labelKey: 'theme.dark', Icon: Moon },
 ]
 
 export function ThemeToggle({
@@ -47,6 +53,7 @@ export function ThemeToggle({
       {OPTIONS.map((o) => {
         const active = mode === o.value
         const label = t(o.labelKey)
+        const Icon = o.Icon
         return (
           <button
             key={o.value}
@@ -55,11 +62,15 @@ export function ThemeToggle({
             aria-label={label}
             title={label}
             onClick={() => setMode(o.value)}
-            className={`flex h-11 w-11 items-center justify-center rounded-full text-base transition ${
-              active ? 'bg-accent-tint text-accent' : 'text-faint hover:text-ink'
-            }`}
+            className="group flex h-11 w-11 items-center justify-center rounded-full transition"
           >
-            <span aria-hidden="true">{o.glyph}</span>
+            <span
+              className={`flex h-9 w-9 items-center justify-center rounded-full transition ${
+                active ? 'bg-accent-tint text-accent' : 'text-muted group-hover:text-ink'
+              }`}
+            >
+              <Icon aria-hidden="true" size={18} strokeWidth={2} />
+            </span>
           </button>
         )
       })}
