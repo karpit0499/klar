@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { ArrowLeft } from 'lucide-react'
 import { Button, Card, Field, TextInput } from './atoms'
 import { PreferenceControls } from './PreferenceControls'
 import { ResumeStep } from './ResumeStep'
@@ -117,8 +118,16 @@ export function AdaptiveOnboarding({ state, apiKey, requireGroq, onComplete, onR
 
   if (view === 'restore') return <Frame region={region} onRegion={setRegion} onRestore={() => setView('restore')}><RestoreBackup onRestored={onRestored} onCancel={() => setView(state.kind === 'partial' ? 'partial' : 'welcome')} /></Frame>
 
+  const onBack =
+    view === 'resume' ? () => setView('welcome')
+    : view === 'review' ? () => setView('resume')
+    : view === 'preferences' ? () => setView(draft ? 'review' : 'resume')
+    : view === 'connections' ? () => setView(profile ? 'preferences' : draft ? 'review' : 'resume')
+    : view === 'flexible' ? () => setView('welcome')
+    : undefined
+
   return (
-    <Frame region={region} onRegion={setRegion} onRestore={() => setView('restore')}>
+    <Frame region={region} onRegion={setRegion} onRestore={() => setView('restore')} onBack={onBack}>
       {view === 'welcome' && <Welcome onCareer={() => void beginCareer()} onFlexible={() => void beginFlexible()} onRestore={() => setView('restore')} onExplore={onExplore} />}
       {view === 'partial' && (
         <div className="mx-auto max-w-2xl p-4 sm:p-6"><Card className="p-5 sm:p-6">
@@ -156,7 +165,7 @@ export function AdaptiveOnboarding({ state, apiKey, requireGroq, onComplete, onR
   )
 }
 
-function Frame({ children, region, onRegion, onRestore }: { children: React.ReactNode; region: string; onRegion: (code: string) => void; onRestore: () => void }) {
+function Frame({ children, region, onRegion, onRestore, onBack }: { children: React.ReactNode; region: string; onRegion: (code: string) => void; onRestore: () => void; onBack?: () => void }) {
   const { locale } = useLocale(); const de = locale === 'de'
   async function change(code: string) { onRegion(code); await setActiveRegion(code) }
   return (
@@ -180,6 +189,14 @@ function Frame({ children, region, onRegion, onRestore }: { children: React.Reac
           </div>
         </div>
       </header>
+      {onBack && (
+        <div className="mx-auto max-w-5xl px-4 pt-4 sm:px-6">
+          <button type="button" onClick={onBack} className="inline-flex min-h-tap items-center gap-1.5 rounded-md px-2 text-base font-medium text-muted transition hover:text-ink">
+            <ArrowLeft aria-hidden="true" size={18} strokeWidth={2} />
+            {de ? 'Zurück' : 'Back'}
+          </button>
+        </div>
+      )}
       <main>{children}</main>
     </div>
   )

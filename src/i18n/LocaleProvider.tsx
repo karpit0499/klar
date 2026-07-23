@@ -84,11 +84,15 @@ export function LocaleToggle() {
             role="radio"
             aria-checked={active}
             onClick={() => setLocale(l)}
-            className={`flex h-11 min-w-11 items-center justify-center rounded-full px-2 text-sm font-semibold uppercase transition ${
-              active ? 'bg-accent-tint text-accent' : 'text-faint hover:text-ink'
-            }`}
+            className="group flex h-11 min-w-11 items-center justify-center rounded-full transition"
           >
-            {l}
+            <span
+              className={`flex h-9 min-w-9 items-center justify-center rounded-full px-2 text-sm font-semibold uppercase transition ${
+                active ? 'bg-accent-tint text-accent' : 'text-muted group-hover:text-ink'
+              }`}
+            >
+              {l}
+            </span>
           </button>
         )
       })}
