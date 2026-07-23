@@ -4,6 +4,140 @@ This file records Klar’s product history from the newest release to the origin
 
 ---
 
+## v2.3.1 — Onboarding and mobile polish
+
+Klar v2.3.1 is a focused fix release on top of v2.3. It tightens the new adaptive onboarding, corrects mobile progressive-web-app chrome, and resolves theme and contrast issues, without changing any v2.3 capability.
+
+### Added
+
+- A **Back** control in adaptive onboarding that steps correctly through welcome, résumé, review, preferences, connections, and Flexible Work.
+- `viewport-fit=cover` plus top and bottom safe-area insets so content clears the notch and home indicator on modern phones.
+
+### Changed
+
+- Replaced the theme toggle’s raw Unicode glyphs (`☀ ◐ ☾`) with crisp Lucide icons (Sun, Monitor, Moon) that render consistently across platforms.
+- Stacked the sidebar rail’s language and appearance controls vertically so the wider appearance control never overflows the fixed 256px rail.
+- Rebuilt the language and theme toggles around a nested pill so the active state and focus ring stay contained.
+- Corrected the installed app manifest colours to the Klar brand (`#f5f5f3` background, `#0b0b0c` theme) so the launch and browser chrome match the app.
+
+### Fixed
+
+- Fixed inactive theme and language controls using a faint colour that failed the WCAG non-text and text contrast thresholds; inactive states now use the readable muted colour in both themes.
+- Fixed the colour-emoji sun glyph appearing on Apple platforms and other inconsistent theme-icon rendering.
+- Fixed the mobile bottom navigation’s inactive labels being too low-contrast.
+- Fixed mobile header height and top and bottom padding so fixed navigation no longer overlaps page content on notched devices.
+
+### Validation
+
+The v2.3.1 release passed:
+
+```bash
+node --check public/sw.js
+npm run typecheck
+npm test
+npm run build
+npx tsc --noEmit -p worker/tsconfig.json
+```
+
+The v2.3 UI regression suite was extended to assert the onboarding Back control, the Lucide theme icons, and the removal of the old glyphs. Rendered mobile browser checks completed without document-level horizontal overflow or console warnings and errors.
+
+---
+
+## v2.3 — Résumé foundation and adaptive onboarding
+
+Klar v2.3 rebuilds the workspace around a single canonical résumé and an onboarding that adapts to how each person searches, while adding a résumé-free Flexible Work mode and hardening exports and backups.
+
+### Added
+
+#### Canonical résumé foundation
+
+- A single canonical résumé (schema version 2) that is the source of truth for matching, tailoring, cover letters, and interview preparation.
+- Stable identifiers on every role, bullet, and skill, plus evidence references linking derived content back to source bullets.
+- A lightweight matching profile derived on demand from the canonical résumé rather than stored as a separate, independently editable record.
+- Résumé readiness analysis reporting role count, missing dates, roles without achievements, and an overall structural completeness percentage.
+- A structured sample résumé used by the explore workspace.
+
+#### In-app résumé editor and history
+
+- A full résumé editor for experience, education, skills, projects, certifications, and languages.
+- Reordering of entries, remove-with-undo, and an inline completeness summary in English and German.
+- Automatic versioned snapshots with restore, capturing edit, re-upload, and manual reasons.
+- History pruning that keeps the ten most recent automatic snapshots within a ninety-day window while preserving named snapshots.
+
+#### Adaptive onboarding
+
+- A new adaptive onboarding flow that replaces the previous blocking key gate and separate profile step.
+- A welcome screen offering four paths: build a career profile, find flexible work, restore a Klar backup, or explore a sample workspace.
+- Local setup-state detection across absent, partial, complete, and locked workspaces.
+- Saved onboarding progress with continue-setup and safe start-over behaviour.
+- Restore-from-backup during onboarding with a pre-import preview and password-required detection.
+- A just-in-time Groq key prompt that verifies the key at the moment an AI feature needs it.
+- A setup checklist and an explicit workspace-capability model covering career discovery, flexible discovery, application preparation, and résumé matching.
+
+#### Flexible Work mode
+
+- A new discovery mode covering career, flexible, or both.
+- A résumé-free Flexible Work setup for minijob, part-time, working-student, temporary, seasonal, weekend, evening, and night roles.
+- Workplace and role-family selection, multi-city search with per-city radius, schedule and weekly-hours preferences, language comfort, physical-work level, transport, and earliest-start availability.
+- A Flexible Work home surface with a path to add a résumé for career roles.
+- Validation and normalisation for city, work-type, and radius selections.
+
+#### Explore workspace
+
+- A temporary sample workspace that demonstrates matching and completeness without saving any data, with clear paths to start with real data, restore a backup, or leave the demo.
+
+#### Search session policy
+
+- A shared search-session policy defining per-source attempt timeouts, a sixty-second hard deadline, a maximum retry count, page size, and progressive-publish thresholds.
+- Retry rules that retry network and timeout failures, respect `Retry-After` on rate limits, skip retries on authentication and other client errors, and retry recoverable server errors.
+
+### Changed
+
+#### Résumé, matching, and generation
+
+- Routed résumé re-upload, tailoring, cover letters, and interview preparation through the canonical résumé.
+- Grounded cover-letter and interview prompts in specific résumé bullet evidence identifiers.
+- Derived the matching profile from the canonical résumé and stamped local matches with the `local-v2.3` model version.
+- Invalidated stale match caches when the canonical résumé changes.
+
+#### Storage, backup, and vault
+
+- Upgraded the local database and the backup envelope to schema version 5.
+- Stored the canonical résumé inside the encrypted vault as sensitive content.
+- Included Flexible Work preferences in the standard backup and validated them on import, rejecting invalid employment or schedule data before the active workspace is touched.
+- Added migration of v2.2 standard and complete-encrypted backups into the v2.3 format.
+- Preserved transactional, all-or-nothing restore behaviour and SHA-256 integrity checks.
+
+#### Interface and setup
+
+- Replaced the fixed key gate and standalone profile step with the adaptive onboarding frame.
+- Localised the new résumé editor, Flexible Work setup, explore workspace, and onboarding copy in English and German.
+- Added Settings entries to edit the Flexible Work search and reach the Backup and Encryption safety centre.
+
+### Fixed
+
+- Fixed derived profiles being persisted and edited independently of the résumé they came from.
+- Fixed generated cover letters and interview material that were not explicitly tied to source résumé bullets.
+- Fixed stale match results surviving a résumé change.
+- Fixed spreadsheet and CSV exports being able to emit unescaped formula-injection payloads; leading `=`, `+`, `-`, and `@` values are now neutralised and sheet names are sanitised and length-capped.
+- Fixed Flexible Work having no résumé-free path, previously forcing an empty résumé to exist.
+
+### Validation
+
+The v2.3 release passed:
+
+```bash
+node --check public/sw.js
+npm run typecheck
+npm test
+npm run build
+npx tsc --noEmit -p worker/tsconfig.json
+```
+
+New suites covered the canonical résumé model and history pruning, Flexible Work preferences and setup, the v5 backup and migration path, export formula-injection safety, and the updated onboarding and résumé user interface. The complete legacy suites from v1 through v2.2 continued to pass, and the production build and rendered mobile browser checks completed without document-level horizontal overflow or console warnings and errors.
+
+---
+
 ## v2.2 — Stability & Safety
 
 Klar v2.2 strengthens privacy, recovery, search transparency, and day-to-day reliability without changing the central v2.1 product experience.
