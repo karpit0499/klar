@@ -1,12 +1,16 @@
-# Klar
+# <center> Klar </center>
 
-## Your next move, made clear.
+## <center> Your next move, made clear. </center>
 
-Klar brings your entire job search into one calm, private workspace. Discover live roles, understand where you fit, create stronger applications, and keep every opportunity moving—without losing yourself in tabs, spreadsheets, and scattered notes.
+Klar brings your entire job search into one calm, private workspace. Discover live roles, understand where you fit, create stronger applications, and keep every opportunity moving, without losing yourself in tabs, spreadsheets, and scattered notes.
 
 [**Open Klar →**](https://karpit0499.github.io/klar/) · [See what’s new in v2.3](CHANGELOG.md)
 
 ![Klar dashboard](docs/klar-dashboard.png)
+<center> ***Klar Dashboard*** </center>
+
+![Klar search](docs/klar-search.png)
+<center> ***Klar Search*** </center>
 
 ---
 
@@ -23,7 +27,7 @@ When a search returns nothing, Klar does not leave you guessing. It shows what h
 Klar meets you where you are. Choose the path that matches your search and it sets up only what you need:
 
 - **Build a career profile** to match roles against a structured résumé.
-- **Find flexible work** — minijobs, part-time, working-student, weekend, evening, and seasonal roles—without uploading a résumé at all.
+- **Find flexible work** like minijobs, part-time, working-student, weekend, evening, and seasonal roles, all without uploading a résumé at all.
 - **Explore Klar first** in a temporary sample workspace where nothing is saved.
 - **Restore a backup** and pick up exactly where you left off.
 
@@ -37,7 +41,7 @@ Adjust what matters most to you. Save the promising roles. Hide the noise. Come 
 
 ### Keep your résumé in one trustworthy place
 
-Your résumé is now the single source of truth behind everything Klar does. Edit it directly inside Klar—experience, education, skills, projects, certifications, and languages—reorder what matters, and undo a change if you go too far. A structural completeness check points out missing dates or roles without achievements, and earlier versions are kept so you can look back or restore one.
+Your résumé is now the single source of truth behind everything Klar does. Edit it directly inside Klar, for example, experience, education, skills, projects, certifications, and languages. Reorder what matters, and undo a change if you go too far. A structural completeness check points out missing dates or roles without achievements, and earlier versions are kept so you can look back or restore one.
 
 ### Make every application feel considered
 
@@ -50,7 +54,7 @@ Turn one résumé into a focused application for each opportunity. Klar can help
 - Prepare interview questions, talking points, and honest ways to address gaps.
 - Explore salary context and estimate German take-home pay.
 
-Klar is designed to strengthen your story—not invent a new one. Generated material stays tied to the specific bullets and facts in your résumé and should always be reviewed before you send it.
+Klar is designed to strengthen your story, not invent a new one. Generated material stays tied to the specific bullets and facts in your résumé and should always be reviewed before you send it.
 
 ### Keep momentum without the spreadsheet
 
@@ -70,7 +74,7 @@ Your career is personal. Klar treats it that way.
 - A complete encrypted backup can move credentials safely while keeping them unreadable.
 - A readable data export is separate, clearly warned, and always requires confirmation.
 
-When you use an AI feature, the information needed for that feature is sent to Groq for processing. It is not stored on a Klar-controlled application server. If you enable the vault, keep your passphrase safe—Klar cannot recover it.
+When you use an AI feature, the information needed for that feature is sent to Groq for processing. It is not stored on a Klar-controlled application server. If you enable the vault, keep your passphrase safe as Klar cannot recover it.
 
 ---
 
@@ -115,7 +119,7 @@ You need a current browser and your own [Groq API key](https://console.groq.com/
 
 1. [Open Klar](https://karpit0499.github.io/klar/).
 2. Choose your language and appearance.
-3. Pick how you want to start—career profile, flexible work, or a quick explore.
+3. Pick how you want to start: career profile, flexible work, or a quick explore.
 4. Upload a PDF or DOCX résumé and review it, or skip it for flexible work.
 5. Tell Klar what kind of role you want.
 6. Start discovering, comparing, and saving opportunities.
