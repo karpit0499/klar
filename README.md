@@ -7,10 +7,10 @@ Klar brings your entire job search into one calm, private workspace. Discover li
 [**Open Klar →**](https://karpit0499.github.io/klar/) · [See what’s new in v2.3](CHANGELOG.md)
 
 ![Klar dashboard](docs/klar-dashboard.png)
-<center> ***Klar Dashboard*** </center>
+_**Klar Dashboard**_
 
 ![Klar search](docs/klar-search.png)
-<center> ***Klar Search*** </center>
+_**Klar Search**_
 
 ---
 
