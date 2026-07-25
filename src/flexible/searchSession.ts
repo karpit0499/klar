@@ -25,6 +25,7 @@ import {
   canRetrySearchSource,
 } from '../search/sessionPolicy'
 import type { Connector, ConnectorContext, ConnectorResult, ConnectorType, FabricFetch, FlexibleQuery } from './connectors/types'
+import { filterOpportunities, type RejectionReason } from './relevance'
 
 export type SourceStatus = 'pending' | 'running' | 'ok' | 'fallback' | 'error' | 'timeout' | 'skipped'
 export type SessionPhase = 'idle' | 'searching' | 'complete' | 'partial' | 'limited'
@@ -36,6 +37,8 @@ export type SourceState = {
   status: SourceStatus
   attempts: number
   count: number
+  /** v2.4.2: how many of this source's results the relevance gate dropped. */
+  filteredOut?: number
   note?: string
   error?: AppErrorData
   latencyMs?: number
@@ -52,6 +55,8 @@ export type SearchSessionSnapshot = {
   totalCount: number
   openEntryCount: number
   sources: SourceState[]
+  /** v2.4.2: total dropped by the relevance gate, by reason. */
+  filtered: Record<RejectionReason, number>
   activeCount: number
   finishedCount: number
   totalSources: number
@@ -119,6 +124,15 @@ export class SearchSessionModel {
   private firstPublished = false
   private finished = false
   private reason?: SearchSessionSnapshot['reason']
+  /**
+   * v2.4.2: when a query is supplied every batch passes the relevance gate
+   * before it can be published. Omitting it (unit tests do) keeps the model a
+   * pure accumulator.
+   */
+  private readonly query?: FlexibleQuery
+  private readonly filtered: Record<RejectionReason, number> = {
+    location: 0, career: 0, pay: 0, signal: 0, employment: 0,
+  }
 
   constructor(opts: {
     id: string
@@ -126,8 +140,10 @@ export class SearchSessionModel {
     deadlineAt: number
     pageSize?: number
     firstPublishMin?: number
+    query?: FlexibleQuery
     connectors: { connectorId: string; employerFamily: string; type: ConnectorType }[]
   }) {
+    this.query = opts.query
     this.id = opts.id
     this.startedAt = opts.startedAt
     this.deadlineAt = opts.deadlineAt
@@ -158,10 +174,23 @@ export class SearchSessionModel {
   /** Ingest one connector's batch: merge/append opportunities, update its state. */
   ingest(id: string, result: ConnectorResult, latencyMs: number): void {
     const state = this.sources.get(id)
-    for (const opp of result.opportunities) this.add(opp)
+    // v2.4.2: drop anything that is not plausibly flexible work in a requested
+    // city BEFORE it can reach a published page.
+    let accepted = result.opportunities
+    let droppedHere = 0
+    if (this.query) {
+      const outcome = filterOpportunities(result.opportunities, this.query)
+      accepted = outcome.kept
+      droppedHere = outcome.rejected.length
+      for (const reason of Object.keys(outcome.counts) as RejectionReason[]) {
+        this.filtered[reason] += outcome.counts[reason]
+      }
+    }
+    for (const opp of accepted) this.add(opp)
     if (state) {
       state.status = result.usedFallback ? 'fallback' : 'ok'
-      state.count = result.opportunities.length
+      state.count = accepted.length
+      state.filteredOut = droppedHere
       state.note = result.note
       state.latencyMs = latencyMs
       if (result.error) state.error = result.error
@@ -193,18 +222,45 @@ export class SearchSessionModel {
     for (const key of canonicalKeys(opp)) this.keyIndex.set(key, next)
   }
 
+  /**
+   * v2.4.2: put real vacancies ahead of open-entry route cards, ONCE, at the
+   * moment of first publish while nothing is on screen yet.
+   *
+   * Route cards are the guaranteed fallback, so every employer family emits one
+   * — and because a failing connector fails fast, they arrived first and filled
+   * page 1 with "search over there" links while actual vacancies sat on page 2.
+   * A stable partition keeps arrival order within each group, and pages stay
+   * frozen afterwards because everything later is appended.
+   */
+  private promoteVacancies(): void {
+    const vacancies = this.ordered.filter((job) => job.kind !== 'open_entry')
+    const routes = this.ordered.filter((job) => job.kind === 'open_entry')
+    if (vacancies.length === 0 || routes.length === 0) return
+    this.ordered = [...vacancies, ...routes]
+    this.keyIndex.clear()
+    this.ordered.forEach((job, index) => {
+      for (const key of canonicalKeys(job)) this.keyIndex.set(key, index)
+    })
+  }
+
   /** Reveal page 1 once the threshold, escape hatch, or completion is reached. */
   evaluatePublish(opts: { lowSupplyElapsed?: boolean } = {}): void {
     if (this.firstPublished) return
     const enough = this.ordered.length >= this.firstPublishMin
     const escape = Boolean(opts.lowSupplyElapsed) && this.ordered.length > 0
-    if (enough || escape || (this.finished && this.ordered.length > 0)) this.firstPublished = true
+    if (enough || escape || (this.finished && this.ordered.length > 0)) {
+      this.promoteVacancies()
+      this.firstPublished = true
+    }
   }
 
   finish(reason: SearchSessionSnapshot['reason']): void {
     this.finished = true
     this.reason = reason
-    if (this.ordered.length > 0) this.firstPublished = true
+    if (this.ordered.length > 0) {
+      if (!this.firstPublished) this.promoteVacancies()
+      this.firstPublished = true
+    }
     for (const state of this.sources.values()) {
       if (state.status === 'pending' || state.status === 'running') {
         state.status = reason === 'deadline' ? 'timeout' : 'skipped'
@@ -239,6 +295,7 @@ export class SearchSessionModel {
       totalCount: this.ordered.length,
       openEntryCount,
       sources,
+      filtered: { ...this.filtered },
       activeCount,
       finishedCount,
       totalSources: sources.length,
@@ -295,6 +352,7 @@ export async function runSearchSession(opts: RunSearchOptions): Promise<SearchSe
     id: opts.newSessionId?.() ?? `fs_${startedAt}_${Math.random().toString(36).slice(2, 8)}`,
     startedAt,
     deadlineAt,
+    query: opts.query,
     connectors: opts.connectors.map((c) => ({
       connectorId: c.config.id,
       employerFamily: c.config.employerFamily,

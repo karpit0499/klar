@@ -176,11 +176,19 @@ function TerminalBanner({ snapshot, onRetry }: { snapshot: SearchSessionSnapshot
 
 function SourceStatusPanel({ snapshot }: { snapshot: SearchSessionSnapshot }) {
   const { t } = useLocale()
+  // v2.4.2: say plainly how much the relevance gate removed, rather than
+  // silently shrinking the result set.
+  const hiddenTotal = Object.values(snapshot.filtered ?? {}).reduce((sum, n) => sum + n, 0)
   return (
     <details className="mt-3 rounded-md border border-border bg-surface">
       <summary className="min-h-tap cursor-pointer list-none px-4 py-2 text-sm font-medium text-ink">
         {t('flexible.search.sourcesHeading')} · {t('flexible.search.sourcesSummary', { done: snapshot.finishedCount, total: snapshot.totalSources })}
       </summary>
+      {hiddenTotal > 0 && (
+        <p className="border-t border-border px-4 py-2 text-sm text-muted">
+          {t('flexible.search.hidden', { count: hiddenTotal })}
+        </p>
+      )}
       <ul className="border-t border-border px-4 py-2">
         {snapshot.sources.map((source) => (
           <li key={source.connectorId} className="flex items-center justify-between gap-3 py-1 text-sm">
