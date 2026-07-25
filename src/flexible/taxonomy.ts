@@ -79,9 +79,76 @@ function normalize(text: string): string {
   )
 }
 
-/** Whole-token containment: `hasToken(' ... kasse ... ', 'kasse')`. */
+/**
+ * Fold an alias through exactly the same transformation as the text it will be
+ * compared against.
+ *
+ * v2.4.2 bug fix: `normalize` folds the ASCII umlaut digraphs, so "ue" -> "u".
+ * That is intended for "Kueche" -> "kuche", but it also rewrites ordinary words
+ * — "steuerberater" becomes "steurberater". Aliases were written literally, so
+ * any alias containing "ae", "oe" or "ue" could never match. Normalizing both
+ * sides keeps them in the same space.
+ */
+function normalizeAlias(alias: string): string {
+  return normalize(alias).trim()
+}
+
+/** Pre-fold an alias table once at module load. */
+function foldAliases<K extends string>(table: Record<K, string[]>): Record<K, string[]> {
+  const out = {} as Record<K, string[]>
+  for (const [key, list] of Object.entries(table) as [K, string[]][]) {
+    out[key] = [...new Set(list.map(normalizeAlias).filter(Boolean))]
+  }
+  return out
+}
+
+/**
+ * Negations that invert a nearby token. "Keine Nachtschicht" (no night shift)
+ * must never be read as evidence OF night work — v2.4.2.
+ */
+const NEGATIONS = ['kein', 'keine', 'keinen', 'keiner', 'ohne', 'nicht', 'statt', 'no', 'without']
+
+/**
+ * Perk boilerplate that reuses a work vocabulary word to describe a BENEFIT
+ * rather than the job. These phrases are removed from the description before
+ * classification, so "am Wochenende frei" (weekends off) can no longer be read
+ * as weekend work — v2.4.2.
+ */
+const PERK_PHRASES = [
+  'wochenende frei', 'freies wochenende', 'freie wochenenden', 'am wochenende frei',
+  'kein wochenenddienst', 'ausgestattete kuche', 'ausgestatteter kuche', 'voll ausgestattete kuche',
+  'betriebsrestaurant', 'betriebskantine', 'kantine', 'obstkorb', 'kostenlose getranke',
+  'job rad', 'jobrad', 'dienstrad', 'firmenwagen', 'firmenrad', 'tankgutschein',
+]
+
+/** Remove perk boilerplate so it cannot masquerade as job evidence. */
+function stripPerkPhrases(paddedText: string): string {
+  let text = paddedText
+  for (const phrase of FOLDED_PERKS) text = text.split(' ' + phrase + ' ').join(' ')
+  return text
+}
+
+/**
+ * Whole-token containment, with a negation veto. Every occurrence is checked;
+ * the alias counts only if at least one occurrence is NOT preceded by a
+ * negation within the previous four words.
+ */
 function hasToken(paddedText: string, alias: string): boolean {
-  return paddedText.includes(' ' + alias + ' ')
+  const needle = ' ' + alias + ' '
+  let from = 0
+  for (;;) {
+    const at = paddedText.indexOf(needle, from)
+    if (at === -1) return false
+    if (!negatedBefore(paddedText, at)) return true
+    from = at + 1
+  }
+}
+
+/** True when one of the four words before `index` is a negation. */
+function negatedBefore(paddedText: string, index: number): boolean {
+  const before = paddedText.slice(Math.max(0, index - 40), index).trim().split(' ')
+  const window = before.slice(-4)
+  return window.some((word) => NEGATIONS.includes(word))
 }
 
 // --- Alias tables (diacritics already stripped to match `normalize`) ---------
@@ -93,7 +160,7 @@ const EMPLOYMENT_ALIASES: Record<FlexibleEmployment, string[]> = {
   temporary: ['befristet', 'befristung', 'aushilfe', 'aushilfskraft', 'zeitarbeit', 'leiharbeit', 'temporary', 'interim', 'zeitlich befristet'],
   seasonal: ['saison', 'saisonal', 'saisonkraft', 'saisonarbeit', 'seasonal', 'weihnachts', 'christmas', 'erntehelfer', 'sommersaison'],
   weekend: ['wochenende', 'wochenendjob', 'weekend', 'samstagsjob', 'samstags', 'sonntags', 'am wochenende'],
-  evening: ['abend', 'abends', 'evening', 'spatschicht', 'feierabend', 'abendkraft'],
+  evening: ['abend', 'abends', 'evening', 'spatschicht', 'abendschicht', 'abendkraft'],
   night: ['nacht', 'nachts', 'nachtschicht', 'night', 'night shift', 'nachtarbeit'],
 }
 
@@ -128,17 +195,52 @@ const WORKPLACE_ALIASES: Record<Exclude<WorkplaceType, 'other'>, string[]> = {
   event: ['veranstaltungsort', 'messe', 'stadion', 'arena', 'venue', 'konzert', 'event location'],
 }
 
-/** Title tokens that mark a career/management role — they damp role families. */
+/**
+ * Title tokens that mark a career / qualified-professional role. A title like
+ * "Steuerberater" or "Senior Backend Engineer" is not flexible work no matter
+ * what perk boilerplate its description contains, so these damp EVERY dimension
+ * (v2.4.2 — previously they damped only role families, which let a tax adviser
+ * be labelled "evening" from the word "Feierabend").
+ */
 const CAREER_SENIORITY = [
+  // Management
   'leiter', 'leiterin', 'leitung', 'manager', 'managerin', 'teamleiter', 'filialleiter',
-  'marktleiter', 'bezirksleiter', 'ingenieur', 'engineer', 'consultant', 'developer',
-  'architekt', 'referent', 'spezialist', 'head of', 'director', 'senior',
+  'marktleiter', 'bezirksleiter', 'abteilungsleiter', 'geschaftsfuhrer', 'prokurist',
+  'head', 'director', 'chief', 'vp', 'vorstand', 'partner',
+  // Seniority markers
+  'senior', 'lead', 'principal', 'staff', 'expert', 'spezialist', 'specialist',
+  // Regulated / qualified professions
+  'steuerberater', 'steuerfachangestellte', 'wirtschaftsprufer', 'rechtsanwalt',
+  'anwalt', 'jurist', 'notar', 'arzt', 'arztin', 'facharzt', 'apotheker',
+  'psychologe', 'therapeut', 'architekt', 'ingenieur', 'wirtschaftsingenieur',
+  'buchhalter', 'bilanzbuchhalter', 'controller', 'auditor',
+  // Technical / knowledge work
+  'engineer', 'developer', 'entwickler', 'softwareentwickler', 'programmierer',
+  'consultant', 'berater', 'analyst', 'scientist', 'data', 'devops', 'architect',
+  'referent', 'projektleiter', 'produktmanager', 'account', 'recruiter',
 ]
 
+// Every alias table is folded once, at load, into the same normalized space
+// the text is compared in.
+const FOLDED_EMPLOYMENT = foldAliases(EMPLOYMENT_ALIASES)
+const FOLDED_ROLE = foldAliases(ROLE_ALIASES)
+const FOLDED_WORKPLACE = foldAliases(WORKPLACE_ALIASES)
+const FOLDED_CAREER = [...new Set(CAREER_SENIORITY.map(normalizeAlias).filter(Boolean))]
+const FOLDED_PERKS = [...new Set(PERK_PHRASES.map(normalizeAlias).filter(Boolean))]
+
 // Weights per signal location. Title is the strongest evidence.
-const WEIGHT = { title: 3, description: 1.5, employer: 2 } as const
-const INCLUDE_THRESHOLD = 1.5
-const CAREER_DAMP = 0.4
+//
+// v2.4.2: description weight dropped 1.5 -> 1 and the threshold raised 1.5 -> 2.
+// Previously a SINGLE incidental description word scored exactly the threshold,
+// so one mention of an office "Küche" in a perks list was enough to tag a job
+// as kitchen work. Now: a title hit (3) qualifies on its own, an employer/brand
+// hit (2) qualifies for workplace, and description evidence needs at least two
+// DISTINCT aliases (1 + 1) before it can assert anything by itself.
+const WEIGHT = { title: 3, description: 1, employer: 2 } as const
+const INCLUDE_THRESHOLD = 2
+// A career title damps every dimension hard enough that even a title hit
+// (3 * 0.2 = 0.6) stays below the threshold.
+const CAREER_DAMP = 0.2
 
 type Hit = { value: string; where: TaxonomyEvidence['where']; matched: string; weight: number }
 
@@ -174,17 +276,23 @@ function collect(
  * deterministic. Returns selected values (score ≥ threshold), a 0..1 confidence
  * per value, and the evidence that produced each.
  */
+/** True when a title reads as a career / qualified-professional role. */
+export function isCareerTitle(title: string): boolean {
+  const padded = normalize(title)
+  return FOLDED_CAREER.some((token) => hasToken(padded, token))
+}
+
 export function classifyFlexible(input: ClassifyInput): FlexibleClassification {
   const title = normalize(input.title)
-  const description = normalize(input.description ?? '')
+  const description = stripPerkPhrases(normalize(input.description ?? ''))
   const context = normalize([input.employer, input.brand].filter(Boolean).join(' '))
   const fields = { title, description, context }
 
-  const careerTitle = CAREER_SENIORITY.some((token) => hasToken(title, token))
+  const careerTitle = FOLDED_CAREER.some((token) => hasToken(title, token))
 
-  const emp = collect('employment', EMPLOYMENT_ALIASES, fields)
-  const role = collect('roleFamily', ROLE_ALIASES, fields)
-  const place = collect('workplace', WORKPLACE_ALIASES, fields)
+  const emp = collect('employment', FOLDED_EMPLOYMENT, fields)
+  const role = collect('roleFamily', FOLDED_ROLE, fields)
+  const place = collect('workplace', FOLDED_WORKPLACE, fields)
 
   const confidence: Record<string, number> = {}
   const evidence: TaxonomyEvidence[] = [...emp.evidence, ...role.evidence, ...place.evidence]
@@ -204,8 +312,14 @@ export function classifyFlexible(input: ClassifyInput): FlexibleClassification {
     return chosen
   }
 
+  // v2.4.2: a career title now damps EMPLOYMENT as well as role families.
+  // Previously only role families were damped, so a professional role still
+  // collected arrangement tags ("evening", "weekend") from perk boilerplate.
+  //
+  // Workplace is deliberately NOT damped: it describes the employer ("REWE is a
+  // supermarket"), which stays true regardless of how senior the role is.
   return {
-    employment: select<FlexibleEmployment>('employment', emp.scores),
+    employment: select<FlexibleEmployment>('employment', emp.scores, true),
     roleFamilies: select<FlexibleRoleFamily>('roleFamily', role.scores, true),
     workplaces: select<WorkplaceType>('workplace', place.scores),
     confidence,

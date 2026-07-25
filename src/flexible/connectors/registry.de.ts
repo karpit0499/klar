@@ -86,7 +86,11 @@ const BASELINE: ConnectorConfig[] = [
   def({
     id: 'baseline-arbeitnow', employerFamily: 'Arbeitnow', brands: ['Arbeitnow'], sector: 'retail',
     type: 'api', allowedHosts: ['www.arbeitnow.com'], pathPrefixes: ['/api'],
-    queryCapabilities: ['keyword'], pagination: NO_PAGE,
+    // v2.4.2: Arbeitnow has NO server-side query — its endpoint is a plain
+    // "most recent jobs" feed, so the adapter ignores what/where entirely.
+    // Declaring 'keyword' here was wrong and hid the fact that everything it
+    // returns must be narrowed client-side by the relevance gate.
+    queryCapabilities: [], pagination: NO_PAGE,
     contentTypes: CT_JSON, fieldCoverage: coverage({ title: true, employer: true, city: true, description: true, applyUrl: true }),
     workplaces: [], fallback: { kind: 'official_search', label: 'Search Arbeitnow', url: 'https://www.arbeitnow.com/' },
     api: { adapter: 'arbeitnow' }, verification: 'verified',

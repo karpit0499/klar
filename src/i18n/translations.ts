@@ -444,6 +444,9 @@ const en = {
   'flexible.home.setUpTitle': 'Look for flexible work',
   'flexible.home.setUpBody': 'Minijobs, part-time, working-student, weekend, evening and seasonal roles — searched by place and work type. Your résumé is not used here.',
   'flexible.home.setUp': 'Set up flexible search',
+    // v2.4.2 — honest location + relevance reporting.
+  'flexible.card.remote': 'Remote',
+  'flexible.search.hidden': '{count} results hidden as not flexible work in your area',
   'flexible.home.savedTitle': 'Saved searches',
   'flexible.home.savedEmpty': 'No saved searches yet. Run a search and save it to return to it.',
   'flexible.home.run': 'Run',
@@ -924,6 +927,9 @@ const de: Record<TranslationKey, string> = {
   'flexible.home.setUpTitle': 'Flexible Arbeit suchen',
   'flexible.home.setUpBody': 'Minijobs, Teilzeit, Werkstudent, Wochenende, Abend und Saison — gesucht nach Ort und Arbeitsart. Dein Lebenslauf wird hier nicht verwendet.',
   'flexible.home.setUp': 'Flexible Suche einrichten',
+    // v2.4.2 — ehrliche Orts- und Relevanzangaben.
+  'flexible.card.remote': 'Homeoffice',
+  'flexible.search.hidden': '{count} Ergebnisse ausgeblendet – keine flexible Arbeit in deiner Nähe',
   'flexible.home.savedTitle': 'Gespeicherte Suchen',
   'flexible.home.savedEmpty': 'Noch keine gespeicherten Suchen. Starte eine Suche und speichere sie, um zurückzukehren.',
   'flexible.home.run': 'Starten',

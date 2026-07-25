@@ -4,6 +4,32 @@ This file records Klar’s product history from the newest release to the origin
 
 ---
 
+## v2.4.2 — Flexible Work result correctness
+
+Flexible Work was showing jobs it should never have shown: senior professional roles, in cities nobody searched for, labelled with working arrangements the postings never mentioned. A Berlin minijob search could return a €90,000 tax-adviser vacancy in Kaiserslautern tagged "evening" and "kitchen". This release makes the results mean what they say.
+
+### Fixed
+
+- Flexible Work now filters its results. Until now every opportunity a source returned was shown, because the filtering the career search performs was never built for the flexible path. Results are now checked against the requested cities, the requested arrangements, and whether the role is flexible work at all.
+- Jobs outside the requested cities no longer appear. One always-on source is a plain "most recent jobs in Germany" feed with no server-side search, and its results were previously published unfiltered.
+- Career and qualified-professional roles are excluded. Titles such as tax adviser, lawyer, physician, engineer, developer, consultant and any management or senior title are no longer offered as flexible work, and pay far above any flexible arrangement is treated as evidence on its own.
+- Working arrangements are no longer invented from employer perks. "Feierabend" (the end of the working day) was being read as evening work and an office kitchen as kitchen work, because a single incidental word in a description was enough to assert a tag.
+- Negated statements are no longer read as their opposite. A posting advertising "no night shift" or "weekends off" was being tagged as night and weekend work.
+- Real vacancies now appear before official-route cards. Because a failing source fails quickly, its fallback card used to arrive first and fill the first page with links to search elsewhere.
+- Remote roles now show "Remote" instead of the employer's registered city, which previously looked like a location error.
+- Fixed a matching fault where any internal keyword containing "ae", "oe" or "ue" could never match, because the text was folded to strip umlauts but the keywords were not.
+
+### Changed
+
+- The source-status panel now states how many results were hidden as not flexible work, so a filtered result set is never silently smaller.
+- One source's capability record incorrectly claimed it supported keyword search. It is now recorded honestly as having no server-side query.
+
+### Unchanged
+
+No data-schema change, no migration, no new dependencies. Career discovery, résumé matching and application tooling are untouched.
+
+---
+
 ## v2.4.1 — Flexible Work for everyone, and accessibility repairs
 
 Flexible Work was reachable only by people who had never added a résumé. Adding one removed the entire feature from the workspace and stranded any saved flexible searches. Flexible Work is for everyone, so it is now always available, and this release also repairs the colour and labelling defects found in a full accessibility pass over v2.4.

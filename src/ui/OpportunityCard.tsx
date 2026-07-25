@@ -46,7 +46,11 @@ export function OpportunityCard({ job, isNew }: { job: NormalizedJob; isNew?: bo
           <p className="mt-0.5 truncate text-sm text-muted">
             {(job.brand && job.brand !== job.employerFamily ? `${job.brand} · ` : '') +
               (job.employerFamily ?? job.company)}
-            {job.location.city ? ` · ${job.location.city}` : ''}
+            {job.location.remote
+              ? ` · ${t('flexible.card.remote')}`
+              : job.location.city
+                ? ` · ${job.location.city}`
+                : ''}
           </p>
         </div>
         <div className="flex shrink-0 flex-col items-end gap-1">
