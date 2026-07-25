@@ -4,7 +4,7 @@
 
 Klar brings your entire job search into one calm, private workspace. Discover live roles, understand where you fit, create stronger applications, and keep every opportunity moving, without losing yourself in tabs, spreadsheets, and scattered notes.
 
-[**Open Klar →**](https://karpit0499.github.io/klar/) · [See what’s new in v2.3](CHANGELOG.md)
+[**Open Klar →**](https://karpit0499.github.io/klar/) · [See what’s new in v2.4](CHANGELOG.md)
 
 ![Klar dashboard](docs/klar-dashboard.png)
 _**Klar Dashboard**_
@@ -18,7 +18,7 @@ _**Klar Search**_
 
 ### Find roles worth your time
 
-Search live opportunities across Germany and nearby European markets. Klar brings together public job feeds and employer career pages, removes repeated listings, and helps you focus with filters for location, distance, recency, employment type, language, and more.
+Search live opportunities across Germany and nearby European markets. Klar brings together public job feeds, employer career pages, and official application routes, removes repeated listings, and helps you focus with filters for location, distance, recency, employment type, language, and more.
 
 When a search returns nothing, Klar does not leave you guessing. It shows what happened, which sources responded, which filters removed results, and what you can try next.
 
@@ -33,6 +33,14 @@ Klar meets you where you are. Choose the path that matches your search and it se
 
 Setup remembers where you stopped, so you can leave and continue later instead of starting over.
 
+### Flexible work, searched properly
+
+If you are looking for shift work rather than a career move, Klar searches the employers who actually hire for it, not just the job boards that happen to list them.
+
+Results arrive while the search is still running, so you are reading real openings within seconds instead of watching a spinner. Every search finishes, on time, every time. If a source is slow or unavailable, Klar tells you plainly and shows you what it did find, rather than pretending the result is complete.
+
+Some employers do not post individual openings at all. Klar shows those as **open applications** instead, with a clear, distinct treatment and a direct route to the employer's own application page, so a quiet employer is still a real opportunity rather than an empty gap.
+
 ### See the match. Understand the reason.
 
 Klar reads your résumé and compares it with each role. Every match comes with a clear score breakdown, the strengths working in your favour, and the gaps worth considering.
@@ -41,7 +49,7 @@ Adjust what matters most to you. Save the promising roles. Hide the noise. Come 
 
 ### Keep your résumé in one trustworthy place
 
-Your résumé is now the single source of truth behind everything Klar does. Edit it directly inside Klar, for example, experience, education, skills, projects, certifications, and languages. Reorder what matters, and undo a change if you go too far. A structural completeness check points out missing dates or roles without achievements, and earlier versions are kept so you can look back or restore one.
+Your résumé is the single source of truth behind everything Klar does. Edit it directly inside Klar, for example, experience, education, skills, projects, certifications, and languages. Reorder what matters, and undo a change if you go too far. A structural completeness check points out missing dates or roles without achievements, and earlier versions are kept so you can look back or restore one.
 
 ### Make every application feel considered
 
@@ -62,6 +70,16 @@ Move applications through a simple visual tracker. Add notes, contacts, reminder
 
 ---
 
+## Honest about where information comes from
+
+Klar labels what it knows against what it worked out.
+
+A wage, a posting date, or a location that came from the employer is shown as published. Anything Klar inferred, for example the kind of workplace a role sits in, is marked as inferred and is never dressed up as fact. Listings that have expired drop out instead of lingering.
+
+If a search could not finish a source in time, Klar says so, names the source, and still shows you everything else. A partial answer that admits what is missing is more useful than a complete-looking answer that is quietly wrong.
+
+---
+
 ## Private by design
 
 Your career is personal. Klar treats it that way.
@@ -73,6 +91,8 @@ Your career is personal. Klar treats it that way.
 - A standard backup never contains API credentials.
 - A complete encrypted backup can move credentials safely while keeping them unreadable.
 - A readable data export is separate, clearly warned, and always requires confirmation.
+
+Employer sources are reached through a small, strictly limited relay that can only read from a fixed, published list of employer sites, and only ever reads. It cannot be pointed at anything else, and no part of your workspace passes through it.
 
 When you use an AI feature, the information needed for that feature is sent to Groq for processing. It is not stored on a Klar-controlled application server. If you enable the vault, keep your passphrase safe as Klar cannot recover it.
 
@@ -89,25 +109,26 @@ Use Klar in **English or German** across desktop and mobile. Search coverage inc
 - Luxembourg
 - Liechtenstein
 
-Available roles vary by country, employer, and original job source.
+Available roles vary by country, employer, and original job source. Flexible-work employer coverage is currently focused on Germany.
 
 ---
 
-## New in v2.3
+## New in v2.4
 
-### A résumé-first workspace that adapts to you.
+### Flexible work that searches real employers, and tells you the truth about it.
 
-Klar v2.3 rebuilds the foundation of the workspace around one clear résumé and an onboarding that fits how you actually search.
+Klar v2.4 turns Flexible Work from a setup screen into a working search, and puts an honest, resilient source layer underneath it.
 
-- **One canonical résumé** — your résumé is now the single source of truth. Everything Klar matches, tailors, and drafts is derived from it, so your experience stays consistent everywhere.
-- **Edit your résumé inside Klar** — a full editor for experience, education, skills, projects, certifications, and languages, with reordering, undo, and a structural completeness check that flags missing dates and achievements.
-- **Résumé history you can trust** — earlier versions are saved automatically, kept tidy over time, and can be restored whenever you need them.
-- **Onboarding that adapts** — choose to build a career profile, find flexible work, explore a sample workspace, or restore a backup. Klar detects what you already have and lets you continue setup instead of starting over.
-- **Flexible Work mode** — a résumé-free path built for minijobs, part-time, working-student, weekend, evening, and seasonal roles, with multi-city radius, schedule, and availability preferences.
-- **Explore Klar first** — try a temporary sample workspace where nothing is saved before committing your own data.
-- **Ask for a key only when needed** — Klar requests and verifies your Groq key at the moment an AI feature needs it, rather than blocking you at the door.
-- **Grounded applications** — cover letters and interview prep now reference the exact résumé bullets they build on, keeping generated material tied to your real experience.
-- **Safer exports and backups** — spreadsheet and CSV exports are hardened against formula injection, and backups carry your full workspace forward with checked, all-or-nothing restores.
+- **A real flexible-work search** — search minijobs, part-time, working-student, weekend, evening, and seasonal roles by city and work type, with no résumé at any point.
+- **Results while you wait** — the first page appears as soon as there is enough to show, rather than after the slowest source finishes.
+- **Searches that always end** — every search reaches a clear finish, and never runs past sixty seconds.
+- **Employers, not just boards** — twenty-one employer families across groceries, drugstores, logistics, food service, and hotels, alongside the always-available public job sources.
+- **Open applications** — employers who do not post individual openings appear as a clear, distinct route to their own application page instead of being missing.
+- **Published or inferred, never blurred** — wages, dates, and locations are labelled by where they came from, and inferred details say so.
+- **Honest partial results** — if a source cannot finish, Klar names it and still shows everything else.
+- **A search that survives a bad source** — one broken or slow employer cannot break, delay, or empty your results.
+- **Saved flexible searches** — name a search, come back to it, and see only what is genuinely new since last time.
+- **Understands what the job actually is** — role, workplace, and schedule are recognised in German and English, including umlaut spellings, so a *Kassierer:in* and a *cashier* land in the same place.
 
 [Read the complete changelog →](CHANGELOG.md)
 
@@ -115,13 +136,13 @@ Klar v2.3 rebuilds the foundation of the workspace around one clear résumé and
 
 ## Start in a few minutes
 
-You need a current browser and your own [Groq API key](https://console.groq.com/). Adzuna credentials are optional and add more listings and salary information where available.
+You need a current browser. A [Groq API key](https://console.groq.com/) is needed only for AI features, and Klar asks for it at the moment one is used. Adzuna credentials are optional and add more listings and salary information where available.
 
 1. [Open Klar](https://karpit0499.github.io/klar/).
 2. Choose your language and appearance.
 3. Pick how you want to start: career profile, flexible work, or a quick explore.
-4. Upload a PDF or DOCX résumé and review it, or skip it for flexible work.
-5. Tell Klar what kind of role you want.
+4. Upload a PDF or DOCX résumé and review it, or skip it entirely for flexible work.
+5. Tell Klar what kind of role you want, and where.
 6. Start discovering, comparing, and saving opportunities.
 
 Klar can be installed from your browser for a more app-like experience.
@@ -131,6 +152,7 @@ Klar can be installed from your browser for a more app-like experience.
 ## Good to know
 
 - Job availability and freshness depend on the original providers.
+- Employer coverage grows over time; a family that has no live openings still shows its official application route.
 - Some sources or salary features may require separate credentials and may have quotas.
 - AI-generated material should be reviewed before submission.
 - Salary calculations are estimates, not tax or financial advice.
@@ -140,7 +162,7 @@ Klar can be installed from your browser for a more app-like experience.
 
 ## For contributors
 
-Klar requires Node.js 20 or newer and npm.
+Klar requires Node.js 20.19 or newer, or 22.12 or newer, and npm.
 
 ```bash
 git clone https://github.com/karpit0499/klar.git
@@ -150,12 +172,31 @@ cp .env.example .env.local
 npm run dev
 ```
 
-Before proposing a change:
+`.env.local` holds a single optional value, `VITE_WORKER_URL`. Leave it empty and
+Flexible Work runs against bundled sample data, so the whole app is usable
+offline with no services to deploy. Set it to your own deployed Worker to search
+real employer sources.
+
+Before proposing a change, all five must pass:
 
 ```bash
 node --check public/sw.js
 npm run typecheck
+npx tsc --noEmit -p worker/tsconfig.json
 npm test
+npm run build
+```
+
+Optional browser end-to-end check. Note that `npm run build` targets the
+GitHub Pages base path, so build with a root base before serving locally:
+
+```bash
+npm i -D playwright
+npx playwright install chromium
+npx vite build --base=/
+DIST=dist node qa/server.cjs &
+node qa/e2e.mjs
+lsof -ti:4173 | xargs kill
 npm run build
 ```
 
@@ -165,6 +206,7 @@ The production app is published from `main` through GitHub Pages.
 
 ## Release journey
 
+- **v2.4 — Flexible Work & Source Fabric:** a working résumé-free flexible-work search, twenty-one employer families with guaranteed fallbacks, progressive results inside a sixty-second ceiling, published-versus-inferred provenance, open-application routes, and saved flexible searches.
 - **v2.3 — Résumé foundation & adaptive onboarding:** one canonical résumé, an in-app résumé editor with history, adaptive onboarding, a résumé-free Flexible Work mode, a sample explore workspace, grounded applications, and safer exports.
 - **v2.2 — Stability & Safety:** stronger privacy boundaries, trustworthy backups, honest search diagnostics, safer connections, and resilient recovery.
 - **v2.1 — Reliability:** bilingual résumé improvements, consistent state, responsive fixes, and safer updates.

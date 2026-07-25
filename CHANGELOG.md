@@ -4,6 +4,100 @@ This file records Klar’s product history from the newest release to the origin
 
 ---
 
+## v2.4 — Flexible Work and Source Fabric
+
+Klar v2.4 turns Flexible Work from a preferences screen into a working, résumé-free search, and puts a resilient, honest source layer beneath it. Career discovery, résumé matching, and application tooling are unchanged.
+
+### Added
+
+#### Résumé-free Flexible Work search
+
+- A complete Flexible Work search experience for minijob, part-time, working-student, temporary, seasonal, weekend, evening, and night roles, reachable without a résumé at any point in the flow.
+- A progressive search session that publishes its first page as soon as ten results exist, with an eight-second low-supply escape hatch so a thin market still shows results early instead of waiting.
+- A sixty-second hard deadline on every search. When the deadline is reached the session finalizes and reports its reason rather than continuing indefinitely.
+- Per-source attempt timeouts in a ten-to-fifteen-second band, a maximum of two retries, and twenty results per page.
+- Stable, frozen pagination so a page already shown to the reader does not reshuffle when a later source returns.
+- In-place cross-source merging that prefers a direct employer link over an aggregator link for the same opportunity.
+- A Stop control, per-source status reporting, and an honest partial terminal state that names any source which did not finish.
+- A live source-status panel showing each connector as pending, running, succeeded, skipped, timed out, or errored.
+
+#### The Opportunity model and provenance
+
+- An Opportunity model covering both vacancies and open-application routes, replacing the assumption that every result is a dated posting.
+- Field-level provenance recording whether each value was published by the source or inferred by Klar, with a derived overall confidence.
+- Open-application opportunities rendered with a distinct card treatment and a labelled route to the employer's own application page.
+- An inferred-provenance disclosure on the card so a derived detail is never presented as a published fact.
+- Expiry handling that removes vacancies past their validity window instead of leaving them in results.
+
+#### The Source Fabric
+
+- A connector registry for Germany covering twenty-one employer families across grocery and discount, drugstore and general retail, logistics and parcel, food service, and hotels, alongside the always-on Bundesagentur für Arbeit, Adzuna, and Arbeitnow baseline.
+- Six connector engines: API, feed, sitemap, portal, open-entry, and federated.
+- Federated connectors that present a single employer identity while resolving several underlying member sources, used for EDEKA, Hermes, Flink, and the hotel launch pack.
+- A guaranteed fallback on every connector, so a family can never appear as a broken placeholder; a failing or unverified connector degrades to an employer-filtered public search or the employer's official careers route.
+- A `verified` and `candidate` verification state on every connector, so an unconfirmed integration is labelled honestly rather than presented as validated.
+- Safe parsers for JSON, RSS, Atom, sitemap, and HTML detail pages that reject malformed payloads instead of propagating them.
+
+#### Semantic classification
+
+- A taxonomy classifier for employment type, role family, and workplace that works in German and English, including an umlaut-digraph fold so `Küchenhilfe`, `Kuechenhilfe`, and `kitchen help` all resolve to the same role family.
+- A career-seniority guard that keeps senior and management titles out of flexible-work results.
+- Bilingual role and workplace labels shared by the card, the filters, and the setup screen.
+- An optional local embedding suggester for ambiguous titles, off by default behind a feature flag.
+
+#### Resilience, caching, and operations
+
+- A per-connector circuit breaker that opens after four consecutive failures, holds a five-minute cooldown, and then allows a canary probe to test recovery.
+- Persisted connector health covering consecutive failures, successes, failures, schema-validation failures, latency, and kill state.
+- A thirty-minute result cache with first-seen tracking, expiry pruning, and a stale read for degraded conditions.
+- Feature flags for the whole fabric and for the optional embedding classifier, plus per-connector kill switches, all changeable without a redeploy.
+
+#### Worker
+
+- An allowlisted `/fabric` route on the Klar Worker: GET only, a fixed host and path-prefix allowlist, manual redirect handling that re-validates every hop, private and loopback network blocking, byte caps, content-type checking, and XML `DOCTYPE` and `ENTITY` stripping before any payload reaches the browser.
+- The browser has no path to an employer host other than this route.
+
+#### Saved Flexible Work searches
+
+- Named Flexible Work searches that store their own preferences and, on each run, highlight only what is genuinely new since the last check, reusing the existing content-fingerprint model so a reposted job is not mislabelled as new.
+
+### Changed
+
+- Upgraded the local database to schema version 6, adding the `flexibleSearches`, `flexibleCache`, and `connectorHealth` stores. Existing data is preserved.
+- Replaced the Flexible Work home placeholder with the real workspace, including saved searches and a path to add a résumé for career roles.
+- Routed résumé-free users to the progressive Flexible Work search from both the dashboard and the search tab, while leaving the career `SearchStep` and its always-mounted state untouched.
+- Mounted the Flexible Work search only when the search tab is active, so it no longer runs a background search from the dashboard.
+- Moved the "Add résumé for career roles" label out of component source and into the translation dictionary.
+- Extended the English and German dictionaries with the full `flexible.*` key block; parity between the two remains compile-time enforced.
+
+### Fixed
+
+- Fixed a search being able to hang indefinitely on a slow or unresponsive source.
+- Fixed a single failing connector being able to empty or block an entire search.
+- Fixed results reshuffling under the reader as later sources returned.
+- Fixed the same opportunity appearing more than once when several sources carried it, and fixed an aggregator link being preferred over the employer's own link.
+- Fixed employers without individual postings being absent from results entirely rather than shown as an open application.
+- Fixed inferred details being presented with the same authority as published ones.
+- Fixed expired vacancies remaining visible after their validity window had passed.
+
+### Validation
+
+The v2.4 release passed:
+
+```bash
+node --check public/sw.js
+npm run typecheck
+npm test
+npm run build
+npx tsc --noEmit -p worker/tsconfig.json
+```
+
+Twenty-six suites pass in total. Seven are new in this release, covering the taxonomy classifier and Opportunity model, the connector engines and full registry integrity, the progressive search session, resilience and caching and flags and saved searches, Worker allowlist and redirect and content-type and byte-cap security, the user interface wiring, and a server-side render smoke test of the new card and setup form. The registry integrity suite asserts that every employer family carries a working fallback, that attempt timeouts stay inside the ten-to-fifteen-second band, that federated members resolve, and that every registry host is present on the Worker allowlist.
+
+Automated headless-Chromium checks passed at both 1280-pixel and 390-pixel widths with no console errors or warnings, no document-level horizontal overflow, a populated source-status panel, the distinct open-application treatment present, and an honest partial terminal state when a source deliberately fails.
+
+---
+
 ## v2.3.1 — Onboarding and mobile polish
 
 Klar v2.3.1 is a focused fix release on top of v2.3. It tightens the new adaptive onboarding, corrects mobile progressive-web-app chrome, and resolves theme and contrast issues, without changing any v2.3 capability.
