@@ -5,6 +5,10 @@
 /** A job posting after an adapter has normalized it. Every source maps to this. */
 export type SourceId =
   | 'ba' | 'arbeitnow' | 'adzuna' | 'greenhouse' | 'lever' | 'ashby'
+  // v2.4 Source Fabric: employer-direct connectors (feed / sitemap / portal /
+  // open-entry / federated) all report through one honest channel token so the
+  // dedup id builder and the per-source status banner keep working unchanged.
+  | 'fabric'
 
 export type DiscoveryMode = 'career' | 'flexible' | 'both'
 
@@ -116,6 +120,13 @@ export type NormalizedJob = {
   lastVerifiedAt?: string
   sourceConfidence?: 'published' | 'structured' | 'inferred' | 'unknown'
   fieldProvenance?: Record<string, FieldProvenance>
+  /** v2.4 Source Fabric: which registry connector produced this opportunity. */
+  connectorId?: string
+  /** v2.4 Source Fabric: the employer family (e.g. "REWE Group") for grouping. */
+  employerFamily?: string
+  /** v2.4 open-entry programmes: the official programme label and its cities. */
+  programName?: string
+  cityAvailability?: string[]
 }
 
 /** Parsed résumé profile (produced by the LLM parse step). */

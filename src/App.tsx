@@ -11,7 +11,8 @@ import { AdaptiveOnboarding } from './ui/AdaptiveOnboarding'
 import { ExploreWorkspace } from './ui/ExploreWorkspace'
 import { GroqKeyPrompt } from './ui/GroqKeyPrompt'
 import { SetupChecklist } from './ui/SetupChecklist'
-import { FlexibleWorkHome } from './ui/FlexibleWorkHome'
+import { FlexibleWorkHome, type FlexibleLaunch } from './ui/FlexibleWorkHome'
+import { FlexibleSearch } from './ui/FlexibleSearch'
 import { useT } from './i18n/LocaleProvider'
 import type { TranslationKey } from './i18n/translations'
 import { DEFAULT_WEIGHTS } from './match/weights'
@@ -31,6 +32,7 @@ export default function App() {
   const [tab, setTab] = useState<Tab>('dashboard')
   const [revision, setRevision] = useState(0)
   const [demo, setDemo] = useState(false)
+  const [flexLaunch, setFlexLaunch] = useState<FlexibleLaunch | null>(null)
   const [onboardingTarget, setOnboardingTarget] = useState<'welcome' | 'resume' | 'flexible' | 'restore'>()
   const [keyRequest, setKeyRequest] = useState<KeyRequest | null>(null)
   const vaultStatus = useLiveQuery(getVaultStatus, [revision], undefined)
@@ -98,10 +100,13 @@ export default function App() {
     <Shell tab={tab} setTab={changeTab}>
       {tab === 'dashboard' && (canonical && profile
         ? <div className="page-container"><SetupChecklist resume={canonical.data} preferences={preferences} onProfile={() => changeTab('settings')} onPreferences={() => changeTab('settings')} onAdzuna={() => changeTab('settings')} onAddResume={() => void addResume()} /><DashboardStep profile={profile} prefs={preferences} /></div>
-        : <FlexibleWorkHome preferences={preferences} onEdit={() => void editFlexible()} onAddResume={() => void addResume()} />)}
+        : <FlexibleWorkHome preferences={preferences} onSearch={(launch) => { setFlexLaunch(launch); changeTab('search') }} onEdit={() => void editFlexible()} onAddResume={() => void addResume()} />)}
       <div hidden={tab !== 'search'}>{canonical && profile
         ? <SearchStep resume={canonical.data} profile={profile} prefs={preferences} apiKey={apiKey} requireGroq={requireGroq} />
-        : <FlexibleWorkHome preferences={preferences} onEdit={() => void editFlexible()} onAddResume={() => void addResume()} />}</div>
+        : null}</div>
+      {tab === 'search' && !(canonical && profile) && ((flexLaunch?.preferences ?? preferences.flexibleWork)
+        ? <FlexibleSearch preferences={(flexLaunch?.preferences ?? preferences.flexibleWork)!} savedSearchId={flexLaunch?.savedSearchId} onEdit={() => void editFlexible()} />
+        : <FlexibleWorkHome preferences={preferences} onSearch={(launch) => { setFlexLaunch(launch); changeTab('search') }} onEdit={() => void editFlexible()} onAddResume={() => void addResume()} />)}
       {tab === 'tracker' && <TrackerBoard weights={preferences.weights ?? DEFAULT_WEIGHTS} />}
       {tab === 'settings' && <SettingsStep
         onReset={refresh}

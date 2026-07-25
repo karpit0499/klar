@@ -15,6 +15,7 @@
 // low-sensitivity, read-only job data — and it keeps the ONE crown-jewel secret,
 // the user's Groq/LLM key, browser→Groq only, never touching this Worker.
 // ============================================================================
+import { fabricFetch, isFabricFailure } from './fabric'
 
 export interface Env {
   // Set via: npx wrangler secret put ADZUNA_APP_ID   (and ADZUNA_APP_KEY)
@@ -159,6 +160,19 @@ export default {
 
     if (route === 'health' || url.pathname === '/') {
       return json({ ok: true, service: 'klar-proxy' }, 200, origin)
+    }
+
+    // v2.4 Source Fabric — allowlisted retrieval for employer-direct connectors.
+    if (route === 'fabric') {
+      const host = url.searchParams.get('host') ?? ''
+      const path = url.searchParams.get('path') ?? ''
+      const acceptParam = url.searchParams.get('accept') ?? 'json'
+      const accept: 'json' | 'xml' | 'text' =
+        acceptParam === 'xml' || acceptParam === 'text' ? acceptParam : 'json'
+      const maxBytes = Number(url.searchParams.get('max') ?? '0') || 0
+      const result = await fabricFetch({ host, path, accept, maxBytes })
+      if (isFabricFailure(result)) return json({ error: result.error }, result.httpStatus, origin)
+      return json(result, 200, origin)
     }
 
     if (route !== 'ba' && route !== 'adzuna') {

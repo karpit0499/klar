@@ -12,6 +12,7 @@ import type {
   TrackedJob,
   Dashboard,
   SearchQuery,
+  FlexibleWorkPreferences,
 } from '../types'
 import type { CipherEnvelope } from '../crypto/resumeCrypto'
 import type { CanonicalResumeRow, ResumeDraftRow, ResumeSnapshotRow } from '../resume/types'
@@ -42,6 +43,46 @@ export type SavedSearchRow = {
   createdAt: string
   updatedAt: string
   lastRunAt?: string
+}
+
+/** A saved Flexible Work search (v2.4). Résumé-free; stores its own preferences. */
+export type FlexibleSearchRow = {
+  id: string
+  name: string
+  preferences: FlexibleWorkPreferences
+  keywords?: string[]
+  /** "New since last check" identities, reusing the v2.2 fingerprint model. */
+  seenIdentities?: { value: string; lastSeenAt: string }[]
+  createdAt: string
+  updatedAt: string
+  lastRunAt?: string
+}
+
+/** A cached Flexible Work opportunity set (v2.4), keyed by the query signature. */
+export type FlexibleCacheRow = {
+  queryKey: string
+  opportunities: NormalizedJob[]
+  firstSeenAt: string
+  lastVerifiedAt: string
+  /** Vacancy cache expiry. Open-entry rows are stored with a far-future expiry. */
+  expiresAt: string
+}
+
+/** Per-connector circuit-breaker + kill-switch state (v2.4, roadmap §6.2). */
+export type ConnectorHealthRow = {
+  connectorId: string
+  consecutiveFailures: number
+  successes: number
+  failures: number
+  schemaFailures: number
+  lastSuccessAt?: string
+  lastVerifiedAt?: string
+  lastLatencyMs?: number
+  /** When the circuit opened; searches skip the connector until cooldownUntil. */
+  openedAt?: string
+  cooldownUntil?: string
+  /** Operator manual kill switch — disables the connector without a redeploy. */
+  killed: boolean
 }
 
 /**
@@ -88,6 +129,9 @@ export class KlarDB extends Dexie {
   resumes!: Table<CanonicalResumeRow, string>
   resumeHistory!: Table<ResumeSnapshotRow, string>
   resumeDrafts!: Table<ResumeDraftRow, string>
+  flexibleSearches!: Table<FlexibleSearchRow, string>
+  flexibleCache!: Table<FlexibleCacheRow, string>
+  connectorHealth!: Table<ConnectorHealthRow, string>
 
   constructor() {
     super('klar')
@@ -191,6 +235,27 @@ export class KlarDB extends Dexie {
         transaction.table('matches').clear(), transaction.table('vectors').clear(),
       ])
     })
+    // v6 — v2.4 Source Fabric: saved Flexible Work searches, a validated
+    // opportunity cache, and per-connector circuit-breaker/kill-switch state.
+    // Existing stores keep their data; the three new ones start empty.
+    this.version(6).stores({
+      settings: 'key',
+      profiles: 'id, createdAt',
+      preferences: 'id',
+      jobs: 'queryKey, fetchedAt',
+      matches: 'cacheKey, jobId',
+      tracked: 'jobId, status, updatedAt',
+      dashboard: 'id',
+      vectors: 'jobId, embedderId',
+      savedSearches: 'id, updatedAt',
+      vault: 'id, updatedAt',
+      resumes: 'id, updatedAt',
+      resumeHistory: 'id, createdAt, name',
+      resumeDrafts: 'id, updatedAt',
+      flexibleSearches: 'id, updatedAt',
+      flexibleCache: 'queryKey, expiresAt',
+      connectorHealth: 'connectorId',
+    })
   }
 }
 
@@ -222,5 +287,8 @@ export async function wipeAllData(): Promise<void> {
     db.resumes.clear(),
     db.resumeHistory.clear(),
     db.resumeDrafts.clear(),
+    db.flexibleSearches.clear(),
+    db.flexibleCache.clear(),
+    db.connectorHealth.clear(),
   ])
 }
