@@ -4,6 +4,34 @@ This file records Klar’s product history from the newest release to the origin
 
 ---
 
+## v2.4.1 — Flexible Work for everyone, and accessibility repairs
+
+Flexible Work was reachable only by people who had never added a résumé. Adding one removed the entire feature from the workspace and stranded any saved flexible searches. Flexible Work is for everyone, so it is now always available, and this release also repairs the colour and labelling defects found in a full accessibility pass over v2.4.
+
+### Fixed
+
+- Flexible Work is now reachable whether or not a résumé exists. A career/flexible switch appears on the dashboard and the search screen once a résumé is present, and the chosen surface is remembered between sessions.
+- Saved flexible searches are no longer stranded. Adding a résumé previously hid the only screen that listed them.
+- Settings now always offers a route into Flexible Work, and invites first-time setup when no flexible search exists yet, instead of showing an edit action that led nowhere.
+- Editing a flexible search now re-runs it. The search session previously started only once when the screen mounted, so edited locations or work types kept returning the previous search's results.
+- "New since last check" is recalculated when a different saved search is opened, instead of being computed once per session.
+- Result cards no longer force the page to scroll sideways on 320-pixel screens.
+- The physical-work question now offers an explicit "no preference" answer, which the data model always allowed but the form never produced.
+
+### Accessibility
+
+- Secondary and tertiary text now meets WCAG 2.1 AA contrast in both light and dark themes. Tertiary text previously measured 2.83:1 in light and 3.26:1 in dark against a 4.5:1 requirement.
+- The destructive-action and success colours meet AA in light mode, where they previously measured 3.91:1 and 3.49:1.
+- The dark-theme accent meets AA on its own tint, which is the background behind the language toggle, the appearance toggle, the active navigation item, and every accent chip. It previously measured 3.98:1.
+- The three free-text fields in the résumé editor now have accessible names. A screen reader previously announced them as unlabelled edit fields.
+- The new work-type switch is a standard radio group with 44-pixel targets and wraps rather than overflowing on narrow screens.
+
+### Unchanged
+
+No data-schema change, no new dependency, and no change to search behaviour, matching, connectors, or privacy boundaries. A v2.4 backup restores into v2.4.1 without conversion.
+
+---
+
 ## v2.4 — Flexible Work and Source Fabric
 
 Klar v2.4 turns Flexible Work from a preferences screen into a working, résumé-free search, and puts a resilient, honest source layer beneath it. Career discovery, résumé matching, and application tooling are unchanged.
@@ -12,7 +40,7 @@ Klar v2.4 turns Flexible Work from a preferences screen into a working, résumé
 
 #### Résumé-free Flexible Work search
 
-- A complete Flexible Work search experience for minijob, part-time, working-student, temporary, seasonal, weekend, evening, and night roles, reachable without a résumé at any point in the flow.
+- A complete Flexible Work search experience for minijob, part-time, working-student, temporary, seasonal, weekend, evening, and night roles, reachable without a résumé. (In v2.4 this surface was reachable *only* without a résumé; v2.4.1 makes it available to everyone.)
 - A progressive search session that publishes its first page as soon as ten results exist, with an eight-second low-supply escape hatch so a thin market still shows results early instead of waiting.
 - A sixty-second hard deadline on every search. When the deadline is reached the session finalizes and reports its reason rather than continuing indefinitely.
 - Per-source attempt timeouts in a ten-to-fifteen-second band, a maximum of two retries, and twenty results per page.

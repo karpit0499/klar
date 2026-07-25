@@ -70,7 +70,7 @@ export function ResumeEditor({ value, onChange, onSave, saveLabel, busy = false 
       </Section>
 
       <Section title={de ? 'Kurzprofil' : 'Summary'}>
-        <textarea className={`${inputClass} min-h-28`} value={value.summary ?? ''} onChange={(e) => change((d) => { d.summary = e.target.value || undefined })} />
+        <textarea aria-label={de ? 'Kurzprofil' : 'Summary'} className={`${inputClass} min-h-28`} value={value.summary ?? ''} onChange={(e) => change((d) => { d.summary = e.target.value || undefined })} />
       </Section>
 
       <Section title={de ? 'Berufserfahrung' : 'Experience'}>
@@ -89,7 +89,7 @@ export function ResumeEditor({ value, onChange, onSave, saveLabel, busy = false 
             <div className="mt-3 space-y-2">
               {role.bullets.map((bullet, bulletIndex) => (
                 <Row key={bullet.id} onUp={() => change((d) => { d.experience[roleIndex].bullets = move(d.experience[roleIndex].bullets, bulletIndex, -1) })} onDown={() => change((d) => { d.experience[roleIndex].bullets = move(d.experience[roleIndex].bullets, bulletIndex, 1) })} onDelete={() => remove(de ? 'Erfolg' : 'achievement', (d) => { d.experience[roleIndex].bullets.splice(bulletIndex, 1) })}>
-                  <textarea className={`${inputClass} min-h-20`} value={bullet.text} onChange={(e) => change((d) => { d.experience[roleIndex].bullets[bulletIndex].text = e.target.value })} />
+                  <textarea aria-label={de ? `Erfolg ${bulletIndex + 1}` : `Achievement ${bulletIndex + 1}`} className={`${inputClass} min-h-20`} value={bullet.text} onChange={(e) => change((d) => { d.experience[roleIndex].bullets[bulletIndex].text = e.target.value })} />
                 </Row>
               ))}
               <Add onClick={() => change((d) => { d.experience[roleIndex].bullets.push({ id: newResumeId('bullet'), text: '', evidenceRefs: [] }) })}>{de ? 'Erfolg hinzufügen' : 'Add achievement'}</Add>
@@ -129,7 +129,7 @@ export function ResumeEditor({ value, onChange, onSave, saveLabel, busy = false 
               <Field label="URL"><TextInput value={project.link ?? ''} onChange={(e) => change((d) => { d.projects[index].link = e.target.value || undefined })} /></Field>
               <Field label={de ? 'Technologien (Komma)' : 'Technologies (comma-separated)'}><TextInput value={(project.tech ?? []).join(', ')} onChange={(e) => change((d) => { d.projects[index].tech = e.target.value.split(',').map((x) => x.trim()).filter(Boolean) })} /></Field>
             </div>
-            <textarea className={`${inputClass} mt-3 min-h-24`} value={project.summary ?? ''} onChange={(e) => change((d) => { d.projects[index].summary = e.target.value || undefined })} />
+            <textarea aria-label={de ? 'Projektbeschreibung' : 'Project summary'} className={`${inputClass} mt-3 min-h-24`} value={project.summary ?? ''} onChange={(e) => change((d) => { d.projects[index].summary = e.target.value || undefined })} />
           </Item>
         ))}
         <Add onClick={() => change((d) => { d.projects.push({ id: newResumeId('project'), name: '', evidenceRefs: [] }) })}>{de ? 'Projekt hinzufügen' : 'Add project'}</Add>

@@ -35,6 +35,23 @@ export type LocalSetupState =
 
 const PROGRESS_KEY = 'onboardingProgressV2'
 const DISCOVERY_MODE_KEY = 'workspaceDiscoveryModeV1'
+const WORK_MODE_KEY = 'workspaceWorkModeV1'
+
+/**
+ * Which surface the workspace is currently showing. This is a VIEW choice, not a
+ * capability: from v2.4.1 both surfaces are always reachable, so a résumé no
+ * longer removes Flexible Work from the app.
+ */
+export type WorkMode = 'career' | 'flexible'
+
+export async function loadWorkMode(): Promise<WorkMode | null> {
+  const stored = await getSetting<WorkMode>(WORK_MODE_KEY)
+  return stored === 'career' || stored === 'flexible' ? stored : null
+}
+
+export async function saveWorkMode(mode: WorkMode): Promise<void> {
+  await setSetting(WORK_MODE_KEY, mode)
+}
 
 export function flexiblePreferencesReady(value?: FlexibleWorkPreferences): boolean {
   if (!value || value.locations.length === 0) return false

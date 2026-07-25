@@ -26,6 +26,7 @@ export function SettingsStep({
   onReplaceResume,
   onResumeChanged,
   onEditFlexible,
+  hasFlexible,
   onAddResume,
 }: {
   onReset: () => void
@@ -36,6 +37,8 @@ export function SettingsStep({
   onReplaceResume?: (resume: ResumeData) => void | Promise<void>
   onResumeChanged?: () => void
   onEditFlexible?: () => void
+  /** v2.4.1: false when no flexible search exists yet — the card invites setup. */
+  hasFlexible?: boolean
   onAddResume?: () => void
 }) {
   const t = useT()
@@ -148,9 +151,13 @@ export function SettingsStep({
         {(onEditFlexible || onAddResume) && (
           <Card className="mt-4 p-4 sm:p-6">
             <h2 className="text-xl font-semibold text-ink">{de ? 'Flexible Arbeit' : 'Flexible Work'}</h2>
-            <p className="mt-1 text-base text-muted">{de ? 'Passe Orte, Arbeitsarten und Verfügbarkeit an oder ergänze einen Lebenslauf für Karrierejobs.' : 'Adjust locations, work types, and availability, or add a résumé for career roles.'}</p>
+            <p className="mt-1 text-base text-muted">{hasFlexible
+              ? (de ? 'Passe Orte, Arbeitsarten und Verfügbarkeit an oder ergänze einen Lebenslauf für Karrierejobs.' : 'Adjust locations, work types, and availability, or add a résumé for career roles.')
+              : (de ? 'Minijobs, Teilzeit und Wochenendarbeit nach Ort und Arbeitsart suchen. Ein Lebenslauf ist dafür nicht nötig.' : 'Search minijobs, part-time and weekend work by place and work type. A résumé is not needed for this.')}</p>
             <div className="mt-4 flex flex-wrap gap-3">
-              {onEditFlexible && <Button onClick={onEditFlexible}>{de ? 'Flexible Suche bearbeiten' : 'Edit flexible search'}</Button>}
+              {onEditFlexible && <Button onClick={onEditFlexible}>{hasFlexible
+                ? (de ? 'Flexible Suche bearbeiten' : 'Edit flexible search')
+                : (de ? 'Flexible Suche einrichten' : 'Set up flexible search')}</Button>}
               {onAddResume && <Button variant="ghost" onClick={onAddResume}>{de ? 'Lebenslauf hinzufügen' : 'Add résumé'}</Button>}
             </div>
           </Card>

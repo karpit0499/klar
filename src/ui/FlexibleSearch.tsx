@@ -18,21 +18,25 @@ export function FlexibleSearch({
   preferences,
   savedSearchId,
   onEdit,
+  switcher,
 }: {
   preferences: FlexibleWorkPreferences
   savedSearchId?: string
   onEdit?: () => void
+  /** v2.4.1: the career/flexible segmented control, rendered above the results. */
+  switcher?: React.ReactNode
 }) {
   const { locale, t } = useLocale()
   const de = locale === 'de'
   const { snapshot, running, usingFixtures, page, setPage, start, stop } = useFlexibleSearch(preferences, { auto: true })
   const [freshIds, setFreshIds] = useState<Set<string>>(new Set())
-  const recordedRef = useRef(false)
+  const recordedRef = useRef<string | null>(null)
 
   // On completion of a saved search, compute the "new since last check" set.
   useEffect(() => {
-    if (!snapshot || running || recordedRef.current || !savedSearchId) return
-    recordedRef.current = true
+    if (!snapshot || running || !savedSearchId) return
+    if (recordedRef.current === savedSearchId) return
+    recordedRef.current = savedSearchId
     void (async () => {
       const row = await getFlexibleSearch(savedSearchId)
       const published = snapshot.pages.flat()
@@ -52,6 +56,7 @@ export function FlexibleSearch({
 
   return (
     <div className="page-container">
+      {switcher && <div className="mb-4">{switcher}</div>}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold text-ink">{t('flexible.search.title')}</h1>
         {onEdit && (
@@ -110,7 +115,7 @@ export function FlexibleSearch({
         <>
           <ul className="mt-4 grid gap-3" aria-label={t('flexible.search.resultsAria')}>
             {current.map((job) => (
-              <li key={job.id}>
+              <li key={job.id} className="min-w-0">
                 <OpportunityCard job={job} isNew={freshIds.has(job.id)} />
               </li>
             ))}

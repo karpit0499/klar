@@ -49,12 +49,15 @@ export function SearchStep({
   prefs,
   apiKey,
   requireGroq,
+  switcher,
 }: {
   resume: ResumeData
   profile: Profile
   prefs: Preferences
   apiKey?: string
   requireGroq: (action: string) => Promise<string | null>
+  /** v2.4.1: the career/flexible segmented control, rendered above the panel. */
+  switcher?: React.ReactNode
 }) {
   const [jobs, setJobs] = useState<NormalizedJob[]>([])
   const t = useT()
@@ -280,6 +283,7 @@ export function SearchStep({
 
   return (
     <div className="page-container">
+      {switcher && <div className="mb-4">{switcher}</div>}
       <Card className="p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>

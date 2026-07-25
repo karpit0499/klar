@@ -1,9 +1,14 @@
 // ============================================================================
-// The Flexible Work home (v2.4). Replaces the v2.3 "coming in v2.4" placeholder
-// with the real résumé-free entry surface: a search launcher for the saved
-// preferences, the list of saved Flexible Work searches, and paths to edit the
-// search or add a résumé for career roles.
+// The Flexible Work home (v2.4). The résumé-free entry surface: a search
+// launcher for the saved preferences, the list of saved Flexible Work searches,
+// and paths to edit the search or add a résumé for career roles.
+//
+// v2.4.1: this screen is no longer reserved for résumé-free users. It also
+// serves people who already have a résumé and are switching over to flexible
+// work, so the "not set up yet" state now invites them to create a flexible
+// search instead of assuming they arrived here from onboarding.
 // ============================================================================
+import type { ReactNode } from 'react'
 import { Button, Card } from './atoms'
 import { useLocale } from '../i18n/LocaleProvider'
 import type { FlexibleWorkPreferences, Preferences } from '../types'
@@ -16,11 +21,15 @@ export function FlexibleWorkHome({
   onSearch,
   onEdit,
   onAddResume,
+  switcher,
 }: {
   preferences: Preferences
   onSearch: (launch: FlexibleLaunch) => void
   onEdit: () => void
-  onAddResume: () => void
+  /** Omitted when the user already has a résumé — there is nothing to add. */
+  onAddResume?: () => void
+  /** v2.4.1: the career/flexible segmented control, rendered above the panel. */
+  switcher?: ReactNode
 }) {
   const { locale, t } = useLocale()
   const de = locale === 'de'
@@ -30,13 +39,16 @@ export function FlexibleWorkHome({
   if (!flexible) {
     return (
       <div className="page-container">
+        {switcher && <div className="mb-4">{switcher}</div>}
         <Card className="p-5 sm:p-6">
           <p className="text-sm font-medium uppercase tracking-wide text-accent">{t('flexible.home.eyebrow')}</p>
-          <h1 className="mt-2 text-2xl font-semibold text-ink">{t('flexible.home.title')}</h1>
-          <p className="mt-2 text-base text-muted">{t('flexible.home.noLocation')}</p>
+          <h1 className="mt-2 text-2xl font-semibold text-ink">{t('flexible.home.setUpTitle')}</h1>
+          <p className="mt-2 text-base text-muted">{t('flexible.home.setUpBody')}</p>
           <div className="mt-5 flex flex-wrap gap-3">
-            <Button onClick={onEdit}>{t('flexible.home.edit')}</Button>
-            <Button variant="ghost" onClick={onAddResume}>{t('flexible.home.addResume')}</Button>
+            <Button onClick={onEdit}>{t('flexible.home.setUp')}</Button>
+            {onAddResume && (
+              <Button variant="ghost" onClick={onAddResume}>{t('flexible.home.addResume')}</Button>
+            )}
           </div>
         </Card>
       </div>
@@ -47,6 +59,7 @@ export function FlexibleWorkHome({
 
   return (
     <div className="page-container">
+      {switcher && <div className="mb-4">{switcher}</div>}
       <Card className="p-5 sm:p-6">
         <p className="text-sm font-medium uppercase tracking-wide text-accent">{t('flexible.home.eyebrow')}</p>
         <h1 className="mt-2 text-2xl font-semibold text-ink">{t('flexible.home.title')}</h1>
@@ -58,7 +71,9 @@ export function FlexibleWorkHome({
         <div className="mt-5 flex flex-wrap gap-3">
           <Button onClick={() => onSearch({ preferences: flexible })}>{t('flexible.home.start')}</Button>
           <Button variant="ghost" onClick={onEdit}>{t('flexible.home.edit')}</Button>
-          <Button variant="ghost" onClick={onAddResume}>{t('flexible.home.addResume')}</Button>
+          {onAddResume && (
+            <Button variant="ghost" onClick={onAddResume}>{t('flexible.home.addResume')}</Button>
+          )}
         </div>
       </Card>
 

@@ -221,6 +221,7 @@ export function FlexibleWorkSetup({
                 <option value="">{de ? 'Keine Präferenz' : 'No preference'}</option>
                 <option value="yes">{de ? 'Ja' : 'Yes'}</option>
                 <option value="limited">{de ? 'Begrenzt' : 'Limited'}</option>
+                <option value="no_preference">{de ? 'Egal' : 'No preference'}</option>
               </select>
             </Field>
             <Field label={de ? 'Frühester Start' : 'Earliest start'}>

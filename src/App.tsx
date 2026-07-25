@@ -13,12 +13,19 @@ import { GroqKeyPrompt } from './ui/GroqKeyPrompt'
 import { SetupChecklist } from './ui/SetupChecklist'
 import { FlexibleWorkHome, type FlexibleLaunch } from './ui/FlexibleWorkHome'
 import { FlexibleSearch } from './ui/FlexibleSearch'
+import { WorkModeSwitch } from './ui/WorkModeSwitch'
 import { useT } from './i18n/LocaleProvider'
 import type { TranslationKey } from './i18n/translations'
 import { DEFAULT_WEIGHTS } from './match/weights'
 import { loadGroqKey } from './settings/keys'
 import { getVaultStatus } from './crypto/vault'
-import { detectLocalSetupState, saveOnboardingProgress } from './onboarding/setupState'
+import {
+  detectLocalSetupState,
+  loadWorkMode,
+  saveOnboardingProgress,
+  saveWorkMode,
+  type WorkMode,
+} from './onboarding/setupState'
 import { deriveProfile } from './resume/canonical'
 import { loadCanonicalResume, replaceCanonicalResume, saveCanonicalResume } from './resume/store'
 import { loadPreferences } from './storage/careerData'
@@ -35,6 +42,9 @@ export default function App() {
   const [flexLaunch, setFlexLaunch] = useState<FlexibleLaunch | null>(null)
   const [onboardingTarget, setOnboardingTarget] = useState<'welcome' | 'resume' | 'flexible' | 'restore'>()
   const [keyRequest, setKeyRequest] = useState<KeyRequest | null>(null)
+  // v2.4.1: which surface the workspace is showing. `undefined` = not chosen yet,
+  // so we fall back to whatever the person actually has set up.
+  const [workMode, setWorkMode] = useState<WorkMode>()
   const vaultStatus = useLiveQuery(getVaultStatus, [revision], undefined)
   const setupState = useLiveQuery(
     async () => vaultStatus === 'locked' || vaultStatus === undefined ? undefined : detectLocalSetupState(),
@@ -56,6 +66,14 @@ export default function App() {
     if (vaultStatus === undefined || vaultStatus === 'locked') return
     void loadGroqKey().then((key) => setApiKey(key))
   }, [vaultStatus, revision])
+
+  // Restore the last chosen surface once, after the vault is open.
+  useEffect(() => {
+    if (vaultStatus === undefined || vaultStatus === 'locked') return
+    void loadWorkMode().then((stored) => {
+      if (stored) setWorkMode((current) => current ?? stored)
+    })
+  }, [vaultStatus])
 
   function requireGroq(action: string): Promise<string | null> {
     if (apiKey) return Promise.resolve(apiKey)
@@ -83,6 +101,15 @@ export default function App() {
   const currentPreferences = preferences
   const profile = canonical ? deriveProfile(canonical.data) : null
 
+  // ---------------------------------------------------------------------------
+  // v2.4.1 routing. Career discovery needs a résumé; Flexible Work never does.
+  // Both are always reachable — having a résumé no longer hides Flexible Work.
+  // ---------------------------------------------------------------------------
+  const hasCareer = Boolean(canonical && profile)
+  const activeMode: WorkMode = hasCareer ? (workMode ?? 'career') : 'flexible'
+  const showFlexible = activeMode === 'flexible'
+  const flexiblePreferences = flexLaunch?.preferences ?? currentPreferences.flexibleWork
+
   async function saveResume(data: ResumeData) { await saveCanonicalResume(data, { reason: 'edit' }); refresh() }
   async function replaceResume(data: ResumeData) { await replaceCanonicalResume(data); refresh() }
   async function addResume() {
@@ -91,22 +118,63 @@ export default function App() {
     refresh()
   }
   async function editFlexible() {
-    await saveOnboardingProgress('flexible', currentPreferences.discoveryMode ?? 'flexible')
+    // Drop any launched saved search so the edited preferences are what runs next.
+    setFlexLaunch(null)
+    await saveOnboardingProgress('flexible', currentPreferences.discoveryMode === 'career' ? 'both' : currentPreferences.discoveryMode ?? 'flexible')
+    await saveWorkMode('flexible')
+    setWorkMode('flexible')
     setOnboardingTarget('flexible')
     refresh()
   }
+  async function changeWorkMode(next: WorkMode) {
+    if (next === activeMode) return
+    setFlexLaunch(null)
+    setWorkMode(next)
+    await saveWorkMode(next)
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' })
+  }
+
+  // Only meaningful once career discovery exists; otherwise there is nothing to
+  // switch between and the workspace is Flexible Work by definition.
+  const switcher = hasCareer
+    ? <WorkModeSwitch mode={activeMode} onChange={(next) => void changeWorkMode(next)} />
+    : undefined
+
+  const flexibleHome = (
+    <FlexibleWorkHome
+      preferences={currentPreferences}
+      onSearch={(launch) => { setFlexLaunch(launch); changeTab('search') }}
+      onEdit={() => void editFlexible()}
+      onAddResume={hasCareer ? undefined : () => void addResume()}
+      switcher={switcher}
+    />
+  )
 
   return <>
     <Shell tab={tab} setTab={changeTab}>
-      {tab === 'dashboard' && (canonical && profile
-        ? <div className="page-container"><SetupChecklist resume={canonical.data} preferences={preferences} onProfile={() => changeTab('settings')} onPreferences={() => changeTab('settings')} onAdzuna={() => changeTab('settings')} onAddResume={() => void addResume()} /><DashboardStep profile={profile} prefs={preferences} /></div>
-        : <FlexibleWorkHome preferences={preferences} onSearch={(launch) => { setFlexLaunch(launch); changeTab('search') }} onEdit={() => void editFlexible()} onAddResume={() => void addResume()} />)}
-      <div hidden={tab !== 'search'}>{canonical && profile
-        ? <SearchStep resume={canonical.data} profile={profile} prefs={preferences} apiKey={apiKey} requireGroq={requireGroq} />
+      {tab === 'dashboard' && (showFlexible
+        ? flexibleHome
+        : <div className="page-container">
+            {switcher && <div className="mb-4">{switcher}</div>}
+            <SetupChecklist resume={canonical!.data} preferences={preferences} onProfile={() => changeTab('settings')} onPreferences={() => changeTab('settings')} onAdzuna={() => changeTab('settings')} onAddResume={() => void addResume()} />
+            <DashboardStep profile={profile!} prefs={preferences} />
+          </div>)}
+
+      {/* Career search stays mounted so a long run is not thrown away on tab change. */}
+      <div hidden={tab !== 'search' || showFlexible}>{hasCareer
+        ? <SearchStep resume={canonical!.data} profile={profile!} prefs={preferences} apiKey={apiKey} requireGroq={requireGroq} switcher={switcher} />
         : null}</div>
-      {tab === 'search' && !(canonical && profile) && ((flexLaunch?.preferences ?? preferences.flexibleWork)
-        ? <FlexibleSearch preferences={(flexLaunch?.preferences ?? preferences.flexibleWork)!} savedSearchId={flexLaunch?.savedSearchId} onEdit={() => void editFlexible()} />
-        : <FlexibleWorkHome preferences={preferences} onSearch={(launch) => { setFlexLaunch(launch); changeTab('search') }} onEdit={() => void editFlexible()} onAddResume={() => void addResume()} />)}
+
+      {tab === 'search' && showFlexible && (flexiblePreferences
+        ? <FlexibleSearch
+            key={flexLaunch?.savedSearchId ?? 'default'}
+            preferences={flexiblePreferences}
+            savedSearchId={flexLaunch?.savedSearchId}
+            onEdit={() => void editFlexible()}
+            switcher={switcher}
+          />
+        : flexibleHome)}
+
       {tab === 'tracker' && <TrackerBoard weights={preferences.weights ?? DEFAULT_WEIGHTS} />}
       {tab === 'settings' && <SettingsStep
         onReset={refresh}
@@ -116,7 +184,8 @@ export default function App() {
         onSaveResume={canonical ? saveResume : undefined}
         onReplaceResume={canonical ? replaceResume : undefined}
         onResumeChanged={canonical ? refresh : undefined}
-        onEditFlexible={preferences.flexibleWork ? () => void editFlexible() : undefined}
+        onEditFlexible={() => void editFlexible()}
+        hasFlexible={Boolean(preferences.flexibleWork)}
         onAddResume={!canonical ? () => void addResume() : undefined}
       />}
     </Shell>

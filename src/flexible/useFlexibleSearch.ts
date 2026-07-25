@@ -4,7 +4,7 @@
 // and the connector health/kill-switches into `runSearchSession`, and exposes a
 // live snapshot plus stop/retry/pagination controls to the UI.
 // ============================================================================
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { FlexibleWorkPreferences, NormalizedJob } from '../types'
 import { WORKER_URL } from '../lib/config'
 import { buildFabric, workerFabricFetch } from './connectors'
@@ -109,11 +109,20 @@ export function useFlexibleSearch(
     setRunning(false)
   }, [])
 
+  // A stable fingerprint of what we are searching for. When the user edits their
+  // flexible search (or launches a different saved one) this string changes and
+  // the session restarts — previously the effect ran only on mount, so edited
+  // preferences kept showing the previous city's results.
+  const autoKey = useMemo(
+    () => flexibleQueryKey(toFlexibleQuery(preferences, { keywords: opts.keywords })),
+    [preferences, opts.keywords],
+  )
+
   useEffect(() => {
     if (opts.auto) start()
     return () => abortRef.current?.abort()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [autoKey])
 
   return { snapshot, running, usingFixtures, page, setPage, start, stop }
 }
