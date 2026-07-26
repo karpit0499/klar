@@ -4,8 +4,17 @@
 // rationale, and skill-gap analysis per job. Batching keeps each prompt small
 // and lets us show progress.
 // ============================================================================
+// v2.4.3: matching is Klar's highest-volume AI path (up to eight calls per
+// search). Two waste removals, no change to what is asked or how it is scored:
+//   • each job carries only the fields the scorer reads, not whole nested
+//     objects (a full `location` object per job, lat/lng included, was being
+//     sent when only the city and the remote flag are used);
+//   • `max_tokens` is computed from the batch size instead of a flat 2048.
+// It also stops the batch loop after repeated failures, because a rate limit
+// does not clear inside one search and the remaining calls only burn quota.
 import type { MatchResult, NormalizedJob, Preferences, Profile } from '../types'
 import { MATCH, GROQ } from '../lib/config'
+import { estimateRerankOutputTokens } from '../llm/budget'
 import { groqChat, extractJson } from '../llm/groq'
 
 const SYSTEM = `You are a precise technical recruiter. You compare a candidate profile to job postings and score fit HONESTLY. You never inflate scores. You must reply with a single JSON object and nothing else.`
@@ -45,8 +54,13 @@ export function buildRerankPrompt(
     jobId: j.id,
     title: j.title,
     company: j.company,
-    location: j.location,
-    salary: j.salary,
+    // Only the two location facts the scorer actually reasons about.
+    city: j.location.city,
+    remote: j.location.remote || undefined,
+    // Only the salary facts, not the whole object with empty keys.
+    salary: j.salary.min != null || j.salary.max != null
+      ? { min: j.salary.min, max: j.salary.max, period: j.salary.period, currency: j.salary.currency }
+      : undefined,
     employment_type: j.employment_type,
     description: j.description.slice(0, MATCH.descriptionChars),
   }))
@@ -150,7 +164,7 @@ export async function rerankBatch(
     user: buildRerankPrompt(profile, prefs, batch),
     json: true,
     temperature: 0,
-    maxTokens: 2048,
+    maxTokens: estimateRerankOutputTokens(batch.length),
     signal,
   })
   return parseRerank(text, new Date().toISOString(), GROQ.model)
@@ -167,14 +181,24 @@ export async function rerankAll(
 ): Promise<MatchResult[]> {
   const out: MatchResult[] = []
   const size = MATCH.batchSize
+  let consecutiveFailures = 0
   for (let i = 0; i < candidates.length; i += size) {
     const batch = candidates.slice(i, i + size)
     try {
       out.push(...(await rerankBatch(profile, prefs, batch, apiKey, signal)))
+      consecutiveFailures = 0
     } catch {
       // A failed batch is not a real 0/100 match. Omit it so the UI can show a
       // partial-results notice and retry those jobs on the next run. Failed
       // placeholders would otherwise be cached and look like honest scores.
+      consecutiveFailures += 1
+      // v2.4.3: a token or request limit will not clear inside one search, so
+      // firing the remaining batches only burns the user's quota for nothing.
+      // Stop and let the UI show its honest partial-results notice.
+      if (consecutiveFailures >= MATCH.maxConsecutiveBatchFailures) {
+        onProgress?.(Math.min(i + size, candidates.length), candidates.length)
+        break
+      }
     }
     onProgress?.(Math.min(i + size, candidates.length), candidates.length)
   }

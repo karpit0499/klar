@@ -39,7 +39,13 @@ assert.match(editor, /Undo/)
 assert.match(reupload, /Preview/)
 assert.match(bundle, /downloadResumeDocx/)
 assert.match(bundle, /printResumeAsPdf/)
-assert.match(cover, /evidenceId/)
+// v2.4.3: the evidence ids the letter grounds its claims in now come from the
+// shared projection (src/llm/promptProjection.ts), which is also what keeps the
+// person's contact details out of the request. Assert the gate, not the old
+// location of one string.
+assert.match(cover, /projectEvidenceForPrompt/)
+assert.match(source('src/llm/promptProjection.ts'), /evidenceId/)
+assert.match(cover, /VERIFIED RÉSUMÉ EVIDENCE/)
 assert.match(interview, /evidenceIds/)
 assert.match(flexibleSetup, /Show me different kinds/)
 assert.match(flexibleSetup, /You do not need a résumé/)

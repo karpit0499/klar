@@ -489,6 +489,22 @@ const en = {
   'flexible.source.skipped': 'Skipped',
   'flexible.source.pending': 'Pending',
   'flexible.source.running': 'Checking…',
+
+  // ---------------------------------------------------------------------------
+  // v2.4.3 — AI budget and the no-AI path
+  // ---------------------------------------------------------------------------
+  'bundle.noAi': 'Tailor without AI',
+  'bundle.noAiHint':
+    '"Tailor without AI" works instantly, needs no API key, and uses no AI quota. It reorders your own wording to lead with what this posting asks for.',
+  'bundle.modeAi': 'Rewritten with AI',
+  'bundle.modeDeterministic': 'Reordered, not rewritten',
+  'bundle.modeDeterministicHint':
+    'Your sentences are unchanged. Klar reordered them so the experience this posting asks for comes first, and wrote a summary from your own facts.',
+  'bundle.costEstimate': 'This AI request uses about {tokens} tokens.',
+  'bundle.tooLarge':
+    'This résumé and job description need about {tokens} tokens in one AI request, and your plan allows {limit} at once.',
+  'bundle.tooLargeAction':
+    'Waiting will not help, because the request itself is over the limit. Use "Tailor without AI" below, or paste a shorter job description.',
 } as const
 
 export type TranslationKey = keyof typeof en
@@ -972,6 +988,22 @@ const de: Record<TranslationKey, string> = {
   'flexible.source.skipped': 'Übersprungen',
   'flexible.source.pending': 'Ausstehend',
   'flexible.source.running': 'Wird geprüft…',
+
+  // ---------------------------------------------------------------------------
+  // v2.4.3 — KI-Budget und der Weg ohne KI
+  // ---------------------------------------------------------------------------
+  'bundle.noAi': 'Ohne KI anpassen',
+  'bundle.noAiHint':
+    '„Ohne KI anpassen“ funktioniert sofort, braucht keinen API-Schlüssel und verbraucht kein KI-Kontingent. Deine eigenen Formulierungen werden so sortiert, dass das Passende zuerst steht.',
+  'bundle.modeAi': 'Mit KI neu formuliert',
+  'bundle.modeDeterministic': 'Neu sortiert, nicht umformuliert',
+  'bundle.modeDeterministicHint':
+    'Deine Sätze bleiben unverändert. Klar hat sie so sortiert, dass die für diese Anzeige passende Erfahrung zuerst steht, und ein Kurzprofil aus deinen eigenen Angaben erstellt.',
+  'bundle.costEstimate': 'Diese KI-Anfrage verbraucht etwa {tokens} Tokens.',
+  'bundle.tooLarge':
+    'Lebenslauf und Stellenbeschreibung brauchen in einer KI-Anfrage etwa {tokens} Tokens, dein Tarif erlaubt {limit} auf einmal.',
+  'bundle.tooLargeAction':
+    'Warten hilft nicht, weil die Anfrage selbst über dem Limit liegt. Nutze unten „Ohne KI anpassen“ oder füge eine kürzere Stellenbeschreibung ein.',
 }
 
 export const translations: Record<Locale, Record<TranslationKey, string>> = { de, en }
