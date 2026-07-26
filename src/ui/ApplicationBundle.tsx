@@ -31,7 +31,6 @@ import { estimateTailoringRequest, tailorResumeWithAi } from '../llm/tailorResum
 import { canAfford, loadTpmLimit } from '../llm/budget'
 import { extractJdRequirements } from '../llm/jdTerms'
 import { loadAppFlags, DEFAULT_APP_FLAGS, type AppFlags } from '../lib/appFlags'
-import { downloadResumeDocx } from '../resume/docx'
 import { printResumeAsPdf } from '../resume/pdf'
 import { fetchSalaryBenchmark, salaryExpectationLine } from '../salary/adzuna'
 import { loadAdzunaKey } from '../settings/adzunaKey'
@@ -49,15 +48,13 @@ import { useT } from '../i18n/LocaleProvider'
 import type { TranslationKey } from '../i18n/translations'
 import { ErrorNotice } from './ErrorNotice'
 import { toAppError, type AppErrorData } from '../errors/appError'
+import { triggerBlobDownload } from '../export/download'
 
 function downloadText(filename: string, text: string): void {
-  const blob = new Blob([text], { type: 'text/plain;charset=utf-8' })
-  const url = URL.createObjectURL(blob)
-  const anchor = document.createElement('a')
-  anchor.href = url
-  anchor.download = filename
-  anchor.click()
-  URL.revokeObjectURL(url)
+  triggerBlobDownload(
+    new Blob([text], { type: 'text/plain;charset=utf-8' }),
+    filename,
+  )
 }
 
 function fileStem(job: NormalizedJob): string {
@@ -113,6 +110,8 @@ export function ApplicationBundle({
   const [letterBusy, setLetterBusy] = useState(false)
   const [messageBusy, setMessageBusy] = useState(false)
   const [letterError, setLetterError] = useState<AppErrorData | null>(null)
+  const [exportError, setExportError] = useState<AppErrorData | null>(null)
+  const [exportBusy, setExportBusy] = useState(false)
   const [salaryLine, setSalaryLine] = useState<string | null>(null)
   const [salaryBusy, setSalaryBusy] = useState(true)
   const [hasSalaryKey, setHasSalaryKey] = useState(false)
@@ -377,30 +376,89 @@ export function ApplicationBundle({
     })
   }
 
-  function downloadResume() {
+  async function downloadResume() {
     if (!tailored) return
-    const filename = `${stem}-${resumeLanguage}.docx`
-    void downloadResumeDocx(tailored, resumeLanguage, filename)
-    if (packet) void recordPacketExport(packet.id, { at: new Date().toISOString(), format: 'docx', filename })
+    setExportError(null)
+    try {
+      const { downloadResumeDocx } = await import('../resume/docx')
+      const filename = `${stem}-${resumeLanguage}.docx`
+      await downloadResumeDocx(tailored, resumeLanguage, filename)
+      if (packet) await recordPacketExport(packet.id, { at: new Date().toISOString(), format: 'docx', filename })
+    } catch (error) {
+      setExportError(toAppError(error, {
+        category: 'export',
+        message: 'Klar could not prepare the résumé download.',
+        dataSafe: true,
+        available: 'The tailored résumé and application packet remain saved.',
+        action: { label: 'Try the download again', kind: 'retry' },
+      }))
+    }
   }
 
-  function downloadResumePdf() {
+  async function downloadResumePdf() {
     if (!tailored) return
-    printResumeAsPdf(tailored, resumeLanguage)
-    if (packet) void recordPacketExport(packet.id, { at: new Date().toISOString(), format: 'pdf' })
+    setExportError(null)
+    try {
+      printResumeAsPdf(tailored, resumeLanguage)
+      if (packet) await recordPacketExport(packet.id, { at: new Date().toISOString(), format: 'pdf' })
+    } catch (error) {
+      setExportError(toAppError(error, {
+        category: 'export',
+        message: 'Klar could not prepare the résumé PDF.',
+        dataSafe: true,
+        available: 'The tailored résumé and application packet remain saved.',
+        action: { label: 'Try the PDF again', kind: 'retry' },
+      }))
+    }
   }
 
-  function downloadLetter() {
+  async function downloadLetter() {
     const letter = state?.letter
     if (!letter) return
-    const filename = `${stem}-cover-letter-${resumeLanguage}.txt`
-    downloadText(filename, letter)
-    if (packet) void recordPacketExport(packet.id, { at: new Date().toISOString(), format: 'txt', filename })
+    setExportError(null)
+    try {
+      const filename = `${stem}-cover-letter-${resumeLanguage}.txt`
+      downloadText(filename, letter)
+      if (packet) await recordPacketExport(packet.id, { at: new Date().toISOString(), format: 'txt', filename })
+    } catch (error) {
+      setExportError(toAppError(error, {
+        category: 'export',
+        message: 'Klar could not prepare the cover-letter download.',
+        dataSafe: true,
+        available: 'The cover letter remains saved in this packet.',
+        action: { label: 'Try the download again', kind: 'retry' },
+      }))
+    }
   }
 
-  function downloadAll() {
-    downloadResume()
-    if (state?.letter) setTimeout(downloadLetter, 300)
+  async function downloadAll() {
+    if (!tailored || exportBusy) return
+    setExportBusy(true)
+    setExportError(null)
+    try {
+      const { downloadApplicationPacket } = await import('../packets/download')
+      const filename = await downloadApplicationPacket(
+        tailored,
+        resumeLanguage,
+        stem,
+        state?.letter,
+      )
+      if (packet) await recordPacketExport(packet.id, {
+        at: new Date().toISOString(),
+        format: 'zip',
+        filename,
+      })
+    } catch (error) {
+      setExportError(toAppError(error, {
+        category: 'export',
+        message: 'Klar could not prepare the application packet download.',
+        dataSafe: true,
+        available: 'The tailored résumé, cover letter, and saved packet remain unchanged.',
+        action: { label: 'Try the download again', kind: 'retry' },
+      }))
+    } finally {
+      setExportBusy(false)
+    }
   }
 
   return (
@@ -612,8 +670,8 @@ export function ApplicationBundle({
               )}
 
               <div className="mt-4 flex flex-wrap gap-2">
-                <Button size="sm" onClick={downloadResume}>{t('bundle.downloadDocx')}</Button>
-                <Button variant="ghost" size="sm" onClick={downloadResumePdf}>{t('bundle.printPdf')}</Button>
+                <Button size="sm" onClick={() => void downloadResume()}>{t('bundle.downloadDocx')}</Button>
+                <Button variant="ghost" size="sm" onClick={() => void downloadResumePdf()}>{t('bundle.printPdf')}</Button>
               </div>
               <p className="mt-2 text-sm text-faint">{t('bundle.docxDefaultHint')}</p>
 
@@ -712,7 +770,7 @@ export function ApplicationBundle({
                     />
                   </label>
                   <div className="mt-2">
-                    <Button variant="ghost" size="sm" onClick={downloadLetter}>{t('bundle.downloadTxt')}</Button>
+                    <Button variant="ghost" size="sm" onClick={() => void downloadLetter()}>{t('bundle.downloadTxt')}</Button>
                   </div>
                 </div>
               )}
@@ -779,11 +837,14 @@ export function ApplicationBundle({
             </section>
 
             <div className="mt-6 flex flex-wrap items-center gap-3">
-              <Button variant="accent" onClick={downloadAll}>{t('bundle.downloadPacket')}</Button>
+              <Button variant="accent" onClick={() => void downloadAll()} disabled={exportBusy}>
+                {exportBusy ? <Spinner label={t('bundle.downloadPacket')} /> : t('bundle.downloadPacket')}
+              </Button>
               <span className="text-sm text-faint">
                 {state?.letter ? t('bundle.packetNoteWithLetter') : t('bundle.packetNote')}
               </span>
             </div>
+            {exportError && <div className="mt-3"><ErrorNotice error={exportError} /></div>}
           </>
         )}
       </div>

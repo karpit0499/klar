@@ -18,6 +18,8 @@ import {
   newPacket, packetId, type PacketExport, type PacketGeneration, type PacketKind, type PacketRow,
 } from './types'
 
+const packetMutationQueues = new Map<string, Promise<PacketRow | null>>()
+
 export async function listPackets(): Promise<PacketRow[]> {
   const status = await getVaultStatus()
   if (status === 'unlocked') {
@@ -70,11 +72,22 @@ export async function updatePacket(
   id: string,
   mutate: (packet: PacketRow) => void,
 ): Promise<PacketRow | null> {
-  const current = await loadPacket(id)
-  if (!current) return null
-  const draft: PacketRow = structuredClone(current)
-  mutate(draft)
-  return savePacket(draft)
+  const previous = packetMutationQueues.get(id)
+  const operation = (previous ?? Promise.resolve(null))
+    .catch(() => null)
+    .then(async () => {
+      const current = await loadPacket(id)
+      if (!current) return null
+      const draft: PacketRow = structuredClone(current)
+      mutate(draft)
+      return savePacket(draft)
+    })
+  packetMutationQueues.set(id, operation)
+  const cleanup = () => {
+    if (packetMutationQueues.get(id) === operation) packetMutationQueues.delete(id)
+  }
+  void operation.then(cleanup, cleanup)
+  return operation
 }
 
 export async function deletePacket(id: string): Promise<void> {

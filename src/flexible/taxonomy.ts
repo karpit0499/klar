@@ -371,7 +371,7 @@ export function applyClassification(
     roleFamilies.push(suggestion.roleFamily)
   }
 
-  const fieldProvenance = { ...(job.fieldProvenance ?? {}) }
+  const fieldProvenance = { ...job.fieldProvenance }
   const source = opts.source ?? job.connectorId ?? job.source
   if (result.employment.length && !fieldProvenance.employment) {
     fieldProvenance.employment = { method: 'inferred', source, observedAt: new Date().toISOString() }

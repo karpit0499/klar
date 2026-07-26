@@ -12,6 +12,7 @@ import { toAppError, type AppErrorData } from '../errors/appError'
 import { useLocale, useT } from '../i18n/LocaleProvider'
 import { Button, Card, Field, TextInput } from './atoms'
 import { ErrorNotice } from './ErrorNotice'
+import { triggerBlobDownload } from '../export/download'
 
 export function SafetyCenter({ apiKey }: { apiKey?: string }) {
   const t = useT()
@@ -47,13 +48,10 @@ export function SafetyCenter({ apiKey }: { apiKey?: string }) {
   }
 
   function download(filename: string, backup: BackupEnvelope) {
-    const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const anchor = document.createElement('a')
-    anchor.href = url
-    anchor.download = filename
-    anchor.click()
-    URL.revokeObjectURL(url)
+    triggerBlobDownload(
+      new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' }),
+      filename,
+    )
     setMessage(t('safety.done'))
   }
 

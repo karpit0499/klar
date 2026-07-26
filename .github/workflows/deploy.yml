@@ -1,41 +1,52 @@
-# Deploys the static app to GitHub Pages on every push to main.
-name: Deploy to GitHub Pages
+# Verifies every pull request, then deploys the exact verified build from main.
+name: Verify and deploy Klar
 
 on:
+  pull_request:
+    branches: [main]
   push:
     branches: [main]
   workflow_dispatch:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
-  group: pages
+  group: pages-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  build:
+  verify:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
       - run: npm ci
+      - run: node --check public/sw.js
+      - run: npm run typecheck
+      - run: npm run worker:types:check
+      - run: npm run worker:check
+      - run: npm test
       # Bake your Worker URL into the build (set it as a repo variable or secret).
       - run: npm run build
         env:
           VITE_WORKER_URL: ${{ vars.VITE_WORKER_URL }}
-      - uses: actions/upload-pages-artifact@v3
+      - run: npm run worker:dry-run
+      - if: github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@v3
         with:
           path: dist
 
   deploy:
-    needs: build
+    if: github.event_name != 'pull_request'
+    needs: verify
     runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

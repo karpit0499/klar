@@ -4,7 +4,7 @@
 
 Klar brings your entire job search into one calm, private workspace. Discover live roles, understand where you fit, create stronger applications, and keep every opportunity moving, without losing yourself in tabs, spreadsheets, and scattered notes.
 
-[**Open Klar →**](https://karpit0499.github.io/klar/) · [See what’s new in v2.5](CHANGELOG.md)
+[**Open Klar →**](https://karpit0499.github.io/klar/) · [See what’s new in v2.5.3](CHANGELOG.md)
 
 ![Klar dashboard](docs/klar-dashboard.png)
 _**Klar Dashboard**_
@@ -194,15 +194,14 @@ for reliable Groq access across desktop and mobile browsers and real
 employer-source searches. If it is left empty, Flexible Work uses bundled
 sample data and Groq falls back to a direct browser request.
 
-Before proposing a change, all five must pass:
+Before proposing a change, run Klar's complete release check:
 
 ```bash
-node --check public/sw.js
-npm run typecheck
-npx tsc --noEmit -p worker/tsconfig.json
-npm test
-npm run build
+npm run qa
 ```
+
+That checks the service worker, app and Worker types, generated Worker bindings,
+all tests, the production build, and a Worker deployment dry run.
 
 Optional browser end-to-end check. Note that `npm run build` targets the
 GitHub Pages base path, so build with a root base before serving locally:

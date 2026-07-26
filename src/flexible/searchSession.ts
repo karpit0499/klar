@@ -89,7 +89,7 @@ export function mergeOpportunity(existing: NormalizedJob, incoming: NormalizedJo
     return merged.length ? merged : undefined
   }
   // Published provenance beats inferred when merging the two records.
-  const fieldProvenance = { ...(secondary.fieldProvenance ?? {}), ...(primary.fieldProvenance ?? {}) }
+  const fieldProvenance = { ...secondary.fieldProvenance, ...primary.fieldProvenance }
 
   return {
     ...primary,

@@ -17,6 +17,7 @@ import type { ResumeData } from '../resume/types'
 import { testAdzunaConnection } from '../settings/adzunaConnection'
 import { toAppError, type AppErrorData } from '../errors/appError'
 import { lockVault } from '../crypto/vault'
+import { APP_VERSION } from '../lib/version'
 
 export function SettingsStep({
   onReset,
@@ -275,6 +276,10 @@ export function SettingsStep({
             </Field>
           </div>
         </Card>
+
+        <p className="mt-5 text-center text-sm text-faint" data-testid="app-version">
+          Klar v{APP_VERSION}
+        </p>
       </div>
     </div>
   )

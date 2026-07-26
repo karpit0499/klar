@@ -20,12 +20,10 @@
 import { fabricFetch, isFabricFailure } from './fabric'
 import { proxyGroqRequest } from './groq'
 
-export interface Env {
+type KlarEnv = Env & {
   // Set via: npx wrangler secret put ADZUNA_APP_ID   (and ADZUNA_APP_KEY)
   ADZUNA_APP_ID?: string
   ADZUNA_APP_KEY?: string
-  // Optional: comma-separated allowed origins. Defaults to "*".
-  ALLOWED_ORIGINS?: string
 }
 
 const UPSTREAMS = {
@@ -43,7 +41,7 @@ export type AdzunaCredentialSelection =
 
 /** Select one complete pair. User and Worker values are never mixed. */
 export function selectAdzunaCredentials(
-  env: Env,
+  env: KlarEnv,
   userKeys: UserAdzunaKeys,
 ): AdzunaCredentialSelection {
   const userAppId = userKeys.appId?.trim()
@@ -71,6 +69,12 @@ export function corsOrigin(requestOrigin: string | null, allowed?: string): stri
   return list[0] ?? '*'
 }
 
+/** CORS is a browser policy, so reject an explicitly disallowed browser origin. */
+export function isOriginAllowed(requestOrigin: string | null, allowed?: string): boolean {
+  if (!requestOrigin || !allowed || allowed.trim() === '*') return true
+  return allowed.split(',').map((value) => value.trim()).filter(Boolean).includes(requestOrigin)
+}
+
 function corsHeaders(origin: string): Record<string, string> {
   return {
     'Access-Control-Allow-Origin': origin,
@@ -93,7 +97,7 @@ export function buildUpstreamUrl(
   route: Route,
   rest: string,
   search: string,
-  env: Env,
+  env: KlarEnv,
   userKeys: UserAdzunaKeys = {},
 ): string {
   const base = UPSTREAMS[route]
@@ -115,7 +119,7 @@ export function buildUpstreamUrl(
 }
 
 /** True when Adzuna credentials are available from EITHER the user or the Worker. */
-export function adzunaConfigured(env: Env, userKeys: UserAdzunaKeys): boolean {
+export function adzunaConfigured(env: KlarEnv, userKeys: UserAdzunaKeys): boolean {
   return selectAdzunaCredentials(env, userKeys).ok
 }
 
@@ -146,8 +150,16 @@ function json(body: unknown, status: number, origin: string): Response {
 }
 
 export default {
-  async fetch(request: Request, env: Env): Promise<Response> {
-    const origin = corsOrigin(request.headers.get('Origin'), env.ALLOWED_ORIGINS)
+  async fetch(request: Request, env: KlarEnv): Promise<Response> {
+    const requestOrigin = request.headers.get('Origin')
+    const origin = corsOrigin(requestOrigin, env.ALLOWED_ORIGINS)
+
+    if (!isOriginAllowed(requestOrigin, env.ALLOWED_ORIGINS)) {
+      return new Response(JSON.stringify({ error: 'origin not allowed' }), {
+        status: 403,
+        headers: { 'content-type': 'application/json', 'cache-control': 'no-store' },
+      })
+    }
 
     // CORS preflight.
     if (request.method === 'OPTIONS') {
@@ -288,11 +300,14 @@ export default {
       )
     }
 
-    // Stream the JSON back with CORS headers attached.
-    const body = await upstream.text()
-    return new Response(body, {
+    // Stream the bounded-by-upstream JSON directly instead of buffering it.
+    return new Response(upstream.body, {
       status: upstream.status,
-      headers: { 'content-type': 'application/json', ...corsHeaders(origin) },
+      headers: {
+        'content-type': 'application/json',
+        'cache-control': 'no-store',
+        ...corsHeaders(origin),
+      },
     })
   },
-}
+} satisfies ExportedHandler<KlarEnv>

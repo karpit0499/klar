@@ -15,7 +15,7 @@ import type { Connector, ConnectorConfig, ConnectorContext, ConnectorResult, Fle
 function stampApiProvenance(job: NormalizedJob, source: string): NormalizedJob {
   const observedAt = new Date().toISOString()
   const provenance = { method: 'api' as const, source, observedAt }
-  const fieldProvenance = { ...(job.fieldProvenance ?? {}) }
+  const fieldProvenance = { ...job.fieldProvenance }
   fieldProvenance.title = provenance
   fieldProvenance.employer = provenance
   if (job.location.city) fieldProvenance.city = provenance

@@ -21,7 +21,7 @@ async function pMap<T, R>(
   limit: number,
   worker: (item: T) => Promise<R>,
 ): Promise<R[]> {
-  const out: R[] = new Array(items.length)
+  const out: R[] = []
   let next = 0
   async function run(): Promise<void> {
     while (next < items.length) {

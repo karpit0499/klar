@@ -53,7 +53,7 @@ export function makeCharNgramEmbedder(dim = 512, n = 3): AsyncTextEmbedder {
     id: `char-ngram-v1-${n}-${dim}`,
     dim,
     async embed(text: string): Promise<number[]> {
-      const vec = new Array<number>(dim).fill(0)
+      const vec = Array.from({ length: dim }, () => 0)
       for (const tok of tokenize(text)) {
         const padded = `#${tok}#`
         for (let i = 0; i + n <= padded.length; i++) {

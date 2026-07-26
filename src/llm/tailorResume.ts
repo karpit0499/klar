@@ -37,6 +37,7 @@ import {
   type EvidenceFinding, type UnresolvedIssue,
 } from './evidenceStatus'
 import { extractJson, chatComplete } from './groq'
+import { TAILORING_OUTPUT } from './jsonSchemas'
 
 type RewrittenBullet = {
   text: string
@@ -461,7 +462,7 @@ export async function tailorResumeWithAi(
       apiKey,
       system: priced.system,
       user: userPrompt(source, job, jdTerms, corrections),
-      json: true,
+      jsonSchema: TAILORING_OUTPUT,
       temperature: 0,
       maxTokens: priced.maxTokens,
       signal: options.signal,

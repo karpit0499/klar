@@ -27,6 +27,7 @@ import { getSetting, setSetting } from '../db/db'
 import { stableHash } from '../lib/hash'
 import { containsTerm } from '../resume/keywords'
 import { chatComplete, extractJson } from './groq'
+import { JD_REQUIREMENTS_OUTPUT } from './jsonSchemas'
 
 export type JdRequirementSet = {
   terms: string[]
@@ -167,7 +168,7 @@ export async function extractJdRequirements(
       apiKey,
       system: JD_TERMS_SYSTEM,
       user: buildUserPrompt(job),
-      json: true,
+      jsonSchema: JD_REQUIREMENTS_OUTPUT,
       fast: true,
       temperature: 0,
       maxTokens: 512,

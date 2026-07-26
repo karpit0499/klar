@@ -10,6 +10,7 @@ import {
   db,
   getSetting,
   type DashboardRow,
+  type FlexibleSearchRow,
   type JobCacheRow,
   type MatchRow,
   type PreferencesRow,
@@ -32,7 +33,7 @@ const ADZUNA_KEY = 'adzunaAppKey'
 const SESSION_GROQ_KEY = 'klar.groqKey'
 
 export type SensitiveContent = {
-  version: 2
+  version: 3
   canonicalResume?: CanonicalResumeRow
   resumeHistory: ResumeSnapshotRow[]
   resumeDraft?: ResumeDraftRow
@@ -43,6 +44,8 @@ export type SensitiveContent = {
   tracked: TrackedJob[]
   vectors: VectorRow[]
   savedSearches: SavedSearchRow[]
+  /** Saved Flexible Work locations/preferences belong inside the same boundary. */
+  flexibleSearches: FlexibleSearchRow[]
   /**
    * v2.3 reserved this so later packet persistence could not bypass the vault.
    * v2.5 fills it: application packets live INSIDE the ciphertext whenever
@@ -93,6 +96,15 @@ export async function unlockVault(passphrase: string): Promise<void> {
   try {
     const decrypted = await decryptJSON<unknown>(row.content, passphrase)
     const content = migrateSensitiveContent(decrypted)
+    // v2.4 wrote saved Flexible Work searches directly to IndexedDB even when a
+    // v2.3 vault existed. Move those legacy plaintext rows into the ciphertext
+    // the first time the upgraded app successfully unlocks.
+    const legacyFlexibleSearches = await db.flexibleSearches.toArray()
+    if (legacyFlexibleSearches.length) {
+      const byId = new Map(content.flexibleSearches.map((row) => [row.id, row]))
+      for (const row of legacyFlexibleSearches) byId.set(row.id, row)
+      content.flexibleSearches = [...byId.values()]
+    }
     const credentials = row.credentials
       ? await decryptJSON<VaultCredentials>(row.credentials, passphrase)
       : emptyCredentials()
@@ -102,9 +114,13 @@ export async function unlockVault(passphrase: string): Promise<void> {
     unlockedContent = content
     unlockedCredentials = credentials
     sessionPassphrase = passphrase
-    await db.vault.update('primary', {
-      content: await encryptJSON(content, passphrase),
-      updatedAt: new Date().toISOString(),
+    const migratedCiphertext = await encryptJSON(content, passphrase)
+    await db.transaction('rw', [db.vault, db.flexibleSearches], async () => {
+      await db.vault.update('primary', {
+        content: migratedCiphertext,
+        updatedAt: new Date().toISOString(),
+      })
+      await db.flexibleSearches.clear()
     })
   } catch (error) {
     // Wrong passphrases and damaged ciphertext never write or replace stored data.
@@ -160,6 +176,7 @@ export async function enableVault(
     tracked,
     vectors,
     savedSearches,
+    flexibleSearches,
     packets,
     storedGroq,
     groqRemember,
@@ -177,6 +194,7 @@ export async function enableVault(
       db.tracked.toArray(),
       db.vectors.toArray(),
       db.savedSearches.toArray(),
+      db.flexibleSearches.toArray(),
       db.packets.toArray(),
       getSetting<string>(GROQ_KEY),
       getSetting<boolean>(GROQ_REMEMBER),
@@ -185,7 +203,7 @@ export async function enableVault(
     ])
 
   const content: SensitiveContent = {
-    version: 2,
+    version: 3,
     canonicalResume: resumes.find((row) => row.id === 'current'),
     resumeHistory,
     resumeDraft: resumeDrafts.find((row) => row.id === 'onboarding'),
@@ -196,6 +214,7 @@ export async function enableVault(
     tracked,
     vectors,
     savedSearches,
+    flexibleSearches,
     packets,
     originalFiles: [],
     knowledgeBase: [],
@@ -239,6 +258,7 @@ export async function enableVault(
         db.tracked,
         db.vectors,
         db.savedSearches,
+        db.flexibleSearches,
         db.packets,
         db.settings,
       ],
@@ -256,6 +276,7 @@ export async function enableVault(
           db.tracked.clear(),
           db.vectors.clear(),
           db.savedSearches.clear(),
+          db.flexibleSearches.clear(),
           db.packets.clear(),
           db.settings.bulkDelete([LEGACY_RESUME_DATA_KEY, GROQ_KEY, GROQ_REMEMBER, ADZUNA_ID, ADZUNA_KEY]),
         ])
@@ -296,6 +317,7 @@ export async function disableVault(): Promise<void> {
       db.tracked,
       db.vectors,
       db.savedSearches,
+      db.flexibleSearches,
       db.packets,
       db.settings,
     ],
@@ -312,6 +334,7 @@ export async function disableVault(): Promise<void> {
         db.tracked.clear(),
         db.vectors.clear(),
         db.savedSearches.clear(),
+        db.flexibleSearches.clear(),
         db.packets.clear(),
       ])
       if (content.canonicalResume) await db.resumes.put(content.canonicalResume)
@@ -324,6 +347,7 @@ export async function disableVault(): Promise<void> {
       if (content.tracked.length) await db.tracked.bulkPut(content.tracked)
       if (content.vectors.length) await db.vectors.bulkPut(content.vectors)
       if (content.savedSearches.length) await db.savedSearches.bulkPut(content.savedSearches)
+      if (content.flexibleSearches.length) await db.flexibleSearches.bulkPut(content.flexibleSearches)
       if (content.packets?.length) await db.packets.bulkPut(content.packets)
       if (credentials.groqKey) await db.settings.put({ key: GROQ_KEY, value: credentials.groqKey })
       await db.settings.put({ key: GROQ_REMEMBER, value: credentials.groqRemember ?? true })
@@ -445,7 +469,7 @@ export function assertSensitiveContent(value: unknown): asserts value is Sensiti
   const content = value as Partial<SensitiveContent>
   if (
     !content ||
-    content.version !== 2 ||
+    content.version !== 3 ||
     (content.canonicalResume != null && (content.canonicalResume as CanonicalResumeRow).id !== 'current') ||
     !Array.isArray(content.resumeHistory) ||
     !Array.isArray(content.preferences) ||
@@ -455,6 +479,7 @@ export function assertSensitiveContent(value: unknown): asserts value is Sensiti
     !Array.isArray(content.tracked) ||
     !Array.isArray(content.vectors) ||
     !Array.isArray(content.savedSearches) ||
+    !Array.isArray(content.flexibleSearches) ||
     !Array.isArray(content.packets) ||
     !Array.isArray(content.originalFiles) ||
     !Array.isArray(content.knowledgeBase)
@@ -476,13 +501,23 @@ export function migrateSensitiveContent(value: unknown): SensitiveContent {
     tracked?: TrackedJob[]
     vectors?: VectorRow[]
     savedSearches?: SavedSearchRow[]
+    flexibleSearches?: FlexibleSearchRow[]
     packets?: PacketRow[]
     originalFiles?: unknown[]
     knowledgeBase?: unknown[]
   }
-  if (legacy?.version === 2) {
+  if (legacy?.version === 3) {
     assertSensitiveContent(value)
     return structuredClone(value)
+  }
+  if (legacy?.version === 2) {
+    const migrated = {
+      ...structuredClone(legacy),
+      version: 3,
+      flexibleSearches: legacy.flexibleSearches ?? [],
+    }
+    assertSensitiveContent(migrated)
+    return migrated
   }
   if (!legacy || legacy.version !== 1) throw new Error('The decrypted content vault has an unsupported version.')
   const latest = [...(legacy.profiles ?? [])].sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))[0]
@@ -494,7 +529,7 @@ export function migrateSensitiveContent(value: unknown): SensitiveContent {
       : undefined
   const now = new Date().toISOString()
   const content: SensitiveContent = {
-    version: 2,
+    version: 3,
     canonicalResume: data ? { id: 'current', data, createdAt: String(latest?.createdAt ?? now), updatedAt: now, revision: 1 } : undefined,
     resumeHistory: data ? [{
       id: `migration-${Date.now()}`, data: structuredClone(data), createdAt: now,
@@ -502,7 +537,9 @@ export function migrateSensitiveContent(value: unknown): SensitiveContent {
     }] : [],
     preferences: legacy.preferences ?? [], jobs: legacy.jobs ?? [], matches: [],
     dashboard: legacy.dashboard ?? [], tracked: legacy.tracked ?? [], vectors: [],
-    savedSearches: legacy.savedSearches ?? [], packets: legacy.packets ?? [],
+    savedSearches: legacy.savedSearches ?? [],
+    flexibleSearches: legacy.flexibleSearches ?? [],
+    packets: legacy.packets ?? [],
     originalFiles: legacy.originalFiles ?? [], knowledgeBase: legacy.knowledgeBase ?? [],
   }
   assertSensitiveContent(content)

@@ -7,6 +7,7 @@ import { loadAdzunaKey } from '../settings/adzunaKey'
 import { createStandardBackup } from '../backup/backup'
 import { getSetting, setSetting } from '../db/db'
 import { useLocale } from '../i18n/LocaleProvider'
+import { triggerBlobDownload } from '../export/download'
 
 const DISMISSED = 'setupChecklistDismissedV1'
 const BACKED_UP = 'setupChecklistBackedUpV1'
@@ -28,8 +29,11 @@ export function SetupChecklist({ resume, preferences, onProfile, onPreferences, 
   const reviewed = Boolean(resume?.reviewedAt) && Boolean(resume && analyzeResume(resume).percentage >= 50)
   const hasPreferences = preferences.targetTitles.length > 0 || preferences.locations.length > 0 || Boolean(preferences.flexibleWork?.locations.length)
   async function backup() {
-    const value = await createStandardBackup(); const blob = new Blob([JSON.stringify(value, null, 2)], { type: 'application/json' })
-    const url = URL.createObjectURL(blob); const link = document.createElement('a'); link.href = url; link.download = `klar-backup-${new Date().toISOString().slice(0, 10)}.json`; link.click(); URL.revokeObjectURL(url)
+    const value = await createStandardBackup()
+    triggerBlobDownload(
+      new Blob([JSON.stringify(value, null, 2)], { type: 'application/json' }),
+      `klar-backup-${new Date().toISOString().slice(0, 10)}.json`,
+    )
     await setSetting(BACKED_UP, true); setBackedUp(true)
   }
   const items = [

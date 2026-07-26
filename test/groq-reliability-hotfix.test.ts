@@ -15,12 +15,12 @@ import {
 import { resolveAvailableGroqKey } from '../src/settings/keys'
 
 const workerConfig = readFileSync(
-  new URL('../worker/wrangler.toml', import.meta.url),
+  new URL('../worker/wrangler.jsonc', import.meta.url),
   'utf8',
 )
 assert.match(
   workerConfig,
-  /compatibility_flags\s*=\s*\[[^\]]*"global_fetch_strictly_public"/,
+  /"compatibility_flags"\s*:\s*\[[^\]]*"global_fetch_strictly_public"/,
   'the deployed Worker must route Groq through Cloudflare’s public front door',
 )
 

@@ -61,11 +61,11 @@ try {
     const r = await fabricFetch({ host: 'jobs.lidl.de', path: '/x', accept: 'json', maxBytes: 1000 })
     assert.ok(isFabricFailure(r) && r.httpStatus === 502, 'json expected, html returned → 502')
   }
-  // Byte cap: oversized body is truncated to maxBytes.
+  // Byte cap: oversized body is rejected before it can consume unbounded memory.
   {
     stub({ 'jobs.dm.de/big': { status: 200, type: 'application/json', body: 'x'.repeat(5000) } })
     const r = await fabricFetch({ host: 'jobs.dm.de', path: '/big', accept: 'json', maxBytes: 100 })
-    assert.ok(!isFabricFailure(r) && r.body.length <= 100, 'body truncated to the byte cap')
+    assert.ok(isFabricFailure(r) && r.httpStatus === 413, 'oversized body rejected at the byte cap')
   }
 } finally {
   globalThis.fetch = realFetch

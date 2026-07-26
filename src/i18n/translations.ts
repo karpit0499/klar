@@ -426,9 +426,9 @@ const en = {
     'No benchmark is available for this role and location right now. Check the Klar Worker configuration or try again later.',
   'bundle.draft': 'Draft',
   'bundle.downloadTxt': 'Download .txt',
-  'bundle.downloadPacket': 'Download packet',
-  'bundle.packetNote': 'Downloads the tailored résumé.',
-  'bundle.packetNoteWithLetter': 'Downloads the tailored résumé and the cover letter.',
+  'bundle.downloadPacket': 'Download packet (.zip)',
+  'bundle.packetNote': 'One mobile-safe download containing the tailored résumé.',
+  'bundle.packetNoteWithLetter': 'One mobile-safe download containing the résumé and cover letter.',
 
   // Flexible Work + Source Fabric (v2.4)
   'flexible.home.eyebrow': 'Flexible Work',
@@ -1074,9 +1074,9 @@ const de: Record<TranslationKey, string> = {
     'Für diese Rolle und diesen Standort ist gerade kein Benchmark verfügbar. Prüfe die Klar-Worker-Konfiguration oder versuche es später erneut.',
   'bundle.draft': 'Entwerfen',
   'bundle.downloadTxt': '.txt herunterladen',
-  'bundle.downloadPacket': 'Paket herunterladen',
-  'bundle.packetNote': 'Lädt den angepassten Lebenslauf herunter.',
-  'bundle.packetNoteWithLetter': 'Lädt den angepassten Lebenslauf und das Anschreiben herunter.',
+  'bundle.downloadPacket': 'Paket herunterladen (.zip)',
+  'bundle.packetNote': 'Ein mobil-sicherer Download mit dem angepassten Lebenslauf.',
+  'bundle.packetNoteWithLetter': 'Ein mobil-sicherer Download mit Lebenslauf und Anschreiben.',
 
   // Flexible Work + Source Fabric (v2.4)
   'flexible.home.eyebrow': 'Flexible Arbeit',

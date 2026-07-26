@@ -1,6 +1,7 @@
 import type { ResumeData } from './types'
 import { normalizeResume } from './canonical'
 import { groqChat, extractJson } from '../llm/groq'
+import { RESUME_EXTRACTION_OUTPUT } from '../llm/jsonSchemas'
 
 const SYSTEM = `You convert résumé text into structured JSON. Copy facts exactly as written. Never invent employers, dates, titles, tools, responsibilities, qualifications, or metrics. Leave absent fields empty. Reply with one JSON object only.`
 
@@ -33,7 +34,7 @@ export async function extractResumeData(
 ): Promise<ResumeData> {
   const text = await groqChat({
     apiKey, system: SYSTEM, user: buildResumeExtractionPrompt(rawText),
-    json: true, temperature: 0, maxTokens: 4096, signal,
+    jsonSchema: RESUME_EXTRACTION_OUTPUT, temperature: 0, maxTokens: 4096, signal,
   })
   return normalizeResume(extractJson<unknown>(text), 'upload')
 }
