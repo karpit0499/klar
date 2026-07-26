@@ -63,6 +63,7 @@ export const fetchAdzuna = async (
   q: SearchQuery,
   opts: { signal?: AbortSignal; page?: number; key?: AdzunaKey; country?: string } = {},
 ): Promise<AdapterResult> => {
+  // Keep upstream retrieval broad and apply the market/domain gate locally.
   const what = q.what.join(' ')
   const where = q.where?.city ?? ''
   const distance = q.where?.radius_km ?? 25

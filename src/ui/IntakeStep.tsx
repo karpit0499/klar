@@ -33,6 +33,9 @@ export function IntakeStep({
   const [titles, setTitles] = useState(
     (initial?.targetTitles ?? profile.titles.map((x) => x.title)).join(', '),
   )
+  const [fields, setFields] = useState(
+    (initial?.fields ?? profile.domains).join(', '),
+  )
   const [seniority, setSeniority] = useState<Preferences['seniority']>(initial?.seniority ?? 'mid')
   const [salaryMin, setSalaryMin] = useState(initial?.salary.min?.toString() ?? '')
   const [city, setCity] = useState(initial?.locations[0]?.city ?? 'Berlin')
@@ -60,7 +63,7 @@ export function IntakeStep({
 
     const prefs: Preferences = {
       targetTitles: csv(titles),
-      fields: profile.domains,
+      fields: csv(fields),
       seniority,
       salary: {
         min: salaryMin ? Number(salaryMin) : undefined,
@@ -87,6 +90,13 @@ export function IntakeStep({
         <div className="mt-4 space-y-4">
           <Field label={t('intake.targetTitles')} hint={t('intake.targetTitlesHint')}>
             <TextInput value={titles} onChange={(e) => setTitles(e.target.value)} placeholder="Data Scientist, ML Engineer" />
+          </Field>
+          <Field label={t('intake.fields')} hint={t('intake.fieldsHint')}>
+            <TextInput
+              value={fields}
+              onChange={(e) => setFields(e.target.value)}
+              placeholder="Email marketing, CRM, digital marketing"
+            />
           </Field>
 
           <div className="grid gap-4 sm:grid-cols-2">

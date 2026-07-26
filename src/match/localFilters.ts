@@ -72,6 +72,12 @@ export type LocalFilterOptions = {
   maxDistanceKm?: number
   /** The user's city coordinates, for the distance filter. */
   origin?: { lat: number; lng: number }
+  /** User-entered origin city, used when a posting has a city but no coordinates. */
+  targetCity?: string
+  /** Accepted country names/codes for the active market (for global ATS feeds). */
+  targetCountries?: string[]
+  /** Active region's offline city resolver. */
+  resolveLocation?: (city: string) => { lat?: number; lng?: number; canonical: string }
   /** Keep only jobs posted within this many days. */
   maxAgeDays?: number
   /**
@@ -93,6 +99,74 @@ function ageDays(iso: string | undefined, now: number): number {
   return Math.max(0, (now - t) / 86_400_000)
 }
 
+const COUNTRY_MARKERS = [
+  'germany', 'deutschland', 'austria', 'osterreich', 'switzerland', 'schweiz',
+  'netherlands', 'nederland', 'luxembourg', 'liechtenstein', 'united kingdom',
+  'uk', 'england', 'scotland', 'wales', 'canada', 'united states', 'usa', 'us', 'france',
+  'spain', 'italy', 'poland', 'portugal', 'ireland', 'belgium', 'denmark',
+  'sweden', 'norway', 'finland', 'india', 'singapore', 'australia',
+]
+
+function wholePhrase(text: string, phrase: string): boolean {
+  return ` ${text} `.includes(` ${phrase} `)
+}
+
+function countryMismatch(job: NormalizedJob, opts: LocalFilterOptions): boolean {
+  const accepted = (opts.targetCountries ?? []).map(normalizedWords).filter(Boolean)
+  if (!accepted.length) return false
+  const country = normalizedWords(job.location.country)
+  const cityAndRegion = normalizedWords(`${job.location.city ?? ''} ${job.location.region ?? ''}`)
+  const locationText = normalizedWords(
+    `${job.location.city ?? ''} ${job.location.region ?? ''} ${job.location.country ?? ''}`,
+  )
+  const explicitForeign = COUNTRY_MARKERS.some(
+    (marker) => wholePhrase(cityAndRegion, marker) && !accepted.includes(marker),
+  )
+  if (explicitForeign) return true
+  const matchesAccepted = accepted.some(
+    (alias) => country === alias || wholePhrase(locationText, alias),
+  )
+  if (matchesAccepted) return false
+
+  const harmlessUnknown = new Set(['', 'remote', 'international', 'worldwide', 'multiple locations'])
+  if (country && !harmlessUnknown.has(country)) return true
+
+  // Some global sources default an unknown country. A country written inside
+  // the city string ("London, UK", "Toronto, Canada") is stronger evidence.
+  return COUNTRY_MARKERS.some(
+    (marker) => wholePhrase(locationText, marker) && !accepted.includes(marker),
+  )
+}
+
+type DistanceDecision = { keep: boolean; unlocatable: boolean }
+
+function distanceDecision(job: NormalizedJob, opts: LocalFilterOptions): DistanceDecision {
+  if (opts.maxDistanceKm == null || !opts.origin) return { keep: true, unlocatable: false }
+  const keepRemote = opts.keepRemoteRegardlessOfDistance ?? true
+  const keepUnlocatable = opts.keepUnlocatable ?? true
+  if (job.location.remote && keepRemote) return { keep: true, unlocatable: false }
+  if (countryMismatch(job, opts)) return { keep: false, unlocatable: false }
+
+  let lat = job.location.lat
+  let lng = job.location.lng
+  if ((lat == null || lng == null) && job.location.city && opts.resolveLocation) {
+    const resolved = opts.resolveLocation(job.location.city)
+    lat = resolved.lat
+    lng = resolved.lng
+  }
+  if (lat != null && lng != null) {
+    return {
+      keep: haversineKm(opts.origin, { lat, lng }) <= opts.maxDistanceKm,
+      unlocatable: false,
+    }
+  }
+
+  const target = normalizedWords(opts.targetCity ?? '')
+  const city = normalizedWords(job.location.city ?? '')
+  if (target && wholePhrase(city, target)) return { keep: true, unlocatable: false }
+  return { keep: keepUnlocatable, unlocatable: true }
+}
+
 /** Does a single job survive all the active local filters? */
 export function passesLocalFilters(job: NormalizedJob, opts: LocalFilterOptions): boolean {
   const now = opts.now ?? Date.now()
@@ -111,11 +185,7 @@ export function passesLocalFilters(job: NormalizedJob, opts: LocalFilterOptions)
 
   // Distance.
   if (opts.maxDistanceKm != null && opts.origin) {
-    const remote = job.location.remote
-    if (remote && keepRemote) return true
-    const { lat, lng } = job.location
-    if (lat == null || lng == null) return keepUnlocatable
-    if (haversineKm(opts.origin, { lat, lng }) > opts.maxDistanceKm) return false
+    return distanceDecision(job, { ...opts, keepRemoteRegardlessOfDistance: keepRemote, keepUnlocatable }).keep
   }
   return true
 }
@@ -186,17 +256,11 @@ export function applyLocalFiltersWithDiagnostics(
       )).length
       diagnostics.distanceMessage = 'The origin city could not be resolved, so the distance filter was not enforced.'
     } else if (current.length) {
-      const keepRemote = opts.keepRemoteRegardlessOfDistance ?? true
-      const keepUnlocatable = opts.keepUnlocatable ?? true
       const before = current.length
       current = current.filter((job) => {
-        if (job.location.remote && keepRemote) return true
-        const { lat, lng } = job.location
-        if (lat == null || lng == null) {
-          diagnostics.unlocatableCount += 1
-          return keepUnlocatable
-        }
-        return haversineKm(opts.origin!, { lat, lng }) <= opts.maxDistanceKm!
+        const decision = distanceDecision(job, opts)
+        if (decision.unlocatable) diagnostics.unlocatableCount += 1
+        return decision.keep
       })
       diagnostics.removed.distance = before - current.length
       if (before > 0 && current.length === 0) diagnostics.removedAllBy = 'distance'

@@ -12,26 +12,48 @@ import type { NormalizedJob, Preferences, Profile } from '../types'
 import { cosineSim, defaultEmbedder, type TextEmbedder } from './embeddings'
 import type { VectorRow } from '../db/db'
 import { getVectors, putVectors } from '../storage/careerData'
+import { judgeCareerRelevance } from './relevance'
 
 /** The text we embed for a job (title carries the strongest signal). */
 export function jobText(job: NormalizedJob): string {
-  return [job.title, job.title, job.company, job.description.slice(0, 2000)].join('\n')
+  return [
+    ...Array.from({ length: 8 }, () => job.title),
+    job.tags.join(' '),
+    job.company,
+    job.description.slice(0, 1200),
+  ].join('\n')
 }
 
 /** The query text we embed from the candidate's own profile + preferences. */
 export function buildQueryText(profile: Profile, prefs: Preferences): string {
+  const targetTitles = prefs.targetTitles.length
+    ? prefs.targetTitles
+    : profile.titles.map((title) => title.title)
   return [
-    ...prefs.targetTitles,
-    ...profile.titles.map((t) => t.title),
+    ...Array.from({ length: 8 }, () => targetTitles).flat(),
+    ...Array.from({ length: 3 }, () => prefs.fields).flat(),
+    ...Array.from({ length: 2 }, () => profile.titles.map((t) => t.title)).flat(),
     ...profile.skills.map((s) => s.name),
     ...prefs.mustHaves,
-    ...profile.domains,
   ]
     .filter(Boolean)
     .join('\n')
 }
 
 export type Scored = { job: NormalizedJob; score: number }
+
+function combinedScore(
+  job: NormalizedJob,
+  similarity: number,
+  profile: Profile,
+  prefs: Preferences,
+): number {
+  const relevance = judgeCareerRelevance(job, profile, prefs)
+  if (!relevance.keep) return Number.NEGATIVE_INFINITY
+  // Vocabulary similarity refines an already-relevant set; it may not overturn
+  // role, market, specialty or seniority intent.
+  return relevance.score / 100 * 0.65 + Math.max(0, similarity) * 0.35
+}
 
 /** Rank jobs by cosine similarity to the query. Pure — embeds inline, no cache. */
 export function scoreBySimilarity(
@@ -42,13 +64,18 @@ export function scoreBySimilarity(
 ): Scored[] {
   const queryVec = embedder.embed(buildQueryText(profile, prefs))
   return jobs
-    .map((job) => ({ job, score: cosineSim(queryVec, embedder.embed(jobText(job))) }))
+    .filter((job) => judgeCareerRelevance(job, profile, prefs).keep)
+    .map((job) => ({
+      job,
+      score: combinedScore(job, cosineSim(queryVec, embedder.embed(jobText(job))), profile, prefs),
+    }))
     .sort((a, b) => b.score - a.score)
 }
 
 /** Hard drops shared with the keyword pre-filter (dealbreakers + remote-only). */
-function survivesHardDrops(job: NormalizedJob, prefs: Preferences): boolean {
+function survivesHardDrops(job: NormalizedJob, profile: Profile, prefs: Preferences): boolean {
   if (prefs.remoteOnly && !job.location.remote) return false
+  if (!judgeCareerRelevance(job, profile, prefs).keep) return false
   if (prefs.dealbreakers.length) {
     const hay = `${job.title} ${job.company} ${job.description}`.toLowerCase()
     if (prefs.dealbreakers.some((d) => d.trim() && hay.includes(d.toLowerCase()))) return false
@@ -67,7 +94,7 @@ export async function semanticPrefilter(
   limit: number,
   embedder: TextEmbedder = defaultEmbedder,
 ): Promise<NormalizedJob[]> {
-  const survivors = jobs.filter((j) => survivesHardDrops(j, prefs))
+  const survivors = jobs.filter((j) => survivesHardDrops(j, profile, prefs))
   const queryVec = embedder.embed(buildQueryText(profile, prefs))
   const scored: Scored[] = []
   const cached = await getVectors(survivors.map((job) => job.id))
@@ -80,7 +107,7 @@ export async function semanticPrefilter(
     if (!row || row.embedderId !== embedder.id || row.dim !== embedder.dim) {
       freshRows.push({ jobId: job.id, embedderId: embedder.id, dim: embedder.dim, vec })
     }
-    scored.push({ job, score: cosineSim(queryVec, vec) })
+    scored.push({ job, score: combinedScore(job, cosineSim(queryVec, vec), profile, prefs) })
   })
   await putVectors(freshRows)
   scored.sort((a, b) => b.score - a.score)

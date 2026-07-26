@@ -43,9 +43,9 @@ function hashToken(token: string): number {
 }
 
 /** Build the default hashing embedder with `dim` buckets (power of two is fine). */
-export function makeHashingEmbedder(dim = 512): TextEmbedder {
+export function makeHashingEmbedder(dim = 1024): TextEmbedder {
   return {
-    id: `hashing-tf-v1-${dim}`,
+    id: `hashing-tf-v2-${dim}`,
     dim,
     embed(text: string): number[] {
       const vec = Array.from({ length: dim }, () => 0)
@@ -62,7 +62,7 @@ export function makeHashingEmbedder(dim = 512): TextEmbedder {
 }
 
 /** The app's default embedder instance. */
-export const defaultEmbedder: TextEmbedder = makeHashingEmbedder(512)
+export const defaultEmbedder: TextEmbedder = makeHashingEmbedder(1024)
 
 /** Scale a vector to unit length so dot product == cosine similarity. */
 export function l2normalize(vec: number[]): number[] {

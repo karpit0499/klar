@@ -37,6 +37,8 @@ import {
 import { isNewerRelease } from '../src/lib/version'
 
 assert.equal(isNewerRelease('2.5.3'), false)
+assert.equal(isNewerRelease('2.5.3.1'), false)
+assert.equal(isNewerRelease('2.5.3.2'), true)
 assert.equal(isNewerRelease('2.5.2'), false)
 assert.equal(isNewerRelease('2.5.4'), true)
 assert.equal(isNewerRelease('2.6.0'), true)
