@@ -205,3 +205,56 @@ export async function listEngineModels(
     .filter((id) => id.length > 0)
   return [...new Set(ids)].sort((a, b) => a.localeCompare(b))
 }
+
+export type EngineAccessResult =
+  | { ok: true }
+  | { ok: false; status: number; message: string }
+
+/**
+ * Authenticate without generating text. A tiny chat completion is not a
+ * reliable credential check for reasoning models: the completion budget can be
+ * consumed before visible content is produced. A successful /models response
+ * proves that the endpoint accepted the credential without spending AI quota.
+ */
+export async function probeEngineAccess(
+  settings: EngineSettings,
+  apiKey: string,
+  options: { signal?: AbortSignal; fetcher?: typeof fetch } = {},
+): Promise<EngineAccessResult> {
+  let response: Response
+  try {
+    response = await (options.fetcher ?? fetch)(engineRequestUrl(settings, '/models'), {
+      method: 'GET',
+      headers: {
+        Accept: 'application/json',
+        ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
+      },
+      signal: options.signal,
+    })
+  } catch (caught) {
+    return {
+      ok: false,
+      status: 0,
+      message: caught instanceof Error ? caught.message : String(caught),
+    }
+  }
+
+  if (response.ok) {
+    // The list may legitimately be empty because of project-level model
+    // permissions. HTTP success is the credential check.
+    await response.body?.cancel()
+    return { ok: true }
+  }
+
+  const body = (await response.json().catch(() => null)) as
+    | { error?: { message?: unknown } }
+    | null
+  return {
+    ok: false,
+    status: response.status,
+    message:
+      typeof body?.error?.message === 'string'
+        ? body.error.message
+        : `HTTP ${response.status}`,
+  }
+}

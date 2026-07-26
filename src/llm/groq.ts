@@ -18,6 +18,7 @@ import {
   engineDisplayName,
   engineRequestUrl,
   loadEngineSettings,
+  probeEngineAccess,
   type EngineSettings,
 } from './provider'
 
@@ -205,25 +206,31 @@ function parsingError(technical: string): AppError {
   })
 }
 
-/** Tiny call used by the in-app "✓ Key works" validation ping. */
+/** Quota-free authentication check used by the in-app key prompt. */
 export async function pingGroqKey(apiKey: string): Promise<{ ok: true } | { ok: false; error: AppErrorData }> {
   try {
-    const reply = await chatComplete({
-      apiKey,
-      system: 'You reply with a single word.',
-      user: 'Reply with the word OK.',
-      maxTokens: 5,
-      temperature: 0,
-    })
-    if (reply.toUpperCase().includes('OK') || reply.length > 0) return { ok: true }
+    const engine = await loadEngineSettings()
+    const name = engineDisplayName(engine)
+    const result = await probeEngineAccess(engine, apiKey)
+    if (result.ok) return { ok: true }
+    const credentials = result.status === 401 || result.status === 403
+    const network = result.status === 0
     return {
       ok: false,
       error: serializeAppError(new AppError({
-        category: 'credentials',
-        message: 'The engine accepted the request but returned an empty response.',
+        category: credentials ? 'credentials' : network ? 'network' : 'source',
+        message: credentials
+          ? `${name} rejected this API key.`
+          : network
+            ? `Klar could not reach ${name}.`
+            : `${name} could not validate this API key.`,
         dataSafe: true,
         available: 'Local features remain available.',
-        action: { label: 'Try validation again', kind: 'retry' },
+        action: {
+          label: credentials ? 'Check the key and try again' : 'Try validation again',
+          kind: credentials ? 'open_settings' : 'retry',
+        },
+        technical: result.message,
       })),
     }
   } catch (e) {

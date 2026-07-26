@@ -119,7 +119,10 @@ export async function proxyGroqRequest(
   try {
     upstream = await upstreamFetch(`${GROQ_BASE_URL}${endpoint.upstreamPath}`, {
       method: endpoint.method,
-      redirect: 'error',
+      // Workers supports "follow" and "manual", but not the browser's "error"
+      // mode. Manual keeps the bearer key from following an unexpected redirect.
+      redirect: 'manual',
+      cache: 'no-store',
       headers: {
         Accept: 'application/json',
         Authorization: authorization,
@@ -127,8 +130,20 @@ export async function proxyGroqRequest(
       },
       body,
     })
-  } catch {
+  } catch (caught) {
+    // Do not log the request headers or body: both may contain private user
+    // data. This stable event still makes routing/runtime failures diagnosable.
+    console.error(JSON.stringify({
+      event: 'groq_upstream_fetch_failed',
+      endpoint: endpoint.upstreamPath,
+      error: caught instanceof Error ? caught.message : String(caught),
+    }))
     return error(502, 'Klar could not reach Groq through the secure relay.')
+  }
+
+  if (upstream.status >= 300 && upstream.status < 400) {
+    await upstream.body?.cancel()
+    return error(502, 'Groq returned an unexpected redirect.')
   }
 
   const contentType = (upstream.headers.get('Content-Type') ?? '').toLowerCase()

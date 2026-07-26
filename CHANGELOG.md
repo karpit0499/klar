@@ -4,13 +4,37 @@ This file records Klar’s product history from the newest release to the origin
 
 ---
 
-## v2.5.1 — Groq integration hotfix
+## v2.5.2 — Groq reliability hotfix
 
 ### Fixed
 
-- Groq AI actions work across desktop and mobile browsers again. Klar now sends
-  default Groq requests through its existing fixed Worker relay, avoiding
-  browser cross-origin failures.
+- The Worker now explicitly routes Groq through Cloudflare's public front door;
+  without that runtime flag, Cloudflare-to-Cloudflare requests failed before
+  reaching Groq.
+- The relay no longer uses the browser-only `redirect: "error"` fetch mode,
+  which Cloudflare Workers rejects at runtime. It uses supported manual redirect
+  handling and refuses redirects without forwarding the user's key.
+- Returning users' saved Groq keys are re-read when an AI action starts, closing
+  the startup race that could ask them to connect again.
+- Key validation now uses Groq's quota-free model-list endpoint instead of a
+  five-token reasoning-model completion that could validly return no visible
+  text. Packet, tailored résumé, and cover-letter generation can continue with
+  an already saved key.
+
+### Unchanged
+
+No data-schema change, migration, or new dependency. Existing saved credentials,
+application packets, tailored résumés, cover letters, and local data remain
+unchanged.
+
+---
+
+## v2.5.1 — Groq integration hotfix
+
+### Changed
+
+- Default Groq requests were moved from direct browser calls to Klar's fixed
+  Worker relay to avoid browser cross-origin failures.
 - The relay accepts only Groq model-listing and chat-completion routes, carries
   each person’s own key only in the request authorization header, never stores
   or echoes it, rejects malformed and oversized requests, and disables response

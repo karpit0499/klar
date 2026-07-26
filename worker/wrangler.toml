@@ -1,6 +1,9 @@
 name = "klar-proxy"
 main = "src/index.ts"
 compatibility_date = "2025-01-01"
+# Groq's public API is also served through Cloudflare. Without this flag,
+# Worker-to-Worker fetches can fail before Groq receives the request.
+compatibility_flags = ["global_fetch_strictly_public"]
 
 # Optional: restrict which origins may use your proxy (recommended once your
 # GitHub Pages URL is known). Leave unset to allow all origins ("*").
