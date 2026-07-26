@@ -1,28 +1,23 @@
 // ============================================================================
-// Groq client — called DIRECTLY from the browser (OpenAI-compatible API,
-// verified CORS allow-origin *). The user's key never touches our Worker.
+// The OpenAI-compatible chat client — called DIRECTLY from the browser. The
+// user's key never touches our Worker.
 //
-// v2.4.3 adds two things and changes nothing else:
+// v2.5 (WS3): the endpoint and model are no longer hardcoded. Every request now
+// resolves `EngineSettings` from ./provider.ts first, so the same call sites work
+// against hosted Groq (the default, verified CORS allow-origin *) or any other
+// OpenAI-compatible endpoint the user configures. `groqChat` keeps its name so
+// no caller had to change; `chatComplete` is the accurate alias for new code.
 //
-//  1. An HONEST "request too large" error. Providers return 413 (and sometimes
-//     429) when a single request exceeds the whole per-minute token allowance.
-//     Klar used to map that to "Groq has reached its current request limit —
-//     Try again", which is wrong twice over: it is not a temporary limit, and
-//     trying again cannot possibly work. Users retried for minutes. Now Klar
-//     says the request was too large, says plainly that waiting will not help,
-//     and points at the option that does work.
-//
-//  2. Klar LEARNS the real limit. The provider states its numbers in the error
-//     body ("Limit 8000, Requested 9124"); we read and store them so the
-//     pre-flight check stops guessing.
+// Routing NEVER relaxes a validator. This file only chooses WHERE a request goes
+// and reports failures honestly — it has no notion of "acceptable output".
 // ============================================================================
-import { GROQ } from '../lib/config'
 import { AppError, serializeAppError, toAppError, type AppErrorData } from '../errors/appError'
 import { parseLimitFromError, saveTpmLimit } from './budget'
+import { engineDisplayName, loadEngineSettings, type EngineSettings } from './provider'
 
 type ChatMessage = { role: 'system' | 'user' | 'assistant'; content: string }
 
-type GroqResponse = {
+type ChatApiResponse = {
   choices?: { message?: { content?: string } }[]
   error?: { message?: string }
 }
@@ -31,46 +26,58 @@ export type ChatOptions = {
   system: string
   user: string
   apiKey: string
+  /** Explicit model id. Overrides both the engine default and `fast`. */
   model?: string
+  /** Prefer the engine's smaller/faster model (high-volume work like matching). */
+  fast?: boolean
   temperature?: number
-  /** Ask Groq for a strict JSON object (OpenAI-compatible json_object mode). */
+  /** Ask for a strict JSON object (OpenAI-compatible json_object mode). */
   json?: boolean
   maxTokens?: number
   signal?: AbortSignal
 }
 
 /**
- * Does this provider message describe a single request that was too big, rather
- * than a temporary quota? Exported so a test can pin the classification.
+ * v2.4.3: does this provider message describe a single request that was too big,
+ * rather than a temporary quota? The distinction matters enormously: a temporary
+ * quota clears in a minute, an oversized request never will, and telling someone
+ * to "try again" in the second case is the bug v2.4.3 fixed.
  */
 export function isRequestTooLarge(status: number, message: string): boolean {
   if (status === 413) return true
-  // Groq returns 429 with a "Request too large" body for the per-request case.
   return status === 429 && /too large|request too large|exceeds/i.test(message)
 }
 
+/** Which model id a set of options resolves to. Pure — used by tests and UI. */
+export function resolveModel(engine: EngineSettings, opts: Pick<ChatOptions, 'model' | 'fast'>): string {
+  if (opts.model) return opts.model
+  return opts.fast ? engine.fastModel : engine.model
+}
+
 /** One chat completion. Returns the raw assistant text. Throws on API errors. */
-export async function groqChat(opts: ChatOptions): Promise<string> {
+export async function chatComplete(opts: ChatOptions): Promise<string> {
+  const engine = await loadEngineSettings()
+  const name = engineDisplayName(engine)
   const messages: ChatMessage[] = [
     { role: 'system', content: opts.system },
     { role: 'user', content: opts.user },
   ]
   const body: Record<string, unknown> = {
-    model: opts.model ?? GROQ.model,
+    model: resolveModel(engine, opts),
     messages,
     temperature: opts.temperature ?? 0,
     max_tokens: opts.maxTokens ?? 2048,
   }
   if (opts.json) body.response_format = { type: 'json_object' }
 
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+  if (opts.apiKey) headers.Authorization = `Bearer ${opts.apiKey}`
+
   let res: Response
   try {
-    res = await fetch(`${GROQ.baseUrl}/chat/completions`, {
+    res = await fetch(`${engine.baseUrl}/chat/completions`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${opts.apiKey}`,
-      },
+      headers,
       body: JSON.stringify(body),
       signal: opts.signal,
     })
@@ -78,7 +85,7 @@ export async function groqChat(opts: ChatOptions): Promise<string> {
     if (error instanceof DOMException && error.name === 'AbortError') throw error
     throw new AppError({
       category: 'network',
-      message: 'Klar could not reach Groq.',
+      message: `Klar could not reach ${name}.`,
       dataSafe: true,
       available: 'Local search, filters, tracker, backups, and exports still work.',
       action: { label: 'Check the connection and retry', kind: 'retry' },
@@ -86,47 +93,71 @@ export async function groqChat(opts: ChatOptions): Promise<string> {
     })
   }
 
-  const data = (await res.json().catch(() => ({}))) as GroqResponse
+  const data = (await res.json().catch(() => ({}))) as ChatApiResponse
   if (!res.ok) {
-    const msg = data.error?.message || `Groq HTTP ${res.status}`
+    const msg = data.error?.message || `${name} HTTP ${res.status}`
 
-    // v2.4.3: learn the provider's real numbers whenever it tells us.
+    // v2.4.3: providers state their real numbers when they refuse. Read them so
+    // the pre-flight check stops guessing.
     const limits = parseLimitFromError(msg)
     if (limits?.limit) void saveTpmLimit(limits.limit)
 
     if (isRequestTooLarge(res.status, msg)) {
       throw new AppError({
         category: 'validation',
-        message: 'That request was larger than this AI plan allows in one go.',
+        message: `That request was larger than ${name} allows in one go.`,
         dataSafe: true,
         available:
           'Waiting will not help, because the request itself is over the limit. ' +
-          'Use "Tailor without AI" to build this résumé now with no AI at all, or shorten the job description you pasted.',
+          'Use "Tailor without AI" to build this résumé now with no AI at all, or shorten the job description.',
         action: { label: 'Continue without AI', kind: 'none' },
         technical: msg,
       })
     }
 
-    const category = res.status === 429 ? 'rate_limit' : res.status === 401 || res.status === 403 ? 'credentials' : 'source'
+    const category =
+      res.status === 429
+        ? 'rate_limit'
+        : res.status === 401 || res.status === 403
+          ? 'credentials'
+          : 'source'
+    // v2.5 (D2 model-drift guard): a retired model id comes back as a 404/400
+    // mentioning the model. Say so plainly and send the person to Settings,
+    // instead of surfacing an opaque provider error.
+    const modelGone =
+      (res.status === 404 || res.status === 400) && /model/i.test(msg)
     throw new AppError({
-      category,
-      message:
-        category === 'rate_limit'
-          ? 'Groq has reached its current request limit.'
+      category: modelGone ? 'validation' : category,
+      message: modelGone
+        ? `${name} does not offer the model "${resolveModel(engine, opts)}" any more.`
+        : category === 'rate_limit'
+          ? `${name} has reached its current request limit.`
           : category === 'credentials'
-            ? 'Groq rejected this API key.'
-            : 'Groq could not complete this request.',
+            ? `${name} rejected this API key.`
+            : `${name} could not complete this request.`,
       dataSafe: true,
       available: 'Local search, filters, tracker, backups, and exports still work.',
       action: {
-        label: category === 'credentials' ? 'Update the Groq key' : 'Try again in a minute',
-        kind: category === 'credentials' ? 'open_settings' : 'retry',
+        label: modelGone
+          ? 'Choose another model in Settings'
+          : category === 'credentials'
+            ? 'Update the API key'
+            : category === 'rate_limit'
+              ? 'Wait a moment, or switch engine in Settings'
+              : 'Try again',
+        kind: modelGone || category === 'credentials' ? 'open_settings' : 'retry',
       },
       technical: msg,
     })
   }
   return data.choices?.[0]?.message?.content ?? ''
 }
+
+/**
+ * Backwards-compatible name. Every pre-v2.5 call site imports `groqChat`; it now
+ * routes through the configured engine like `chatComplete`.
+ */
+export const groqChat = chatComplete
 
 /**
  * Parse a JSON object out of an LLM reply, tolerating stray prose or ```json
@@ -171,7 +202,7 @@ function parsingError(technical: string): AppError {
 /** Tiny call used by the in-app "✓ Key works" validation ping. */
 export async function pingGroqKey(apiKey: string): Promise<{ ok: true } | { ok: false; error: AppErrorData }> {
   try {
-    const reply = await groqChat({
+    const reply = await chatComplete({
       apiKey,
       system: 'You reply with a single word.',
       user: 'Reply with the word OK.',
@@ -183,7 +214,7 @@ export async function pingGroqKey(apiKey: string): Promise<{ ok: true } | { ok: 
       ok: false,
       error: serializeAppError(new AppError({
         category: 'credentials',
-        message: 'Groq accepted the request but returned an empty response.',
+        message: 'The engine accepted the request but returned an empty response.',
         dataSafe: true,
         available: 'Local features remain available.',
         action: { label: 'Try validation again', kind: 'retry' },
@@ -194,7 +225,7 @@ export async function pingGroqKey(apiKey: string): Promise<{ ok: true } | { ok: 
       ok: false,
       error: serializeAppError(toAppError(e, {
         category: 'credentials',
-        message: 'That Groq key could not be validated.',
+        message: 'That API key could not be validated.',
         dataSafe: true,
         available: 'Local features remain available.',
         action: { label: 'Check the key and try again', kind: 'open_settings' },

@@ -53,6 +53,17 @@ export type WorkplaceType =
   | 'event'
   | 'other'
 
+/**
+ * v2.5: the minimal, OPTIONAL contact block a flexible user may enter so Klar
+ * can build a short employer message and a compact profile card. Never required,
+ * never a résumé, and stored inside the same encrypted boundary as preferences.
+ */
+export type FlexibleContact = {
+  name?: string
+  email?: string
+  phone?: string
+}
+
 export type FlexibleWorkPreferences = {
   employment: FlexibleEmployment[]
   roleFamilies: FlexibleRoleFamily[]
@@ -68,6 +79,8 @@ export type FlexibleWorkPreferences = {
   hasDrivingLicence?: boolean
   hasBike?: boolean
   earliestStart?: string
+  /** v2.5 — optional details used only for the message + profile card. */
+  contact?: FlexibleContact
 }
 
 export type FieldProvenance = {

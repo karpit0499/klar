@@ -5,6 +5,7 @@ import { ResumeReupload } from './ResumeReupload'
 import { ResumeEditor } from './ResumeEditor'
 import { ResumeHistory } from './ResumeHistory'
 import { SafetyCenter } from './SafetyCenter'
+import { EngineSettingsCard, FeatureFlagsCard } from './EngineSettings'
 import { ErrorNotice } from './ErrorNotice'
 import { wipeAllData } from '../db/db'
 import { clearGroqKey } from '../settings/keys'
@@ -248,6 +249,12 @@ export function SettingsStep({
           <h2 className="text-xl font-semibold text-ink">{de ? 'Lebenslauf-Verlauf' : 'Résumé history'}</h2>
           <div className="mt-4"><ResumeHistory onRestored={onResumeChanged} /></div>
         </Card>}
+
+        {/* v2.5 · WS3 — the configurable OpenAI-compatible engine. */}
+        <EngineSettingsCard apiKey={apiKey} />
+
+        {/* v2.5 · R10 — per-feature kill switches for the new application-quality work. */}
+        <FeatureFlagsCard />
 
         <Card className="mt-4 p-4 sm:p-6">
           <h2 className="text-xl font-semibold text-ink">{t('settings.regionTitle')}</h2>

@@ -19,6 +19,7 @@ import {
 } from '../db/db'
 import type { TrackedJob } from '../types'
 import type { CanonicalResumeRow, ResumeDraftRow, ResumeSnapshotRow } from '../resume/types'
+import type { PacketRow } from '../packets/types'
 import { normalizeResume, resumeFromLegacyProfile } from '../resume/canonical'
 import { decryptJSON, encryptJSON } from './resumeCrypto'
 import { AppError, lockedVaultError, toAppError } from '../errors/appError'
@@ -42,8 +43,12 @@ export type SensitiveContent = {
   tracked: TrackedJob[]
   vectors: VectorRow[]
   savedSearches: SavedSearchRow[]
-  /** Reserved now so later packet persistence cannot accidentally bypass the vault. */
-  packets: unknown[]
+  /**
+   * v2.3 reserved this so later packet persistence could not bypass the vault.
+   * v2.5 fills it: application packets live INSIDE the ciphertext whenever
+   * encryption is enabled, and only then.
+   */
+  packets: PacketRow[]
   originalFiles: unknown[]
   knowledgeBase: unknown[]
 }
@@ -155,6 +160,7 @@ export async function enableVault(
     tracked,
     vectors,
     savedSearches,
+    packets,
     storedGroq,
     groqRemember,
     appId,
@@ -171,6 +177,7 @@ export async function enableVault(
       db.tracked.toArray(),
       db.vectors.toArray(),
       db.savedSearches.toArray(),
+      db.packets.toArray(),
       getSetting<string>(GROQ_KEY),
       getSetting<boolean>(GROQ_REMEMBER),
       getSetting<string>(ADZUNA_ID),
@@ -189,7 +196,7 @@ export async function enableVault(
     tracked,
     vectors,
     savedSearches,
-    packets: [],
+    packets,
     originalFiles: [],
     knowledgeBase: [],
   }
@@ -232,6 +239,7 @@ export async function enableVault(
         db.tracked,
         db.vectors,
         db.savedSearches,
+        db.packets,
         db.settings,
       ],
       async () => {
@@ -248,6 +256,7 @@ export async function enableVault(
           db.tracked.clear(),
           db.vectors.clear(),
           db.savedSearches.clear(),
+          db.packets.clear(),
           db.settings.bulkDelete([LEGACY_RESUME_DATA_KEY, GROQ_KEY, GROQ_REMEMBER, ADZUNA_ID, ADZUNA_KEY]),
         ])
       },
@@ -287,6 +296,7 @@ export async function disableVault(): Promise<void> {
       db.tracked,
       db.vectors,
       db.savedSearches,
+      db.packets,
       db.settings,
     ],
     async () => {
@@ -302,6 +312,7 @@ export async function disableVault(): Promise<void> {
         db.tracked.clear(),
         db.vectors.clear(),
         db.savedSearches.clear(),
+        db.packets.clear(),
       ])
       if (content.canonicalResume) await db.resumes.put(content.canonicalResume)
       if (content.resumeHistory.length) await db.resumeHistory.bulkPut(content.resumeHistory)
@@ -313,6 +324,7 @@ export async function disableVault(): Promise<void> {
       if (content.tracked.length) await db.tracked.bulkPut(content.tracked)
       if (content.vectors.length) await db.vectors.bulkPut(content.vectors)
       if (content.savedSearches.length) await db.savedSearches.bulkPut(content.savedSearches)
+      if (content.packets?.length) await db.packets.bulkPut(content.packets)
       if (credentials.groqKey) await db.settings.put({ key: GROQ_KEY, value: credentials.groqKey })
       await db.settings.put({ key: GROQ_REMEMBER, value: credentials.groqRemember ?? true })
       if (credentials.adzuna) {
@@ -464,7 +476,7 @@ export function migrateSensitiveContent(value: unknown): SensitiveContent {
     tracked?: TrackedJob[]
     vectors?: VectorRow[]
     savedSearches?: SavedSearchRow[]
-    packets?: unknown[]
+    packets?: PacketRow[]
     originalFiles?: unknown[]
     knowledgeBase?: unknown[]
   }

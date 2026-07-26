@@ -1,8 +1,28 @@
+// ============================================================================
+// Deterministic (no-LLM) résumé tailoring. This is the floor every AI result is
+// built on top of, and the path that still works with no API key at all.
+//
+// v2.5 (WS4a, in-schema only):
+//   • `extraJdTerms` threads the optional LLM requirement extractor through,
+//     additively (WS2).
+//   • `tailorBullets` now RANKS by how many posting terms a bullet attests
+//     instead of a two-way partition — the strongest evidence leads its role.
+//   • `buildTailoredSummary` echoes the posting's exact title (WS4.5), phrased
+//     as intent ("applying for …") so it can never read as a claimed job title.
+//     P9's inflation guard lives in src/llm/evidenceStatus.ts.
+//
+// Deliberately NOT here (ATS plan §3, WS4b → v2.6): project/thesis bullets,
+// cross-section re-ranking, a "Relevant Projects" lead section. Those need
+// résumé schemaVersion 3 and are a separate, migrated release.
+// ============================================================================
 import type { NormalizedJob, Profile } from '../types'
 import type { ResumeBullet, ResumeData, ResumeLanguage, SkillGroup } from './types'
 import { deriveProfile } from './canonical'
 import { normalizeResume } from './canonical'
-import { extractJdTerms, containsTerm, canonicalizeSkill, coverageReport, type CoverageReport } from './keywords'
+import {
+  extractJdTerms, containsTerm, canonicalizeSkill, coverageReport, mergeJdTerms,
+  type CoverageReport,
+} from './keywords'
 
 export function pickLanguage(job: NormalizedJob): ResumeLanguage {
   if (job.language === 'de') return 'de'
@@ -35,35 +55,74 @@ export function tailorSkills(skills: SkillGroup[], jdTerms: string[]): SkillGrou
   }).sort((a, b) => b.hitCount - a.hitCount || a.index - b.index).map((item) => item.group)
 }
 
-export function tailorBullets(bullets: ResumeBullet[], jdTerms: string[]): ResumeBullet[] {
-  const mentions = (bullet: ResumeBullet) => jdTerms.some((term) => containsTerm(typeof bullet === 'string' ? bullet : bullet.text, term))
-  return [...bullets.filter(mentions), ...bullets.filter((bullet) => !mentions(bullet))]
+/** Text of a bullet, tolerating the legacy string shape. */
+function bulletText(bullet: ResumeBullet | string): string {
+  return typeof bullet === 'string' ? bullet : bullet.text
 }
 
-export function buildTailoredSummary(data: ResumeData, coverage: CoverageReport, lang: ResumeLanguage): string {
+/**
+ * Rank a role's bullets by how many posting terms they genuinely attest.
+ * Stable: equal scores keep their original order, so nothing is lost or shuffled
+ * unpredictably between runs.
+ */
+export function tailorBullets(bullets: ResumeBullet[], jdTerms: string[]): ResumeBullet[] {
+  return bullets
+    .map((bullet, index) => ({
+      bullet,
+      index,
+      score: jdTerms.filter((term) => containsTerm(bulletText(bullet), term)).length,
+    }))
+    .sort((a, b) => b.score - a.score || a.index - b.index)
+    .map((entry) => entry.bullet)
+}
+
+/**
+ * The deterministic summary. `jobTitle` (v2.5) makes the posting's exact wording
+ * appear verbatim for title-matching ATS, phrased as an application intent so it
+ * never asserts a title the person has not held.
+ */
+export function buildTailoredSummary(
+  data: ResumeData,
+  coverage: CoverageReport,
+  lang: ResumeLanguage,
+  jobTitle?: string,
+): string {
   const primaryTitle = data.experience[0]?.title || data.contact.name
   const leadSkills = coverage.covered.slice(0, 5)
+  const target = (jobTitle ?? '').trim()
+  const echo =
+    target && target.toLowerCase() !== primaryTitle.toLowerCase() ? target : ''
   if (lang === 'de') {
-    const skillPart = leadSkills.length ? ` mit Schwerpunkt auf ${leadSkills.join(', ')}` : ''
-    return `${primaryTitle}${skillPart}. Nachweisliche Erfahrung in den für diese Rolle geforderten Bereichen.`.trim()
+    const head = echo ? `${primaryTitle}, Bewerbung als ${echo}.` : `${primaryTitle}.`
+    const skillPart = leadSkills.length ? ` Schwerpunkt: ${leadSkills.join(', ')}.` : ''
+    return `${head}${skillPart} Nachweisliche Erfahrung in den für diese Rolle geforderten Bereichen.`.trim()
   }
-  const skillPart = leadSkills.length ? ` with a focus on ${leadSkills.join(', ')}` : ''
-  return `${primaryTitle}${skillPart}. Proven experience across the areas this role calls for.`.trim()
+  const head = echo ? `${primaryTitle} applying for ${echo}.` : `${primaryTitle}.`
+  const skillPart = leadSkills.length ? ` Focus: ${leadSkills.join(', ')}.` : ''
+  return `${head}${skillPart} Proven experience across the areas this role calls for.`.trim()
 }
 
 export type TailoredResume = { data: ResumeData; language: ResumeLanguage; coverage: CoverageReport }
 
-export function tailorResume(base: ResumeData, job: NormalizedJob, compatibilityProfile?: Profile): TailoredResume {
+export function tailorResume(
+  base: ResumeData,
+  job: NormalizedJob,
+  compatibilityProfile?: Profile,
+  extraJdTerms: string[] = [],
+): TailoredResume {
   base = normalizeResume(base)
   const profile = compatibilityProfile ?? deriveProfile(base)
   const language = pickLanguage(job)
-  const jdTerms = extractJdTerms(job, profile.skills.map((skill) => skill.name))
-  const coverage = coverageReport(job, profile)
+  const jdTerms = mergeJdTerms(
+    extractJdTerms(job, profile.skills.map((skill) => skill.name)),
+    extraJdTerms,
+  )
+  const coverage = coverageReport(job, profile, extraJdTerms)
   return {
     language, coverage,
     data: {
       ...base,
-      summary: buildTailoredSummary(base, coverage, language),
+      summary: buildTailoredSummary(base, coverage, language, job.title),
       skills: tailorSkills(base.skills, jdTerms),
       experience: base.experience.map((role) => ({ ...role, bullets: tailorBullets(role.bullets, jdTerms) })),
     },

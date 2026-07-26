@@ -9,6 +9,12 @@
 // in the posting. This yields clean, meaningful terms — "Kubernetes", "dbt",
 // "BigQuery" — instead of the noise a bag-of-words keyword count produces.
 // Everything is pure + deterministic → unit-testable with no network.
+//
+// v2.5 (WS2): the dictionary stays the tested fast path, but `coverageReport`
+// now accepts EXTRA job-description terms produced by the optional LLM
+// requirement extractor (src/llm/jdTerms.ts). Those extras are merged in, never
+// substituted, so a flagged-off or failed extractor degrades to exactly the
+// v2.4 behaviour and the unit tests stay hermetic.
 // ============================================================================
 import type { NormalizedJob, Profile } from '../types'
 
@@ -150,6 +156,26 @@ export function extractJdTerms(job: NormalizedJob, extra: string[] = []): string
   return [...dictOrder, ...extras]
 }
 
+/**
+ * Union the deterministic dictionary terms with extra terms from another source
+ * (v2.5: the LLM requirement extractor). Dictionary spellings win, comparison is
+ * case-insensitive, and the original order is preserved so output stays stable.
+ */
+export function mergeJdTerms(base: string[], extra: string[]): string[] {
+  const seen = new Set(base.map((term) => term.toLowerCase()))
+  const out = [...base]
+  for (const raw of extra) {
+    const trimmed = (raw ?? '').trim()
+    if (!trimmed) continue
+    const value = canonicalizeSkill(trimmed) ?? trimmed
+    const key = value.toLowerCase()
+    if (seen.has(key)) continue
+    seen.add(key)
+    out.push(value)
+  }
+  return out
+}
+
 /** Which of the profile's skills (canonicalized where possible) the user has. */
 export function profileSkillSet(profile: Profile): Set<string> {
   const set = new Set<string>()
@@ -173,9 +199,19 @@ export type CoverageReport = {
  * Feature 13: compare a résumé's skills to a posting's key terms and report
  * exactly what's covered and what's missing — making the tailored-résumé output
  * explainable rather than a black-box rewrite.
+ *
+ * `extraJdTerms` (v2.5) folds in requirements found by the optional LLM
+ * extractor. Pass nothing and the behaviour is identical to v2.4.
  */
-export function coverageReport(job: NormalizedJob, profile: Profile): CoverageReport {
-  const terms = extractJdTerms(job, profile.skills.map((s) => s.name))
+export function coverageReport(
+  job: NormalizedJob,
+  profile: Profile,
+  extraJdTerms: string[] = [],
+): CoverageReport {
+  const terms = mergeJdTerms(
+    extractJdTerms(job, profile.skills.map((s) => s.name)),
+    extraJdTerms,
+  )
   const have = profileSkillSet(profile)
   // Confirmed profiles intentionally do not retain the raw résumé text. Build a
   // safe backstop corpus from reviewed structured facts when rawText is absent.

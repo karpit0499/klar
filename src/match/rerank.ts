@@ -4,18 +4,11 @@
 // rationale, and skill-gap analysis per job. Batching keeps each prompt small
 // and lets us show progress.
 // ============================================================================
-// v2.4.3: matching is Klar's highest-volume AI path (up to eight calls per
-// search). Two waste removals, no change to what is asked or how it is scored:
-//   • each job carries only the fields the scorer reads, not whole nested
-//     objects (a full `location` object per job, lat/lng included, was being
-//     sent when only the city and the remote flag are used);
-//   • `max_tokens` is computed from the batch size instead of a flat 2048.
-// It also stops the batch loop after repeated failures, because a rate limit
-// does not clear inside one search and the remaining calls only burn quota.
 import type { MatchResult, NormalizedJob, Preferences, Profile } from '../types'
-import { MATCH, GROQ } from '../lib/config'
+import { MATCH } from '../lib/config'
 import { estimateRerankOutputTokens } from '../llm/budget'
-import { groqChat, extractJson } from '../llm/groq'
+import { chatComplete, extractJson, resolveModel } from '../llm/groq'
+import { loadEngineSettings } from '../llm/provider'
 
 const SYSTEM = `You are a precise technical recruiter. You compare a candidate profile to job postings and score fit HONESTLY. You never inflate scores. You must reply with a single JSON object and nothing else.`
 
@@ -50,14 +43,15 @@ export function buildRerankPrompt(
     mustHaves: prefs.mustHaves,
     dealbreakers: prefs.dealbreakers,
   }
+  // v2.4.3: only the fields the scorer actually reads. A whole `location`
+  // object, lat/lng included, was being sent per job when the city and the
+  // remote flag are all that is reasoned about.
   const jobsBlock = batch.map((j) => ({
     jobId: j.id,
     title: j.title,
     company: j.company,
-    // Only the two location facts the scorer actually reasons about.
     city: j.location.city,
     remote: j.location.remote || undefined,
-    // Only the salary facts, not the whole object with empty keys.
     salary: j.salary.min != null || j.salary.max != null
       ? { min: j.salary.min, max: j.salary.max, period: j.salary.period, currency: j.salary.currency }
       : undefined,
@@ -158,16 +152,22 @@ export async function rerankBatch(
   apiKey: string,
   signal?: AbortSignal,
 ): Promise<MatchResult[]> {
-  const text = await groqChat({
+  // v2.5 (B2 cost control): matching is the highest-volume LLM path in Klar —
+  // up to MATCH.candidateLimit / MATCH.batchSize calls per search. A person on a
+  // free tier can opt into the engine's smaller model for this path alone in
+  // Settings › AI engine, without touching tailoring or letter quality.
+  const engine = await loadEngineSettings()
+  const text = await chatComplete({
     apiKey,
     system: SYSTEM,
     user: buildRerankPrompt(profile, prefs, batch),
     json: true,
+    fast: engine.fastMatching,
     temperature: 0,
     maxTokens: estimateRerankOutputTokens(batch.length),
     signal,
   })
-  return parseRerank(text, new Date().toISOString(), GROQ.model)
+  return parseRerank(text, new Date().toISOString(), resolveModel(engine, { fast: engine.fastMatching }))
 }
 
 /** Score all candidates, batch by batch, invoking onProgress after each batch. */
@@ -194,7 +194,6 @@ export async function rerankAll(
       consecutiveFailures += 1
       // v2.4.3: a token or request limit will not clear inside one search, so
       // firing the remaining batches only burns the user's quota for nothing.
-      // Stop and let the UI show its honest partial-results notice.
       if (consecutiveFailures >= MATCH.maxConsecutiveBatchFailures) {
         onProgress?.(Math.min(i + size, candidates.length), candidates.length)
         break

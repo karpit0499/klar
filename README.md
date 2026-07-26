@@ -4,7 +4,7 @@
 
 Klar brings your entire job search into one calm, private workspace. Discover live roles, understand where you fit, create stronger applications, and keep every opportunity moving, without losing yourself in tabs, spreadsheets, and scattered notes.
 
-[**Open Klar →**](https://karpit0499.github.io/klar/) · [See what’s new in v2.4](CHANGELOG.md)
+[**Open Klar →**](https://karpit0499.github.io/klar/) · [See what’s new in v2.5](CHANGELOG.md)
 
 ![Klar dashboard](docs/klar-dashboard.png)
 _**Klar Dashboard**_
@@ -57,12 +57,24 @@ Turn one résumé into a focused application for each opportunity. Klar can help
 
 - Tailor your résumé in English or German.
 - Download clean, ATS-friendly DOCX and PDF files.
-- See which important keywords are covered or missing.
-- Draft a cover letter grounded in your real experience.
+- See which important keywords are covered or missing, and re-run tailoring focused on the gaps.
+- Review every change before you download it, with the reason, the evidence and the factual status shown for each one, and accept, reject or edit them one at a time.
+- Draft a cover letter grounded in your real experience, in a Concise, Balanced or Formal tone, plus a short message for an email or a LinkedIn note.
+- Keep an application packet per job, saved as you work, with English and German prepared independently.
+- Build a tailored résumé **with no AI at all** — instant, no API key, no usage limits. Klar reorders your own wording so what this posting asks for comes first, and never changes your sentences.
+- See what an AI request will cost before you spend it, and get a straight answer when a request is too large rather than a retry that cannot work.
 - Prepare interview questions, talking points, and honest ways to address gaps.
 - Explore salary context and estimate German take-home pay.
 
 Klar is designed to strengthen your story, not invent a new one. Generated material stays tied to the specific bullets and facts in your résumé and should always be reviewed before you send it.
+
+### Reach out for flexible work without a résumé
+
+For a minijob, a weekend shift or a working-student role, Klar builds a short, truthful message from the details you chose to enter, sums up your availability, and can print a one-page profile card. You copy the message into the employer's own official application route. Klar never fills in a form, never submits, and never applies for you.
+
+### Use your own AI engine
+
+Klar talks to one OpenAI-compatible endpoint, and you decide which one. The default is a hosted service; Settings lets you point Klar somewhere else, pick the model, and check which models that endpoint actually offers. A local model on your own machine is not yet supported from the hosted site, because a browser blocks a plain-http endpoint from an https page — Klar says so plainly instead of pretending otherwise.
 
 ### Keep momentum without the spreadsheet
 
@@ -206,6 +218,8 @@ The production app is published from `main` through GitHub Pages.
 
 ## Release journey
 
+- **v2.5 — Application Quality:** a per-change review with factual statuses and blocked unsupported figures, a visible keyword-coverage loop, requirements read from the posting itself, cover-letter tones in English and German, short messages, saved application packets, résumé-free flexible reach-out, and a configurable AI engine.
+- **v2.4.3 — AI that fits a free plan:** résumé tailoring made small enough to succeed on a free AI tier, a visible cost estimate, honest refusals instead of futile retries, and a zero-AI tailoring path that needs no key at all.
 - **v2.4 — Flexible Work & Source Fabric:** a working résumé-free flexible-work search, twenty-one employer families with guaranteed fallbacks, progressive results inside a sixty-second ceiling, published-versus-inferred provenance, open-application routes, and saved flexible searches.
 - **v2.3 — Résumé foundation & adaptive onboarding:** one canonical résumé, an in-app résumé editor with history, adaptive onboarding, a résumé-free Flexible Work mode, a sample explore workspace, grounded applications, and safer exports.
 - **v2.2 — Stability & Safety:** stronger privacy boundaries, trustworthy backups, honest search diagnostics, safer connections, and resilient recovery.

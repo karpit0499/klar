@@ -1,31 +1,42 @@
 // ============================================================================
-// v2.4.3: the request this file builds used to be too big to succeed on a free
-// AI plan. Two surgical changes, and NOTHING about the rules or the validator
-// moved:
+// v2.5 · WS4a — evidence-bound AI tailoring, IN THE CURRENT SCHEMA.
 //
-//   1. The prompt now carries a minimal PROJECTION of the résumé and the posting
-//      (src/llm/promptProjection.ts) instead of the whole stored objects.
-//      Measured: 5,368 → 1,895 input tokens on a 3-role résumé.
-//   2. `max_tokens` is computed from the résumé's actual shape instead of a flat
-//      4096. Measured: 4,096 → 1,283 reserved.
+// What changed from v2.4:
+//   1. Principle P8 is now an explicit prompt rule AND a deterministic check.
+//      The model may translate vocabulary; it may not import specifics.
+//   2. Principle P9 (no title inflation, no keyword stuffing) is checked, not
+//      merely requested.
+//   3. The posting's own requirement vocabulary (WS2) is supplied, so reframing
+//      has something concrete and truthful to mirror.
+//   4. Exactly ONE targeted automatic retry. The second attempt is told exactly
+//      which sentences failed and why. After that Klar stops and explains —
+//      it never quietly ships an unsupported claim, and it never loops.
+//   5. The result is a reviewable ChangeRecord[] rather than an opaque document.
 //
-//   Together: 9,464 → 3,178 billed tokens, which fits inside an 8,000-token
-//   minute for the first time.
-//
-// `estimateTailoringRequest` is exported so the UI can check affordability
-// BEFORE spending anything, and `tailorResumeWithAi` re-checks as a backstop so
-// no caller can bypass the guard.
+// What deliberately did NOT change (ATS plan §3 — this is WS4b, v2.6):
+//   project/thesis bullets, cross-section re-ranking, a projects-above-experience
+//   layout, and the automatic coverage second pass. All of those need résumé
+//   schemaVersion 3 and a coordinated Dexie migration.
 // ============================================================================
 import type { NormalizedJob } from '../types'
-import { tailorResume, type TailoredResume } from '../resume/tailor'
+import { tailorResume } from '../resume/tailor'
 import type { ResumeData, ResumeLanguage } from '../resume/types'
-import { AppError } from '../errors/appError'
-import { PROMPT } from '../lib/config'
+import type { CoverageReport } from '../resume/keywords'
+import { normalizeResume } from '../resume/canonical'
+import {
+  applyChanges, proposeChanges, type ChangeRecord, type ProposedChanges,
+} from '../resume/changeSet'
+import { GENERATION, PROMPT } from '../lib/config'
 import {
   canAfford, costOf, estimateTailoringOutputTokens, loadTpmLimit, type RequestCost,
 } from './budget'
 import { projectJobForPrompt, projectResumeForPrompt, resumeShape } from './promptProjection'
-import { extractJson, groqChat } from './groq'
+import { AppError } from '../errors/appError'
+import {
+  auditBullet, auditRoleTitle, auditSummary,
+  type EvidenceFinding, type UnresolvedIssue,
+} from './evidenceStatus'
+import { extractJson, chatComplete } from './groq'
 
 type RewrittenBullet = {
   text: string
@@ -50,8 +61,24 @@ type ModelTailoringResponse = {
   changeSummary: string[]
 }
 
-export type AiTailoredResume = TailoredResume & {
+export type { UnresolvedIssue }
+
+export type AiTailoredResume = {
+  language: ResumeLanguage
+  coverage: CoverageReport
+  /** The merged posting vocabulary this run mirrored. */
+  jdTerms: string[]
+  /** Deterministic tailoring with the ORIGINAL sentences — the reject-all floor. */
+  baseline: ResumeData
+  /** The normalized source, kept so decisions can be replayed at any time. */
+  source: ResumeData
+  changes: ChangeRecord[]
   changeSummary: string[]
+  /** 1 = first attempt succeeded, 2 = the single retry was used. */
+  attempts: number
+  unresolved: UnresolvedIssue[]
+  /** Convenience: the résumé with the current decisions applied. */
+  data: ResumeData
 }
 
 function isNonEmptyString(value: unknown): value is string {
@@ -194,17 +221,20 @@ Rules:
 1. Aggressively rewrite the summary, every experience bullet that can be improved, and every existing project summary.
 2. Lead with evidence that is most relevant to the job posting.
 3. Prefer action + scope + outcome phrasing.
-4. Mirror the job posting's terminology only when the source résumé supports it.
+4. Mirror the job posting's terminology only when the source résumé supports it. The posting's key requirements are supplied as job.requirements — use that exact wording where, and only where, the source bullet already describes that work.
 5. The input explicitly labels every role with sourceIndex and every source bullet with sourceBulletIndex.
 6. Every rewritten bullet must cite one or more sourceBulletIndexes copied exactly from sourceBulletIndex values belonging to that SAME role.
 7. Never count, renumber, guess, or invent an index. Never use one-based numbering.
 8. You may combine or omit weak or repetitive bullets, but the cited sourceBulletIndexes must support the rewritten text.
 9. Never invent employers, dates, tools, responsibilities, qualifications, clients, certifications, or metrics.
-10. If the source has no number, do not add a number.
-11. Return every source experience role exactly once using its supplied sourceIndex.
-12. Return every source project exactly once using its supplied sourceIndex.
-13. Rewrite a project summary only when a source summary exists. Otherwise return an empty summary.
-14. Return valid JSON only using exactly this shape:
+10. REFRAMING RULE: you may re-describe a real task in the posting's vocabulary using ONLY the tools, data, cadence and numbers that already appear in the cited source bullet. Translating wording is allowed. Adding a specific that is not in the evidence is not, even when the posting asks for it.
+11. If the source has no number, do not add a number. Never introduce a percentage, count, amount or duration that the cited source does not state.
+12. Keep every role title truthful. You may tidy a title, but never add a seniority word (senior, lead, head, principal, chief, director, manager) that the source title does not already contain.
+13. The summary may name the posting's exact job title once, as the role being applied for. Do not repeat any term more than twice anywhere — natural prose beats keyword stuffing, which modern ATS penalise.
+14. Return every source experience role exactly once using its supplied sourceIndex.
+15. Return every source project exactly once using its supplied sourceIndex.
+16. Rewrite a project summary only when a source summary exists. Otherwise return an empty summary.
+17. Return valid JSON only using exactly this shape:
 
 {
   "summary": "string",
@@ -230,27 +260,133 @@ Rules:
 }`
 }
 
-/**
- * The user message. v2.4.3 sends PROJECTIONS: every `sourceIndex` and
- * `sourceBulletIndex` the response contract needs is preserved, and nothing else
- * is included. See src/llm/promptProjection.ts for what is dropped and why.
- *
- * Exported so a test can assert the projection invariant (no ids, no evidence
- * refs, no contact details reach the provider).
- */
 export function userPrompt(
   source: ResumeData,
   job: NormalizedJob,
+  jdTerms: string[] = [],
+  corrections: string[] = [],
 ): string {
-  return JSON.stringify(
+  // v2.4.3: send a minimal PROJECTION, not the stored objects. Every
+  // sourceIndex / sourceBulletIndex the response contract needs survives; the
+  // internal ids, evidence references, contact details and the tail of a long
+  // posting do not. See src/llm/promptProjection.ts.
+  const payload = JSON.stringify(
     {
-      job: projectJobForPrompt(job, { excerptChars: PROMPT.jobExcerptChars }),
+      job: projectJobForPrompt(job, { requirements: jdTerms, excerptChars: PROMPT.jobExcerptChars }),
       sourceResume: projectResumeForPrompt(source),
     },
     null,
     1,
   )
+
+  if (!corrections.length) return payload
+
+  return [
+    payload,
+    '',
+    'CORRECTIONS REQUIRED — your previous answer broke a rule. Fix exactly these, keep everything else, and return the same JSON shape:',
+    ...corrections.map((line, index) => `${index + 1}. ${line}`),
+  ].join('\n')
 }
+
+// --- Auditing a parsed response ----------------------------------------------
+
+type AuditedResponse = {
+  proposal: ProposedChanges
+  blockers: { location: string; instruction: string; issue: UnresolvedIssue }[]
+}
+
+function describeAdditions(finding: EvidenceFinding): string {
+  const bits: string[] = []
+  if (finding.addedNumbers.length) bits.push(`numbers ${finding.addedNumbers.join(', ')}`)
+  if (finding.addedTerms.length) bits.push(`terms ${finding.addedTerms.join(', ')}`)
+  if (finding.repeatedTerms.length) bits.push(`over-repeated ${finding.repeatedTerms.join(', ')}`)
+  return bits.join('; ')
+}
+
+export function auditTailoringResponse(
+  response: ModelTailoringResponse,
+  source: ResumeData,
+  job: NormalizedJob,
+  jdTerms: string[],
+): AuditedResponse {
+  const blockers: AuditedResponse['blockers'] = []
+  const allBullets = source.experience.flatMap((role) => role.bullets.map((bullet) => bullet.text))
+  const sourceTitles = source.experience.map((role) => role.title)
+
+  const summaryFinding = auditSummary(response.summary.trim(), {
+    jobTitle: job.title,
+    sourceTitles,
+    sources: allBullets,
+    jdTerms,
+  })
+  if (summaryFinding.status === 'blocked') {
+    blockers.push({
+      location: 'summary',
+      instruction: `The summary adds ${describeAdditions(summaryFinding)} that the résumé does not support. Rewrite it using only facts already present.`,
+      issue: { location: 'summary', code: summaryFinding.reasons[0], detail: describeAdditions(summaryFinding) },
+    })
+  }
+
+  const titles: ProposedChanges['titles'] = []
+  const bullets: ProposedChanges['bullets'] = []
+  for (const role of response.experience) {
+    const sourceRole = source.experience[role.sourceIndex]
+    const label = [sourceRole.title, sourceRole.company].filter(Boolean).join(' · ')
+
+    const titleFinding = auditRoleTitle(sourceRole.title, role.title.trim())
+    titles.push({ roleIndex: role.sourceIndex, after: role.title.trim(), finding: titleFinding })
+    if (titleFinding.status === 'blocked') {
+      blockers.push({
+        location: label,
+        instruction: `The title "${role.title.trim()}" adds seniority the source title "${sourceRole.title}" does not have. Return the source title.`,
+        issue: { location: label, code: 'title_inflation', detail: titleFinding.addedTerms.join(', ') },
+      })
+    }
+
+    role.bullets.forEach((bullet, bulletIndex) => {
+      const sources = bullet.sourceBulletIndexes.map((index) => sourceRole.bullets[index].text)
+      const finding = auditBullet({ after: bullet.text.trim(), sources, jdTerms })
+      bullets.push({
+        roleIndex: role.sourceIndex,
+        bulletIndex,
+        after: bullet.text.trim(),
+        sourceBulletIndexes: bullet.sourceBulletIndexes,
+        finding,
+      })
+      if (finding.status === 'blocked') {
+        blockers.push({
+          location: label,
+          instruction: `The bullet "${bullet.text.trim()}" states ${describeAdditions(finding)} that its cited evidence does not contain. Rewrite it without that.`,
+          issue: { location: label, code: finding.reasons[0], detail: describeAdditions(finding) },
+        })
+      }
+    })
+  }
+
+  const projects: ProposedChanges['projects'] = []
+  for (const project of response.projects) {
+    const sourceProject = source.projects[project.sourceIndex]
+    const before = sourceProject.summary ?? ''
+    if (!before) continue
+    const finding = auditBullet({ after: project.summary.trim(), sources: [before], jdTerms })
+    projects.push({ projectIndex: project.sourceIndex, after: project.summary.trim(), finding })
+    if (finding.status === 'blocked') {
+      blockers.push({
+        location: sourceProject.name,
+        instruction: `The project summary "${project.summary.trim()}" adds ${describeAdditions(finding)}. Rewrite it from the original summary only.`,
+        issue: { location: sourceProject.name, code: finding.reasons[0], detail: describeAdditions(finding) },
+      })
+    }
+  }
+
+  return {
+    proposal: { summary: { after: response.summary.trim(), finding: summaryFinding }, titles, bullets, projects },
+    blockers,
+  }
+}
+
+// --- Pre-flight (v2.4.3) ------------------------------------------------------
 
 export type TailoringRequest = {
   system: string
@@ -261,15 +397,17 @@ export type TailoringRequest = {
 
 /**
  * Build the exact request that will be sent, and price it. The UI calls this
- * before offering the action, so a request that cannot succeed is never sent.
+ * before offering the action, so a request that cannot possibly succeed is never
+ * sent — and the person is offered the no-AI path instead of an error.
  */
 export function estimateTailoringRequest(
   source: ResumeData,
   job: NormalizedJob,
   language: ResumeLanguage,
+  jdTerms: string[] = [],
 ): TailoringRequest {
   const system = systemPrompt(language)
-  const user = userPrompt(source, job)
+  const user = userPrompt(source, job, jdTerms)
   const maxTokens = estimateTailoringOutputTokens(resumeShape(source))
   return { system, user, maxTokens, cost: costOf({ system, user, maxTokens }) }
 }
@@ -289,77 +427,95 @@ export function tooLargeError(cost: RequestCost, limit: number): AppError {
   })
 }
 
+// --- The public entry point ---------------------------------------------------
+
 export async function tailorResumeWithAi(
-  source: ResumeData,
+  rawSource: ResumeData,
   job: NormalizedJob,
   apiKey: string,
   language: ResumeLanguage,
+  options: { jdTerms?: string[]; signal?: AbortSignal } = {},
 ): Promise<AiTailoredResume> {
-  // v2.4.3: price the request, and refuse honestly if it cannot possibly
-  // succeed. This is a backstop — the UI checks first so it can offer the
-  // no-AI path instead of showing an error at all.
-  const request = estimateTailoringRequest(source, job, language)
+  const source = normalizeResume(rawSource)
+  const extraJdTerms = options.jdTerms ?? []
+  const deterministic = tailorResume(source, { ...job, language }, undefined, extraJdTerms)
+  // The vocabulary the run mirrors: dictionary terms plus extractor terms.
+  const jdTerms = [...new Set([...deterministic.coverage.covered, ...deterministic.coverage.missing])]
+
+  // v2.4.3: price the request and refuse honestly if it cannot possibly succeed.
+  // This is a backstop — the UI checks first so it can offer the no-AI path
+  // instead of showing an error at all.
+  const priced = estimateTailoringRequest(source, job, language, jdTerms)
   const { tpm } = await loadTpmLimit()
-  const affordable = canAfford(request.cost, tpm)
-  if (!affordable.ok) throw tooLargeError(request.cost, affordable.limit)
+  const affordable = canAfford(priced.cost, tpm)
+  if (!affordable.ok) throw tooLargeError(priced.cost, affordable.limit)
 
-  const raw = await groqChat({
-    apiKey,
-    system: request.system,
-    user: request.user,
-    json: true,
-    temperature: 0,
-    maxTokens: request.maxTokens,
-  })
-  const parsed = extractJson<unknown>(raw)
+  let corrections: string[] = []
+  let audited: AuditedResponse | null = null
+  let parsed: ModelTailoringResponse | null = null
+  let attempts = 0
 
-  // Correct a clearly one-based response before performing
-  // the strict no-fabrication validation.
-  normalizeClearlyOneBasedEvidenceIndexes(parsed, source)
+  while (attempts < GENERATION.maxTailoringAttempts) {
+    attempts += 1
+    const raw = await chatComplete({
+      apiKey,
+      system: priced.system,
+      user: userPrompt(source, job, jdTerms, corrections),
+      json: true,
+      temperature: 0,
+      maxTokens: priced.maxTokens,
+      signal: options.signal,
+    })
+    const candidate = extractJson<unknown>(raw)
 
-  validateTailoringResponse(parsed, source)
+    // Correct a clearly one-based response before performing
+    // the strict no-fabrication validation.
+    normalizeClearlyOneBasedEvidenceIndexes(candidate, source)
 
-  const deterministic = tailorResume(source, { ...job, language })
-  const rewrites = new Map(parsed.experience.map((item) => [item.sourceIndex, item]))
-  const experience = deterministic.data.experience.map((item, sourceIndex) => {
-    const rewrite = rewrites.get(sourceIndex)
-    if (!rewrite) throw new Error('A source role is missing from the tailoring response.')
-    return {
-      ...item,
-      title: rewrite.title.trim(),
-      bullets: rewrite.bullets.map((bullet, bulletIndex) => {
-        const sources = bullet.sourceBulletIndexes.map((index) => source.experience[sourceIndex].bullets[index])
-        return {
-          id: `tailored-${item.id}-${bulletIndex}`,
-          text: bullet.text.trim(),
-          evidenceRefs: [...new Set(sources.flatMap((sourceBullet) => [sourceBullet.id, ...sourceBullet.evidenceRefs]))],
-        }
-      }),
+    try {
+      validateTailoringResponse(candidate, source)
+    } catch (error) {
+      // Shape failures burn the same single retry, then surface honestly.
+      if (attempts >= GENERATION.maxTailoringAttempts) throw error
+      corrections = [error instanceof Error ? error.message : String(error)]
+      continue
     }
-  })
-  const projectRewrites = new Map(parsed.projects.map((item) => [item.sourceIndex, item]))
-  const projects = source.projects.map((project, sourceIndex) => {
-    const rewrite = projectRewrites.get(sourceIndex)
-    if (!rewrite) throw new Error('A source project is missing from the tailoring response.')
-    return {
-      ...project,
-      summary: rewrite.summary.trim() || project.summary,
-    }
-  })
+
+    parsed = candidate
+    audited = auditTailoringResponse(candidate, source, job, jdTerms)
+    if (!audited.blockers.length) break
+    if (attempts >= GENERATION.maxTailoringAttempts) break
+    corrections = audited.blockers.map((blocker) => blocker.instruction)
+  }
+
+  if (!parsed || !audited) throw new Error('Tailoring produced no usable response.')
+
+  const changes = proposeChanges(source, audited.proposal, jdTerms)
+  const baseline: ResumeData = {
+    ...deterministic.data,
+    contact: source.contact,
+    summary: source.summary,
+    education: source.education,
+    languages: source.languages,
+    projects: source.projects.map((project) => ({ ...project })),
+    certifications: source.certifications,
+  }
 
   return {
     language,
     coverage: deterministic.coverage,
+    jdTerms,
+    baseline,
+    source,
+    changes,
     changeSummary: parsed.changeSummary.map((item) => item.trim()),
-    data: {
-      ...deterministic.data,
-      contact: source.contact,
-      summary: parsed.summary.trim(),
-      experience,
-      education: source.education,
-      languages: source.languages,
-      projects,
-      certifications: source.certifications,
-    },
+    attempts,
+    unresolved: audited.blockers.map((blocker) => blocker.issue),
+    data: applyChanges(baseline, source, changes),
   }
+}
+
+/** Re-apply decisions without calling the model again. */
+export function withDecisions(result: AiTailoredResume, changes: ChangeRecord[]): AiTailoredResume {
+  return { ...result, changes, data: applyChanges(result.baseline, result.source, changes) }
 }
