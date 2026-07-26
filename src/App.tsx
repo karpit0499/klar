@@ -28,8 +28,9 @@ import {
 } from './onboarding/setupState'
 import { deriveProfile } from './resume/canonical'
 import { loadCanonicalResume, replaceCanonicalResume, saveCanonicalResume } from './resume/store'
-import { loadPreferences } from './storage/careerData'
+import { loadPreferences, savePreferences } from './storage/careerData'
 import type { ResumeData } from './resume/types'
+import type { FlexibleWorkPreferences } from './types'
 
 type Tab = 'dashboard' | 'search' | 'tracker' | 'settings'
 type KeyRequest = { action: string; resolve: (key: string | null) => void }
@@ -126,6 +127,13 @@ export default function App() {
     setOnboardingTarget('flexible')
     refresh()
   }
+  // v2.5: the flexible prepare drawer can save the OPTIONAL contact block. It is
+  // merged back into the same preferences row, so it lives inside the existing
+  // encrypted boundary and never becomes a second source of truth.
+  async function saveFlexiblePreferences(value: FlexibleWorkPreferences) {
+    await savePreferences({ ...currentPreferences, flexibleWork: value })
+    refresh()
+  }
   async function changeWorkMode(next: WorkMode) {
     if (next === activeMode) return
     setFlexLaunch(null)
@@ -172,6 +180,7 @@ export default function App() {
             savedSearchId={flexLaunch?.savedSearchId}
             onEdit={() => void editFlexible()}
             switcher={switcher}
+            onSavePreferences={(value) => void saveFlexiblePreferences(value)}
           />
         : flexibleHome)}
 

@@ -16,6 +16,7 @@ import type {
 } from '../types'
 import type { CipherEnvelope } from '../crypto/resumeCrypto'
 import type { CanonicalResumeRow, ResumeDraftRow, ResumeSnapshotRow } from '../resume/types'
+import type { PacketRow } from '../packets/types'
 import { normalizeResume, resumeFromLegacyProfile } from '../resume/canonical'
 
 /** Key/value settings row (e.g. active profile id, UI locale). Keys, not secrets. */
@@ -86,6 +87,12 @@ export type ConnectorHealthRow = {
 }
 
 /**
+ * v2.5 application packets. Stored plaintext ONLY while encryption is disabled;
+ * when the vault is on they live inside the ciphertext (see src/packets/store.ts).
+ */
+export type { PacketRow }
+
+/**
  * The encrypted-at-rest boundary. Content and credentials use separate
  * ciphertexts so a standard backup can preserve encrypted content while
  * excluding credentials byte-for-byte.
@@ -132,6 +139,7 @@ export class KlarDB extends Dexie {
   flexibleSearches!: Table<FlexibleSearchRow, string>
   flexibleCache!: Table<FlexibleCacheRow, string>
   connectorHealth!: Table<ConnectorHealthRow, string>
+  packets!: Table<PacketRow, string>
 
   constructor() {
     super('klar')
@@ -256,6 +264,30 @@ export class KlarDB extends Dexie {
       flexibleCache: 'queryKey, expiresAt',
       connectorHealth: 'connectorId',
     })
+    // v7 — v2.5 Application Quality: persistent application packets. This is a
+    // PURELY ADDITIVE store: no existing row is read, written or transformed, so
+    // the upgrade cannot fail on user data. (The résumé schemaVersion 2 → 3
+    // change that WS4b needs is a separate, coordinated v6→v7-style migration
+    // scheduled for v2.6 — do not fold it in here.)
+    this.version(7).stores({
+      settings: 'key',
+      profiles: 'id, createdAt',
+      preferences: 'id',
+      jobs: 'queryKey, fetchedAt',
+      matches: 'cacheKey, jobId',
+      tracked: 'jobId, status, updatedAt',
+      dashboard: 'id',
+      vectors: 'jobId, embedderId',
+      savedSearches: 'id, updatedAt',
+      vault: 'id, updatedAt',
+      resumes: 'id, updatedAt',
+      resumeHistory: 'id, createdAt, name',
+      resumeDrafts: 'id, updatedAt',
+      flexibleSearches: 'id, updatedAt',
+      flexibleCache: 'queryKey, expiresAt',
+      connectorHealth: 'connectorId',
+      packets: 'id, updatedAt, jobId',
+    })
   }
 }
 
@@ -290,5 +322,6 @@ export async function wipeAllData(): Promise<void> {
     db.flexibleSearches.clear(),
     db.flexibleCache.clear(),
     db.connectorHealth.clear(),
+    db.packets.clear(),
   ])
 }

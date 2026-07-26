@@ -491,8 +491,95 @@ const en = {
   'flexible.source.running': 'Checking…',
 
   // ---------------------------------------------------------------------------
-  // v2.4.3 — AI budget and the no-AI path
+  // v2.5 — Application Quality
   // ---------------------------------------------------------------------------
+
+  // Coverage panel (C2)
+  'coverage.score': '{covered} of {total} key terms',
+  'coverage.barAria': 'Share of the posting’s key terms your résumé evidences',
+  'coverage.covered': 'Your résumé evidences',
+  'coverage.missing': 'Not evidenced yet',
+  'coverage.missingHint':
+    'Missing means your résumé does not show this yet — not that you should add it. Klar only works a term in where your own experience supports it.',
+  'coverage.fromExtractor': '{count} extra requirement(s) read from this posting.',
+  'coverage.improve': 'Try again focusing on the gaps',
+  'coverage.improving': 'Re-reading the posting…',
+  'coverage.improveHint':
+    'Runs tailoring once more with the missing terms in focus. Nothing is added unless your source résumé supports it.',
+
+  // Change review (C1)
+  'review.title': 'Review every change',
+  'review.intro': 'Accept, reject or edit each change. Rejecting restores your own wording.',
+  'review.none': 'Nothing changed — your source wording was already the best fit.',
+  'review.count': '{accepted} of {total} accepted',
+  'review.acceptAll': 'Accept all',
+  'review.acceptAllBlocked': 'Some changes need your decision first, so "Accept all" is off.',
+  'review.before': 'Your wording',
+  'review.after': 'Klar’s wording',
+  'review.emptyBefore': '(nothing here before)',
+  'review.emptyAfter': '(removed)',
+  'review.keywordEffect': 'Adds posting terms: {terms}',
+  'review.blockedHint':
+    'Blocked: this states {detail}, which your evidence does not contain. It cannot be accepted or exported.',
+  'review.confirmHint': 'Please confirm {detail} is true of this role before accepting.',
+  'review.evidence': 'Show the evidence this rests on',
+  'review.accept': 'Accept',
+  'review.reject': 'Reject',
+  'review.edit': 'Edit',
+  'review.restore': 'Restore Klar’s wording',
+  'review.cancel': 'Cancel',
+  'review.editLabel': 'Your wording',
+  'review.editHint': 'Your edit is used exactly as typed. Klar does not check it again.',
+  'review.status.supported': 'Supported',
+  'review.status.rephrased': 'Rephrased',
+  'review.status.confirmation': 'Needs your confirmation',
+  'review.status.blocked': 'Blocked',
+  'review.reason.keywords': 'Reworded to match the posting’s vocabulary.',
+  'review.reason.condensed': 'Shortened, keeping the same facts.',
+  'review.reason.reworded': 'Reworded for clarity.',
+  'review.reason.removed': 'Left out of this version as less relevant.',
+  'review.reason.unchanged': 'Kept as written.',
+  'review.unresolvedTitle': 'What Klar could not improve safely',
+  'review.unresolvedIntro':
+    'Klar retried once ({attempts} attempts in total) and then stopped rather than invent anything. Edit these by hand, or generate again.',
+  'review.unresolved.number': '{location}: a number ({detail}) had no support in your résumé.',
+  'review.unresolved.term': '{location}: a term ({detail}) had no support in your résumé.',
+  'review.unresolved.repetition': '{location}: {detail} was repeated too often to read naturally.',
+  'review.unresolved.title': '{location}: a seniority word ({detail}) was not in your own title.',
+  'review.unresolved.other': '{location}: {detail}',
+
+  // Cover-letter tone (WS5)
+  'letter.toneLabel': 'Tone',
+  'letter.tone.concise': 'Concise',
+  'letter.tone.balanced': 'Balanced',
+  'letter.tone.formal': 'Formal',
+
+  // Short message
+  'message.title': 'Short message',
+  'message.draft': 'Draft short message',
+  'message.hint': 'Four to six lines for an email or a LinkedIn note.',
+  'message.failed': 'Could not draft the short message.',
+
+  // Packet
+  'packet.notes': 'Your notes',
+  'packet.autosave': 'Saved on this device as you type.',
+  'packet.lastExport': 'Last export: {format} · {when}',
+  'packet.markReviewed': 'Mark as reviewed',
+  'packet.readyYes': 'Ready to send',
+  'packet.readyNo': 'Not ready yet',
+  'packet.needsConfirmation': '{count} need your confirmation',
+  'packet.blockedCount': '{count} blocked',
+  'packet.interrupted': 'A previous run was interrupted while working on the {stage}. Nothing was saved from it.',
+  'packet.interruptedDismiss': 'Got it',
+  'packet.stage.resume': 'résumé',
+  'packet.stage.letter': 'cover letter',
+  'packet.stage.message': 'short message',
+
+  // Bundle additions
+  'bundle.languageIndependent': 'English and German are prepared and reviewed separately.',
+  'bundle.languageReady': 'Prepared',
+  'bundle.docxDefaultHint': 'DOCX is the safest format for applicant tracking systems. PDF stays available.',
+  // v2.4.3 — AI budget and the no-AI path
   'bundle.noAi': 'Tailor without AI',
   'bundle.noAiHint':
     '"Tailor without AI" works instantly, needs no API key, and uses no AI quota. It reorders your own wording to lead with what this posting asks for.',
@@ -505,6 +592,68 @@ const en = {
     'This résumé and job description need about {tokens} tokens in one AI request, and your plan allows {limit} at once.',
   'bundle.tooLargeAction':
     'Waiting will not help, because the request itself is over the limit. Use "Tailor without AI" below, or paste a shorter job description.',
+
+
+  // Flexible prepare
+  'flexible.card.prepare': 'Prepare message',
+  'flexPrep.title': 'Prepare & reach out',
+  'flexPrep.intro':
+    'Klar writes a short, truthful message from the details you entered. You copy it into the employer’s own form — Klar never applies for you.',
+  'flexPrep.detailsTitle': 'Your details (optional)',
+  'flexPrep.detailsHint': 'Only used for the message and the profile card. Stored on this device.',
+  'flexPrep.name': 'Name',
+  'flexPrep.email': 'Email',
+  'flexPrep.phone': 'Phone',
+  'flexPrep.saveDetails': 'Save details',
+  'flexPrep.detailsSaved': 'Saved ✓',
+  'flexPrep.availabilityTitle': 'Your availability',
+  'flexPrep.availabilityEmpty': 'Add days, times or weekly hours to your flexible search to show availability here.',
+  'flexPrep.messageTitle': 'Message to the employer',
+  'flexPrep.messageHint': 'Every line comes from your own profile. Edit it freely before you send it.',
+  'flexPrep.reset': 'Reset to Klar’s version',
+  'flexPrep.cardTitle': 'Compact profile card',
+  'flexPrep.cardHint': 'A one-page text PDF you can attach or hand over. No photo, no personal data an employer must not ask for.',
+  'flexPrep.cardDownload': 'Print / save card as PDF',
+  'flexPrep.routeTitle': 'The employer’s official route',
+  'flexPrep.routeBody': 'This opens the employer’s own page in a new tab. Paste your message there and finish the application yourself.',
+  'flexPrep.noAutoApply': 'Klar never fills in forms, never submits, and never applies on your behalf.',
+
+  // Settings › AI engine (WS3)
+  'settings.engine.title': 'AI engine',
+  'settings.engine.intro':
+    'Klar sends AI requests to one OpenAI-compatible endpoint. The default is Groq’s hosted API. You can point Klar at any other compatible endpoint.',
+  'settings.engine.baseUrl': 'Endpoint (base URL)',
+  'settings.engine.model': 'Model',
+  'settings.engine.fastModel': 'Fast model',
+  'settings.engine.requiresKey': 'This endpoint needs an API key',
+  'settings.engine.fastMatching': 'Use the fast model for job matching',
+  'settings.engine.fastMatchingHint':
+    'Matching is the highest-volume AI step. The fast model uses far less of a free quota; tailoring and letters keep the full model.',
+  'settings.engine.save': 'Save engine',
+  'settings.engine.saved': 'Engine saved ✓',
+  'settings.engine.reset': 'Back to defaults',
+  'settings.engine.listModels': 'List available models',
+  'settings.engine.listing': 'Asking the endpoint…',
+  'settings.engine.modelsFound': 'This endpoint serves: {models}',
+  'settings.engine.modelsNone': 'This endpoint did not return a model list.',
+  'settings.engine.warnMixed':
+    'Klar is served over HTTPS, so your browser will block this http:// endpoint as mixed content. A local model needs a local (http) copy of Klar, or a v2.6 desktop build.',
+  'settings.engine.warnInsecureDev':
+    'This endpoint is plain http. That works on this local copy of Klar, but the hosted https:// site will block it as mixed content.',
+  'settings.engine.warnNoKey': 'No key will be sent to this endpoint.',
+  'settings.engine.problem.baseUrl': 'Enter a full URL, for example https://api.groq.com/openai/v1',
+  'settings.engine.problem.scheme': 'Only http:// and https:// endpoints are supported.',
+  'settings.engine.problem.model': 'Enter a model id.',
+  'settings.engine.localNote':
+    'Local runtimes (Ollama, LM Studio) expose the same API. They also need CORS allowed — for Ollama, set OLLAMA_ORIGINS. Full local support arrives in v2.6.',
+
+  // Settings › v2.5 features
+  'settings.flags.title': 'v2.5 features',
+  'settings.flags.intro': 'Turn one part of the new application-quality work off without losing the rest.',
+  'settings.flags.jdExtractor': 'Read extra requirements from each posting',
+  'settings.flags.tailoringReview': 'Show the change review before download',
+  'settings.flags.customEngine': 'Allow a custom AI engine',
+  'settings.flags.packets': 'Keep an application packet per job',
 } as const
 
 export type TranslationKey = keyof typeof en
@@ -990,8 +1139,89 @@ const de: Record<TranslationKey, string> = {
   'flexible.source.running': 'Wird geprüft…',
 
   // ---------------------------------------------------------------------------
-  // v2.4.3 — KI-Budget und der Weg ohne KI
+  // v2.5 — Bewerbungsqualität
   // ---------------------------------------------------------------------------
+
+  'coverage.score': '{covered} von {total} Schlüsselbegriffen',
+  'coverage.barAria': 'Anteil der Schlüsselbegriffe der Anzeige, die dein Lebenslauf belegt',
+  'coverage.covered': 'Dein Lebenslauf belegt',
+  'coverage.missing': 'Noch nicht belegt',
+  'coverage.missingHint':
+    '„Noch nicht belegt“ heißt: dein Lebenslauf zeigt das bisher nicht — nicht, dass du es hinzufügen sollst. Klar übernimmt einen Begriff nur, wenn deine eigene Erfahrung ihn deckt.',
+  'coverage.fromExtractor': '{count} zusätzliche Anforderung(en) aus dieser Anzeige gelesen.',
+  'coverage.improve': 'Erneut versuchen, Lücken im Fokus',
+  'coverage.improving': 'Anzeige wird erneut gelesen…',
+  'coverage.improveHint':
+    'Führt die Anpassung noch einmal mit Fokus auf die fehlenden Begriffe aus. Nichts wird ergänzt, was dein Lebenslauf nicht hergibt.',
+
+  'review.title': 'Jede Änderung prüfen',
+  'review.intro': 'Jede Änderung annehmen, ablehnen oder bearbeiten. Ablehnen stellt deine eigene Formulierung wieder her.',
+  'review.none': 'Nichts geändert — deine Formulierung passte bereits am besten.',
+  'review.count': '{accepted} von {total} angenommen',
+  'review.acceptAll': 'Alle annehmen',
+  'review.acceptAllBlocked': 'Einige Änderungen brauchen zuerst deine Entscheidung, daher ist „Alle annehmen“ aus.',
+  'review.before': 'Deine Formulierung',
+  'review.after': 'Formulierung von Klar',
+  'review.emptyBefore': '(vorher nichts vorhanden)',
+  'review.emptyAfter': '(entfernt)',
+  'review.keywordEffect': 'Ergänzt Begriffe der Anzeige: {terms}',
+  'review.blockedHint':
+    'Blockiert: hier steht {detail}, was deine Nachweise nicht enthalten. Kann nicht angenommen oder exportiert werden.',
+  'review.confirmHint': 'Bitte bestätige, dass {detail} für diese Rolle zutrifft, bevor du annimmst.',
+  'review.evidence': 'Nachweise anzeigen, auf denen das beruht',
+  'review.accept': 'Annehmen',
+  'review.reject': 'Ablehnen',
+  'review.edit': 'Bearbeiten',
+  'review.restore': 'Formulierung von Klar wiederherstellen',
+  'review.cancel': 'Abbrechen',
+  'review.editLabel': 'Deine Formulierung',
+  'review.editHint': 'Deine Bearbeitung wird genau so übernommen. Klar prüft sie nicht erneut.',
+  'review.status.supported': 'Belegt',
+  'review.status.rephrased': 'Neu formuliert',
+  'review.status.confirmation': 'Bestätigung nötig',
+  'review.status.blocked': 'Blockiert',
+  'review.reason.keywords': 'An die Sprache der Anzeige angepasst.',
+  'review.reason.condensed': 'Gekürzt, gleiche Fakten.',
+  'review.reason.reworded': 'Klarer formuliert.',
+  'review.reason.removed': 'In dieser Version weggelassen, da weniger relevant.',
+  'review.reason.unchanged': 'Unverändert übernommen.',
+  'review.unresolvedTitle': 'Was Klar nicht sicher verbessern konnte',
+  'review.unresolvedIntro':
+    'Klar hat es einmal erneut versucht (insgesamt {attempts} Versuche) und dann abgebrochen, statt etwas zu erfinden. Bearbeite diese Stellen selbst oder erstelle neu.',
+  'review.unresolved.number': '{location}: eine Zahl ({detail}) war im Lebenslauf nicht belegt.',
+  'review.unresolved.term': '{location}: ein Begriff ({detail}) war im Lebenslauf nicht belegt.',
+  'review.unresolved.repetition': '{location}: {detail} wurde zu oft wiederholt.',
+  'review.unresolved.title': '{location}: ein Senioritätswort ({detail}) stand nicht in deinem eigenen Titel.',
+  'review.unresolved.other': '{location}: {detail}',
+
+  'letter.toneLabel': 'Tonalität',
+  'letter.tone.concise': 'Knapp',
+  'letter.tone.balanced': 'Ausgewogen',
+  'letter.tone.formal': 'Formell',
+
+  'message.title': 'Kurznachricht',
+  'message.draft': 'Kurznachricht entwerfen',
+  'message.hint': 'Vier bis sechs Zeilen für eine E-Mail oder LinkedIn.',
+  'message.failed': 'Kurznachricht konnte nicht erstellt werden.',
+
+  'packet.notes': 'Deine Notizen',
+  'packet.autosave': 'Wird beim Tippen auf diesem Gerät gespeichert.',
+  'packet.lastExport': 'Letzter Export: {format} · {when}',
+  'packet.markReviewed': 'Als geprüft markieren',
+  'packet.readyYes': 'Versandfertig',
+  'packet.readyNo': 'Noch nicht fertig',
+  'packet.needsConfirmation': '{count} brauchen Bestätigung',
+  'packet.blockedCount': '{count} blockiert',
+  'packet.interrupted': 'Ein früherer Durchlauf wurde beim {stage} unterbrochen. Daraus wurde nichts gespeichert.',
+  'packet.interruptedDismiss': 'Verstanden',
+  'packet.stage.resume': 'Lebenslauf',
+  'packet.stage.letter': 'Anschreiben',
+  'packet.stage.message': 'Kurznachricht',
+
+  'bundle.languageIndependent': 'Englisch und Deutsch werden getrennt erstellt und geprüft.',
+  'bundle.languageReady': 'Erstellt',
+  'bundle.docxDefaultHint': 'DOCX ist das sicherste Format für Bewerbungssysteme. PDF bleibt verfügbar.',
+  // v2.4.3 — KI-Budget und der Weg ohne KI
   'bundle.noAi': 'Ohne KI anpassen',
   'bundle.noAiHint':
     '„Ohne KI anpassen“ funktioniert sofort, braucht keinen API-Schlüssel und verbraucht kein KI-Kontingent. Deine eigenen Formulierungen werden so sortiert, dass das Passende zuerst steht.',
@@ -1004,6 +1234,65 @@ const de: Record<TranslationKey, string> = {
     'Lebenslauf und Stellenbeschreibung brauchen in einer KI-Anfrage etwa {tokens} Tokens, dein Tarif erlaubt {limit} auf einmal.',
   'bundle.tooLargeAction':
     'Warten hilft nicht, weil die Anfrage selbst über dem Limit liegt. Nutze unten „Ohne KI anpassen“ oder füge eine kürzere Stellenbeschreibung ein.',
+
+
+  'flexible.card.prepare': 'Nachricht vorbereiten',
+  'flexPrep.title': 'Vorbereiten & melden',
+  'flexPrep.intro':
+    'Klar schreibt eine kurze, wahrheitsgemäße Nachricht aus deinen Angaben. Du kopierst sie in das Formular des Arbeitgebers — Klar bewirbt sich nie für dich.',
+  'flexPrep.detailsTitle': 'Deine Angaben (optional)',
+  'flexPrep.detailsHint': 'Nur für Nachricht und Kurzprofil. Bleibt auf diesem Gerät.',
+  'flexPrep.name': 'Name',
+  'flexPrep.email': 'E-Mail',
+  'flexPrep.phone': 'Telefon',
+  'flexPrep.saveDetails': 'Angaben speichern',
+  'flexPrep.detailsSaved': 'Gespeichert ✓',
+  'flexPrep.availabilityTitle': 'Deine Verfügbarkeit',
+  'flexPrep.availabilityEmpty': 'Ergänze Tage, Zeiten oder Wochenstunden in deiner flexiblen Suche, damit hier eine Verfügbarkeit steht.',
+  'flexPrep.messageTitle': 'Nachricht an den Arbeitgeber',
+  'flexPrep.messageHint': 'Jede Zeile stammt aus deinem eigenen Profil. Du kannst sie frei bearbeiten.',
+  'flexPrep.reset': 'Auf Klar-Version zurücksetzen',
+  'flexPrep.cardTitle': 'Kompaktes Kurzprofil',
+  'flexPrep.cardHint': 'Ein einseitiges Text-PDF zum Anhängen oder Übergeben. Ohne Foto und ohne Daten, die ein Arbeitgeber nicht erfragen darf.',
+  'flexPrep.cardDownload': 'Kurzprofil als PDF drucken / speichern',
+  'flexPrep.routeTitle': 'Der offizielle Weg des Arbeitgebers',
+  'flexPrep.routeBody': 'Öffnet die Seite des Arbeitgebers in einem neuen Tab. Füge dort deine Nachricht ein und schließe die Bewerbung selbst ab.',
+  'flexPrep.noAutoApply': 'Klar füllt keine Formulare aus, sendet nichts ab und bewirbt sich nie in deinem Namen.',
+
+  'settings.engine.title': 'KI-Engine',
+  'settings.engine.intro':
+    'Klar sendet KI-Anfragen an einen OpenAI-kompatiblen Endpunkt. Standard ist die gehostete Groq-API. Du kannst jeden anderen kompatiblen Endpunkt eintragen.',
+  'settings.engine.baseUrl': 'Endpunkt (Basis-URL)',
+  'settings.engine.model': 'Modell',
+  'settings.engine.fastModel': 'Schnelles Modell',
+  'settings.engine.requiresKey': 'Dieser Endpunkt benötigt einen API-Schlüssel',
+  'settings.engine.fastMatching': 'Schnelles Modell für das Matching verwenden',
+  'settings.engine.fastMatchingHint':
+    'Das Matching ist der KI-Schritt mit den meisten Anfragen. Das schnelle Modell verbraucht viel weniger Freikontingent; Anpassung und Anschreiben nutzen weiter das volle Modell.',
+  'settings.engine.save': 'Engine speichern',
+  'settings.engine.saved': 'Engine gespeichert ✓',
+  'settings.engine.reset': 'Zurück zum Standard',
+  'settings.engine.listModels': 'Verfügbare Modelle anzeigen',
+  'settings.engine.listing': 'Endpunkt wird gefragt…',
+  'settings.engine.modelsFound': 'Dieser Endpunkt bietet: {models}',
+  'settings.engine.modelsNone': 'Dieser Endpunkt hat keine Modellliste zurückgegeben.',
+  'settings.engine.warnMixed':
+    'Klar läuft über HTTPS. Dein Browser blockiert diesen http://-Endpunkt daher als Mixed Content. Ein lokales Modell braucht eine lokale (http) Kopie von Klar oder den Desktop-Build ab v2.6.',
+  'settings.engine.warnInsecureDev':
+    'Dieser Endpunkt nutzt einfaches http. Auf dieser lokalen Kopie von Klar funktioniert das, die gehostete https://-Seite blockiert es aber als Mixed Content.',
+  'settings.engine.warnNoKey': 'An diesen Endpunkt wird kein Schlüssel gesendet.',
+  'settings.engine.problem.baseUrl': 'Vollständige URL eingeben, z. B. https://api.groq.com/openai/v1',
+  'settings.engine.problem.scheme': 'Es werden nur http:// und https://-Endpunkte unterstützt.',
+  'settings.engine.problem.model': 'Bitte eine Modell-ID eingeben.',
+  'settings.engine.localNote':
+    'Lokale Laufzeiten (Ollama, LM Studio) bieten dieselbe API. Sie brauchen zusätzlich erlaubtes CORS — bei Ollama über OLLAMA_ORIGINS. Volle lokale Unterstützung kommt mit v2.6.',
+
+  'settings.flags.title': 'v2.5-Funktionen',
+  'settings.flags.intro': 'Einzelne Teile der neuen Bewerbungsqualität abschalten, ohne den Rest zu verlieren.',
+  'settings.flags.jdExtractor': 'Zusätzliche Anforderungen aus jeder Anzeige lesen',
+  'settings.flags.tailoringReview': 'Änderungsprüfung vor dem Download zeigen',
+  'settings.flags.customEngine': 'Eigene KI-Engine erlauben',
+  'settings.flags.packets': 'Bewerbungspaket pro Job speichern',
 }
 
 export const translations: Record<Locale, Record<TranslationKey, string>> = { de, en }

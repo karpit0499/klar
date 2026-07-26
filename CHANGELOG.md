@@ -4,6 +4,76 @@ This file records Klar’s product history from the newest release to the origin
 
 ---
 
+## v2.5 — Application Quality
+
+Klar could already find the right roles. What it produced for them was still generic: one hidden coverage number, a résumé rewrite you had to accept whole or not at all, an Anglo cover letter with no register control, and nothing kept once the drawer closed. Flexible Work could find a minijob but gave you no way to reach out. This release makes what Klar produces materially better than what you started with — and shows you exactly what it changed and why.
+
+### Added
+
+- **Review every change before you download it.** Tailoring no longer hands back a finished document. Each edit is listed on its own with your wording, Klar's wording, the reason, the evidence it rests on, the posting terms it gained, and its factual status. Accept, reject, edit or restore each one. Rejecting always brings your own sentence back.
+- **Four honest factual statuses.** Supported, Rephrased, Needs your confirmation, and Blocked. A change that states a number your résumé does not contain is Blocked — it cannot be accepted and cannot reach an export. Unsupported figures are refused, never suggested.
+- **A visible coverage loop.** The posting's key terms, what your résumé already evidences, and what it does not, with a progress bar and a plain note that "not evidenced" is not an instruction to add it. One button re-runs tailoring focused on the gaps.
+- **Requirements read from the posting itself.** Beyond the built-in technology dictionary, Klar can now read the concrete requirements a posting states — including non-technical ones like stakeholder communication — so coverage and tailoring work for marketing, logistics, lab and admin roles, not only engineering. Anything the posting does not actually contain is discarded, and results are cached so re-opening a job costs nothing.
+- **Cover-letter tone.** Concise, Balanced (the default) or Formal, in English or German, with the German letter written throughout in the Sie-form. The letter now mirrors the posting's vocabulary only where your evidence supports it.
+- **A short message** of four to six lines for an email or a LinkedIn note, alongside the full letter.
+- **Application packets.** Everything Klar produced for one job — the job snapshot, the tailored résumé and your review decisions, the letter, the short message, your notes, readiness, export history and a bounded version history — is saved as you work and is still there after a reload. English and German are prepared and reviewed independently. If a run is interrupted, Klar says so instead of losing it quietly.
+- **Flexible Work: prepare and reach out, with no résumé.** A short, truthful employer message built entirely from the details you chose to enter, an availability summary, and an optional one-page profile card you can print to PDF. You copy the message into the employer's own official route. Klar never fills in a form, never submits, and never applies on your behalf.
+- **Choose your AI engine.** Settings now holds the endpoint and the two model ids, so Klar can talk to any OpenAI-compatible service instead of only the built-in default. It can list the models an endpoint really serves, so a retired model id is a clear message instead of an opaque failure. Klar is honest about the limit: a local model on your own machine speaks plain http, which the hosted https site will block — the full local experience is v2.6 work.
+- **A cost switch for matching.** Matching is the step that makes the most AI requests. You can send just that step to the smaller, faster model and keep the full model for tailoring and letters.
+- **Per-feature switches.** Each part of this release can be turned off on its own in Settings, and each one falls back to a working, honest path.
+
+### Changed
+
+- A tailored résumé's summary now names the exact role you are applying for, phrased as an application rather than a title you hold.
+- A role's bullets are ordered by how much of the posting they genuinely evidence, instead of a simple two-way split.
+- Past job titles can be tidied but never promoted: a seniority word that is not in your own title is refused.
+- No term is repeated more than twice — modern applicant tracking systems penalise keyword stuffing.
+- DOCX is stated as the default download, with PDF alongside it.
+- Tailoring retries once, and only once, with the exact failure pointed out. After that Klar stops and explains what it could not improve safely instead of trying again endlessly.
+
+### Fixed
+
+- Corrected a comment in the configuration that described the AI model as 70B while the value was the 120B model.
+
+### Carried forward from v2.4.3
+
+The AI-budget work shipped in v2.4.3 is part of this release too, and is not undone by it: the projected prompt payload, the computed output reservation, the honest "too large" refusal, the learned provider limit, and **Tailor without AI**. In v2.5 the no-AI path also stores its own packet, is labelled as a reorder rather than a rewrite, and correctly shows no change review — because a reorder changes no sentence and there is nothing to review.
+
+### Data
+
+Local database schema 6 → 7, adding one new store for application packets. Nothing existing is read, moved or rewritten, so the upgrade cannot fail on your data. When the vault is enabled, packets live inside the encrypted content and never touch a plaintext store. The résumé schema itself is unchanged.
+
+---
+
+## v2.4.3 — Building a résumé no longer runs out of AI
+
+A student ran three searches, found the job she wanted, opened the application packet, clicked the English résumé button, and was told the request exceeded the AI plan's limit. She waited a minute and tried again. Same error. She tried German. Same error. She could not produce a document at all.
+
+Retrying could never have worked. A single résumé request was larger than everything the free AI plan allows in one go — measured at 8,203 to 10,297 tokens against a limit of 8,000 — so the feature had been impossible on the free plan for anyone with an ordinary résumé. Two thirds of every request was information the AI never reads.
+
+This release makes the request small enough to succeed, tells you what it will cost before you spend it, stops pretending that waiting will help when it will not, and adds a way to build a tailored résumé with no AI at all.
+
+### Fixed
+
+- **Tailoring works on a free AI plan.** The request now carries only what the AI actually needs. Internal identifiers, evidence references, your contact details, your languages and certifications, and the padding at the end of long job descriptions are no longer sent — none of it was ever read. A typical request dropped from about 9,200 tokens to about 2,900.
+- **Klar no longer reserves room it does not use.** Every AI request has to book space for the answer in advance, and that booking counts against your limit whether it is used or not. Klar was booking 4,096 tokens for an answer that needs about 1,300. The booking is now calculated from the size of your own résumé.
+- **"Try again" is gone where it was a lie.** When a request is too large on its own, waiting cannot help. Klar now says exactly that, shows the numbers, and points at the option that does work.
+- **Cover letters and job matching got the same treatment.** The letter request is roughly half its former size. Job scoring no longer sends map coordinates and empty fields it never reads, and books a smaller answer.
+- **A rate-limited search stops instead of hammering.** A token limit does not clear in the middle of a search, so Klar now stops after two failed batches rather than spending the rest of your requests on calls that cannot succeed. The honest "some jobs were not scored" notice was already there and still appears.
+- Corrected a comment in the configuration that described the AI model as 70B while the value was the 120B model.
+
+### Added
+
+- **Tailor without AI.** A résumé built instantly, with no API key and no AI usage at all. Klar reorders your own bullet points and skills so the experience this posting asks for comes first, and writes a summary from your own facts. Your sentences are never changed. It downloads as DOCX and PDF exactly like the AI version, and the packet always says which of the two produced the document — a reordering is never presented as a rewrite.
+- **The cost, before you spend it.** The résumé button now shows roughly how much of your AI allowance the request will use.
+- **Klar learns your real limit.** AI providers state their actual numbers when they refuse a request. Klar reads and remembers them, so its warnings match your plan instead of a guess.
+
+### Unchanged
+
+No data-schema change, no migration, no new dependencies. Nothing about how the AI is instructed changed — the no-fabrication rules, the evidence binding and the validator are byte-for-byte the same. Only the size of what Klar sends changed.
+
+---
+
 ## v2.4.2 — Flexible Work result correctness
 
 Flexible Work was showing jobs it should never have shown: senior professional roles, in cities nobody searched for, labelled with working arrangements the postings never mentioned. A Berlin minijob search could return a €90,000 tax-adviser vacancy in Kaiserslautern tagged "evening" and "kitchen". This release makes the results mean what they say.

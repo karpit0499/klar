@@ -8,8 +8,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { Button, Card, Badge, TextInput } from './atoms'
 import { OpportunityCard } from './OpportunityCard'
+import { FlexiblePrepare } from './FlexiblePrepare'
 import { useLocale } from '../i18n/LocaleProvider'
-import type { FlexibleWorkPreferences } from '../types'
+import type { FlexibleWorkPreferences, NormalizedJob } from '../types'
+import { openPacket, updatePacket } from '../packets/store'
 import { useFlexibleSearch } from '../flexible/useFlexibleSearch'
 import { createFlexibleSearch, recordFlexibleRun, getFlexibleSearch, splitFlexibleFresh } from '../flexible/savedFlexibleSearches'
 import type { SearchSessionSnapshot, SourceStatus } from '../flexible/searchSession'
@@ -19,16 +21,32 @@ export function FlexibleSearch({
   savedSearchId,
   onEdit,
   switcher,
+  onSavePreferences,
 }: {
   preferences: FlexibleWorkPreferences
   savedSearchId?: string
   onEdit?: () => void
   /** v2.4.1: the career/flexible segmented control, rendered above the results. */
   switcher?: React.ReactNode
+  /**
+   * v2.5: persists the optional contact details the prepare drawer collects.
+   * Omit it and the prepare action is hidden — Klar never shows a surface it
+   * cannot honestly save.
+   */
+  onSavePreferences?: (value: FlexibleWorkPreferences) => void | Promise<void>
 }) {
   const { locale, t } = useLocale()
   const de = locale === 'de'
   const { snapshot, running, usingFixtures, page, setPage, start, stop } = useFlexibleSearch(preferences, { auto: true })
+  // v2.5: which opportunity the résumé-free prepare drawer is open for.
+  const [preparing, setPreparing] = useState<NormalizedJob | null>(null)
+  const [preparedMessage, setPreparedMessage] = useState<string | undefined>(undefined)
+
+  async function openPrepare(job: NormalizedJob) {
+    const packet = await openPacket('flexible', job)
+    setPreparedMessage(packet.flexible?.message)
+    setPreparing(job)
+  }
   const [freshIds, setFreshIds] = useState<Set<string>>(new Set())
   const recordedRef = useRef<string | null>(null)
 
@@ -116,7 +134,11 @@ export function FlexibleSearch({
           <ul className="mt-4 grid gap-3" aria-label={t('flexible.search.resultsAria')}>
             {current.map((job) => (
               <li key={job.id} className="min-w-0">
-                <OpportunityCard job={job} isNew={freshIds.has(job.id)} />
+                <OpportunityCard
+                  job={job}
+                  isNew={freshIds.has(job.id)}
+                  onPrepare={onSavePreferences ? (item) => void openPrepare(item) : undefined}
+                />
               </li>
             ))}
           </ul>
@@ -148,6 +170,21 @@ export function FlexibleSearch({
         !running && snapshot && (
           <p className="mt-4 text-base text-muted">{de ? 'Keine Ergebnisse.' : 'No results.'} {t('flexible.search.emptyHint')}</p>
         )
+      )}
+
+      {preparing && onSavePreferences && (
+        <FlexiblePrepare
+          job={preparing}
+          preferences={preferences}
+          initialMessage={preparedMessage}
+          onSavePreferences={onSavePreferences}
+          onSaveDraft={(draft) =>
+            void updatePacket(`flexible:${preparing.id}`, (packet) => {
+              packet.flexible = { ...packet.flexible, message: draft.message, availability: draft.availability }
+            })
+          }
+          onClose={() => setPreparing(null)}
+        />
       )}
     </div>
   )

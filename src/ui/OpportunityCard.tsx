@@ -3,6 +3,10 @@
 // distinctly (roadmap §3), shows employer/location, taxonomy chips, published
 // hourly pay, an inferred-details note when Klar classified fields, a "New"
 // badge for saved-search deltas, and an accessible apply/official-route link.
+//
+// v2.5: an optional "Prepare message" action opens the résumé-free prepare
+// drawer. The apply link is unchanged — it still goes straight to the employer's
+// own official route, and Klar still never applies for anyone.
 // ============================================================================
 import { Card, Badge, Button } from './atoms'
 import { useLocale } from '../i18n/LocaleProvider'
@@ -10,7 +14,16 @@ import { employmentLabel, roleLabel, workplaceLabel } from '../flexible/labels'
 import { isInferredField } from '../flexible/opportunity'
 import type { NormalizedJob } from '../types'
 
-export function OpportunityCard({ job, isNew }: { job: NormalizedJob; isNew?: boolean }) {
+export function OpportunityCard({
+  job,
+  isNew,
+  onPrepare,
+}: {
+  job: NormalizedJob
+  isNew?: boolean
+  /** v2.5 — omitted when there is nothing to prepare with (no flexible profile). */
+  onPrepare?: (job: NormalizedJob) => void
+}) {
   const { locale, t } = useLocale()
   const de = locale === 'de'
   const openEntry = job.kind === 'open_entry'
@@ -84,12 +97,22 @@ export function OpportunityCard({ job, isNew }: { job: NormalizedJob; isNew?: bo
 
       {inferred && <p className="mt-2 text-xs text-faint">{t('flexible.card.inferred')}</p>}
 
-      <div className="mt-3">
+      <div className="mt-3 flex flex-wrap items-center gap-2">
         <a href={job.url} target="_blank" rel="noreferrer" className="inline-flex">
           <Button variant="accent" size="sm" aria-label={`${applyLabel} — ${openEntry ? job.programName ?? job.title : job.title}`}>
             {applyLabel}
           </Button>
         </a>
+        {onPrepare && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => onPrepare(job)}
+            aria-label={`${t('flexible.card.prepare')} — ${openEntry ? job.programName ?? job.title : job.title}`}
+          >
+            {t('flexible.card.prepare')}
+          </Button>
+        )}
       </div>
     </Card>
   )

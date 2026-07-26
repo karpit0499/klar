@@ -109,7 +109,10 @@ export function JobDrawer({
     try {
       const key = apiKey ?? await requireGroq(t('drawer.draftCoverLetter'))
       if (!key) return
-      const text = await draftCoverLetter(resume, { ...job, description }, key, match)
+      // v2.5: the letter API now takes an options object. The drawer keeps its
+      // quick draft — posting language, default tone, no extractor call. The full
+      // tone + coverage controls live in the packet drawer.
+      const text = await draftCoverLetter(resume, { ...job, description }, key, { match })
       setLetter(text)
     } catch (e) {
       setLetterErr(e instanceof Error ? e.message : t('drawer.letterFailed'))

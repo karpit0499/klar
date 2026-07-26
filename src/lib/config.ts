@@ -18,12 +18,22 @@ const workerFromEnv =
   (globalThis as { VITE_WORKER_URL?: string }).VITE_WORKER_URL
 export const WORKER_URL: string = (workerFromEnv || '').replace(/\/$/, '')
 
-/** Groq (LLM) — called DIRECTLY from the browser (verified CORS: allow-origin *). */
+/**
+ * Groq (LLM) — the DEFAULT engine, called DIRECTLY from the browser (verified
+ * CORS: allow-origin *).
+ *
+ * v2.5 note: these are now DEFAULTS, not the only option. `src/llm/provider.ts`
+ * stores a user-configurable `EngineSettings` (base URL + models) that seeds
+ * itself from this object, so any OpenAI-compatible endpoint can be used without
+ * editing code. Change these constants only if you want a different default for
+ * every fresh install.
+ */
 export const GROQ = {
   baseUrl: 'https://api.groq.com/openai/v1',
   /**
    * Model ID. Groq rotates its catalogue often — verify the current list at
    * https://console.groq.com/docs/models and change this one constant if needed.
+   * (Settings › AI engine can also list the ids the endpoint really serves.)
    * The 120B model gives the best parse/matching quality on the free tier.
    */
   model: 'openai/gpt-oss-120b',
@@ -72,4 +82,22 @@ export const BUDGET = {
   assumedTpm: 8000,
   minReservedTokens: 512,
   maxReservedTokens: 4096,
+} as const
+
+/** v2.5 · WS2 — the cached LLM job-requirement extractor. */
+export const JD_TERMS = {
+  /** How many extracted requirement sets to keep (LRU, oldest evicted). */
+  cacheLimit: 40,
+  /** Hard cap on requirements kept from one posting, after sanitising. */
+  maxTerms: 12,
+  /** Characters of the description sent to the extractor. */
+  descriptionChars: 4000,
+} as const
+
+/** v2.5 · WS4a/WS5 — generation limits. */
+export const GENERATION = {
+  /** Exactly ONE targeted automatic retry, then Klar explains the failure. */
+  maxTailoringAttempts: 2,
+  /** Bounded per-packet version history. */
+  packetVersionLimit: 5,
 } as const
