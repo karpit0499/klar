@@ -120,7 +120,19 @@ function buildUserPrompt(job: NormalizedJob): string {
 async function readCache(): Promise<CacheEntry[]> {
   try {
     const rows = await getSetting<CacheEntry[]>(CACHE_KEY)
-    return Array.isArray(rows) ? rows : []
+    if (!Array.isArray(rows)) return []
+    return rows.flatMap((value) => {
+      if (value === null || typeof value !== 'object' || Array.isArray(value)) return []
+      const row = value as Record<string, unknown>
+      const key = typeof row.key === 'string' ? row.key.trim() : ''
+      const extractedAt = typeof row.extractedAt === 'string' ? row.extractedAt : ''
+      const terms = Array.isArray(row.terms)
+        ? row.terms.filter((term): term is string => typeof term === 'string' && Boolean(term.trim()))
+        : []
+      // Old builds could cache an empty malformed provider response forever.
+      // Ignore those rows so a later request can recover.
+      return key && terms.length ? [{ key, terms, extractedAt }] : []
+    })
   } catch {
     return []
   }
@@ -139,7 +151,9 @@ async function writeCache(entry: CacheEntry): Promise<void> {
 export async function readCachedJdTerms(job: NormalizedJob): Promise<string[] | null> {
   const key = jdCacheKey(job)
   const hit = (await readCache()).find((row) => row.key === key)
-  return hit ? hit.terms : null
+  if (!hit) return null
+  const terms = sanitizeJdTerms(hit.terms, job)
+  return terms.length ? terms : null
 }
 
 export async function clearJdTermCache(): Promise<void> {
@@ -175,6 +189,13 @@ export async function extractJdRequirements(
       signal: options.signal,
     })
     const terms = sanitizeJdTerms(extractJson<unknown>(raw), job)
+    // An empty sanitized result may be a partial schema-recovery payload or a
+    // hallucinated list rejected by the verbatim guard. Do not persist it as a
+    // durable "nothing required" answer; keep the deterministic path and allow
+    // a future request to recover.
+    if (!terms.length) {
+      return { terms: [], source: 'dictionary-only', extractedAt: now }
+    }
     await writeCache({ key: jdCacheKey(job), terms, extractedAt: now })
     return { terms, source: 'llm', extractedAt: now }
   } catch {

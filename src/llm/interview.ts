@@ -28,21 +28,75 @@ export function buildInterviewPrompt(source: ResumeData | Profile, job: Normaliz
   ].join('\n')
 }
 
+/**
+ * Coerce a partial/schema-recovery response without inventing content.
+ * Unknown evidence IDs are discarded so a malformed model row can never make
+ * an answer look grounded in résumé evidence that was not actually supplied.
+ */
+export function coerceInterviewPrep(raw: unknown, source: ResumeData): InterviewPrep {
+  const parsed = record(raw)
+  const allowedEvidenceIds = new Set([
+    ...source.experience.map((role) => role.id),
+    ...source.experience.flatMap((role) => role.bullets.map((bullet) => bullet.id)),
+    ...source.skills.flatMap((group) => group.items.map((item) => item.id)),
+  ])
+  const likelyQuestions = Array.isArray(parsed.likelyQuestions)
+    ? parsed.likelyQuestions.flatMap((value) => {
+        const row = record(value)
+        const question = cleanText(row.question)
+        if (!question) return []
+        return [{
+          question,
+          evidenceIds: stringList(row.evidenceIds)
+            .filter((id) => allowedEvidenceIds.has(id)),
+          answerOutline: stringList(row.answerOutline),
+        }]
+      })
+    : []
+
+  return {
+    likelyQuestions,
+    questionsToAsk: stringList(parsed.questionsToAsk),
+    gapsToPrepare: stringList(parsed.gapsToPrepare),
+  }
+}
+
 export async function generateInterviewPrep(
   source: ResumeData | Profile,
   job: NormalizedJob,
   apiKey: string,
   signal?: AbortSignal,
 ): Promise<InterviewPrep> {
-  const raw = await groqChat({ apiKey, system: SYSTEM, user: buildInterviewPrompt(source, job), jsonSchema: INTERVIEW_OUTPUT, temperature: 0, maxTokens: 1800, signal })
-  const parsed = extractJson<Partial<InterviewPrep>>(raw)
-  return {
-    likelyQuestions: Array.isArray(parsed.likelyQuestions) ? parsed.likelyQuestions : [],
-    questionsToAsk: Array.isArray(parsed.questionsToAsk) ? parsed.questionsToAsk : [],
-    gapsToPrepare: Array.isArray(parsed.gapsToPrepare) ? parsed.gapsToPrepare : [],
-  }
+  // Convert a legacy profile only once. Its generated evidence IDs must be the
+  // same IDs used in both the prompt and the response validation below.
+  const resume = isResumeData(source) ? source : resumeFromLegacyProfile(source)
+  const raw = await groqChat({ apiKey, system: SYSTEM, user: buildInterviewPrompt(resume, job), jsonSchema: INTERVIEW_OUTPUT, temperature: 0, maxTokens: 1800, signal })
+  return coerceInterviewPrep(extractJson<unknown>(raw), resume)
 }
 
 function isResumeData(value: ResumeData | Profile): value is ResumeData {
   return 'experience' in value && 'contact' in value
+}
+
+function record(value: unknown): Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {}
+}
+
+function cleanText(value: unknown): string {
+  return typeof value === 'string' ? value.trim() : ''
+}
+
+function stringList(value: unknown): string[] {
+  if (!Array.isArray(value)) return []
+  const seen = new Set<string>()
+  const out: string[] = []
+  for (const raw of value) {
+    const item = cleanText(raw)
+    if (!item || seen.has(item)) continue
+    seen.add(item)
+    out.push(item)
+  }
+  return out
 }

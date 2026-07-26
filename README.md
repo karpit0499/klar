@@ -6,7 +6,7 @@ Klar is a private, browser-based workspace for finding work, understanding job
 fit, preparing grounded applications, and tracking every opportunity from first
 look to final decision.
 
-**Current release: v2.5.3.1**
+**Current release: v2.5.3.2**
 
 [**Open Klar →**](https://karpit0499.github.io/klar/) ·
 [What changed →](CHANGELOG.md) ·
@@ -19,6 +19,12 @@ _Dashboard_
 _Career search and matching_
 
 ---
+
+v2.5.3.2 makes AI-generated application work resilient to partial structured
+responses. If Groq rejects a generated JSON object, Klar can recover the usable
+object locally or make one bounded compatibility request. A missing section or
+empty bullet now keeps the verified source content instead of discarding the
+whole English or German packet.
 
 ## What Klar does
 
@@ -108,6 +114,8 @@ browsers commonly block.
 
 Klar refuses unsupported facts instead of inventing experience, figures, dates,
 skills, or credentials. AI output should still be reviewed before it is sent.
+Malformed or omitted AI fields fall back to the verified source résumé, and
+Klar derives its change notes locally from the evidence-audited edits.
 
 ### Flexible work without a résumé
 
@@ -275,6 +283,9 @@ browser origins must include the production GitHub Pages origin.
 
 ## Release history
 
+- **v2.5.3.2 — AI output recovery:** bounded Groq schema fallback, partial
+  evidence-safe résumé recovery, bilingual completion headroom, locally derived
+  change notes, and defensive normalization across every structured AI action.
 - **v2.5.3.1 — Search relevance:** role-and-market gating, stricter seniority and
   radius rules, corrected local ranking, stale-score invalidation, and editable
   job-market preferences.

@@ -62,7 +62,6 @@ export const TAILORING_OUTPUT: StructuredOutputSchema = {
       sourceIndex: integer,
       summary: string,
     })),
-    changeSummary: array(string),
   }),
 }
 

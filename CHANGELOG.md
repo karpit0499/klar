@@ -4,6 +4,53 @@ This file records Klar’s product history from the newest release to the origin
 
 ---
 
+## v2.5.3.2 — Structured-output and bilingual tailoring recovery hotfix
+
+### Fixed
+
+- Groq schema-generation failures are no longer collapsed into a generic
+  request error. When Groq includes a valid rejected JSON object, Klar recovers
+  it locally without spending a second request. If the rejected payload cannot
+  be read, Klar makes exactly one compatibility request in JSON-object mode.
+- Authentication, rate-limit, oversized-request, network, abort, and retired
+  model errors keep their original handling and are never retried as schema
+  failures.
+- Résumé tailoring now treats AI output as a partial edit proposal. Missing
+  roles or projects, omitted trailing fields, empty bullets, blank source
+  bullets, zero-bullet roles, duplicate entries, and invalid evidence indexes
+  retain the person’s verified source content instead of failing the whole
+  application packet.
+- English and German tailoring use the same recovery path. The response budget
+  now includes GPT-OSS reasoning and closing-JSON headroom, while prompts bound
+  summary, bullet, and project length to reduce truncation.
+- Cosmetic change notes are no longer model-generated or required by the
+  provider schema. Klar derives them locally from the audited changes in the
+  selected language.
+- Local evidence checks now compare English and German number punctuation
+  consistently, recognize more bilingual seniority terms, and cover common
+  email/CRM tools including HubSpot, Salesforce, Klaviyo, Mailchimp, Braze,
+  Marketo, and Google Analytics.
+- Résumé extraction, legacy profile parsing, AI matching, requirement
+  extraction, and interview preparation now sanitize missing, wrong-type,
+  duplicate, blank, or unknown nested fields before they can reach storage or
+  the UI. Interview evidence IDs must match IDs sent in the request.
+- Packet generation buttons remain disabled until the persistent packet row is
+  open, preventing a fast click from spending tokens on a result that cannot be
+  saved.
+
+### Quality gate
+
+- Exact regressions cover the reported provider-side missing
+  `projects`/`changeSummary` failure and the German empty-bullet failure.
+- Cross-language fixtures cover missing sections, invalid evidence, blank and
+  zero-bullet roles, source-only project recovery, localized numbers, and
+  locally derived change notes.
+- Cross-action fixtures cover malformed match rows, unknown job and interview
+  IDs, nested profile/extraction drift, empty requirement-cache entries, retry
+  exclusions, and sensitive failed-generation redaction.
+
+---
+
 ## v2.5.3.1 — Targeted search-relevance hotfix
 
 ### Fixed

@@ -86,9 +86,23 @@ export function isBulkAcceptable(statuses: FactualStatus[]): boolean {
 function normalizeNumberToken(raw: string): string {
   const percent = raw.trim().endsWith('%')
   let digits = raw.replace(/%/g, '').trim()
-  // German thousands separators: 1.234 → 1234; decimal commas: 12,5 → 12.5
-  if (/^\d{1,3}(\.\d{3})+(,\d+)?$/.test(digits)) digits = digits.replace(/\./g, '')
-  digits = digits.replace(',', '.')
+  // A rewrite may legitimately localise number punctuation:
+  // English 1,234 ↔ German 1.234. Treat a single three-digit group as a
+  // thousands separator in either language, while keeping 12,5 / 12.5 as a
+  // decimal. This avoids rejecting a translation of the same sourced metric.
+  if (/^\d{1,3}([.,]\d{3})+$/.test(digits)) {
+    digits = digits.replace(/[.,]/g, '')
+  } else if (/^\d{1,3}([.,]\d{3})+[.,]\d+$/.test(digits)) {
+    const lastComma = digits.lastIndexOf(',')
+    const lastDot = digits.lastIndexOf('.')
+    const decimalAt = Math.max(lastComma, lastDot)
+    digits =
+      digits.slice(0, decimalAt).replace(/[.,]/g, '') +
+      '.' +
+      digits.slice(decimalAt + 1)
+  } else {
+    digits = digits.replace(',', '.')
+  }
   const value = Number(digits)
   const body = Number.isFinite(value) ? String(value) : digits
   return percent ? `${body}%` : body
@@ -245,7 +259,10 @@ export function auditBullet({ after, sources, jdTerms = [] }: BulletAuditInput):
 
 const SENIORITY_WORDS = [
   'senior', 'lead', 'head', 'principal', 'chief', 'director', 'staff', 'vp',
-  'manager', 'leitung', 'leiter', 'leiterin',
+  'vice president', 'executive', 'owner', 'partner', 'manager',
+  'leitung', 'leiter', 'leiterin', 'direktor', 'direktorin',
+  'geschäftsführer', 'geschäftsführerin', 'vorstand', 'führungskraft',
+  'teamleitung', 'bereichsleitung', 'abteilungsleitung',
 ]
 
 function seniorityWordsIn(text: string): string[] {

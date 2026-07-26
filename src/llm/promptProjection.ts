@@ -68,23 +68,27 @@ export type ProjectedJob = {
 /** Build the minimal résumé view a rewrite needs. Pure. */
 export function projectResumeForPrompt(source: ResumeData): ProjectedResume {
   return {
-    summary: source.summary || undefined,
+    summary: source.summary?.trim() || undefined,
     experience: source.experience.map((role, sourceIndex) => ({
       sourceIndex,
-      title: role.title,
-      company: role.company,
+      title: role.title.trim(),
+      company: role.company.trim(),
       period: formatPeriod(role.start, role.end, role.current),
-      bullets: role.bullets.map((bullet, sourceBulletIndex) => ({
-        sourceBulletIndex,
-        text: bullet.text,
-      })),
+      // Keep original indexes while withholding blank rows. A blank sentence
+      // cannot support a rewrite and commonly provokes an empty model bullet.
+      bullets: role.bullets.flatMap((bullet, sourceBulletIndex) => {
+        const text = bullet.text.trim()
+        return text ? [{ sourceBulletIndex, text }] : []
+      }),
     })),
     projects: source.projects.map((project, sourceIndex) => ({
       sourceIndex,
-      name: project.name,
-      summary: project.summary ?? '',
+      name: project.name.trim(),
+      summary: project.summary?.trim() ?? '',
     })),
-    skills: source.skills.flatMap((group) => group.items.map((item) => item.name)),
+    skills: source.skills
+      .flatMap((group) => group.items.map((item) => item.name.trim()))
+      .filter(Boolean),
   }
 }
 

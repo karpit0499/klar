@@ -27,7 +27,11 @@ import { pickLanguage, tailorResume } from '../resume/tailor'
 import {
   acceptAll, applyChanges, restoreChange, setDecision, setEditedText, type ChangeRecord,
 } from '../resume/changeSet'
-import { estimateTailoringRequest, tailorResumeWithAi } from '../llm/tailorResume'
+import {
+  deriveTailoringChangeSummary,
+  estimateTailoringRequest,
+  tailorResumeWithAi,
+} from '../llm/tailorResume'
 import { canAfford, loadTpmLimit } from '../llm/budget'
 import { extractJdRequirements } from '../llm/jdTerms'
 import { loadAppFlags, DEFAULT_APP_FLAGS, type AppFlags } from '../lib/appFlags'
@@ -213,6 +217,10 @@ export function ApplicationBundle({
 
   const state = packet?.languages[resumeLanguage]
   const readiness = packetReadiness(packet, resumeLanguage)
+  const changeSummary = useMemo(
+    () => state ? deriveTailoringChangeSummary(state.changes, resumeLanguage) : [],
+    [state, resumeLanguage],
+  )
 
   const tailored = useMemo(() => {
     if (!state?.baseline || !state.source) return null
@@ -223,13 +231,16 @@ export function ApplicationBundle({
   const aiBlocked = affordable != null && !affordable.ok
 
   async function runTailoring(language: ResumeLanguage, focusMissing = false) {
+    // Opening the persistent packet is asynchronous. Never spend tokens before
+    // there is a row in which the result can be saved.
+    if (!packet) return
     setTailoringError(null)
     if (focusMissing) setImproving(true)
     else setTailoringLanguage(language)
     try {
       const key = apiKey ?? (await requireGroq(t('bundle.generateResume')))
       if (!key) return
-      if (packet) await beginGeneration(packet.id, { stage: 'resume', language, startedAt: new Date().toISOString() })
+      await beginGeneration(packet.id, { stage: 'resume', language, startedAt: new Date().toISOString() })
 
       const extracted = flags.jdRequirementExtractor
         ? await extractJdRequirements(job, key, { force: focusMissing })
@@ -237,7 +248,7 @@ export function ApplicationBundle({
 
       const result = await tailorResumeWithAi(resume, job, key, language, { jdTerms: extracted.terms })
 
-      if (packet && state?.baseline) await pushPacketVersion(packet.id, `regenerate-${language}`)
+      if (state?.baseline) await pushPacketVersion(packet.id, `regenerate-${language}`)
       await mutate((row) => {
         const previous = row.languages[language] ?? emptyLanguageState()
         row.languages[language] = {
@@ -269,7 +280,7 @@ export function ApplicationBundle({
         available: 'Your source résumé and previous output remain unchanged.',
         action: { label: t('common.regenerate'), kind: 'retry' },
       }))
-      if (packet) await endGeneration(packet.id)
+      await endGeneration(packet.id)
     } finally {
       setTailoringLanguage(null)
       setImproving(false)
@@ -341,9 +352,10 @@ export function ApplicationBundle({
    * was rewritten and there is therefore nothing to review.
    */
   async function runDeterministicTailoring(language: ResumeLanguage) {
+    if (!packet) return
     setTailoringError(null)
     const result = tailorResume(resume, { ...job, language })
-    if (packet && state?.baseline) await pushPacketVersion(packet.id, `no-ai-${language}`)
+    if (state?.baseline) await pushPacketVersion(packet.id, `no-ai-${language}`)
     await mutate((row) => {
       const previous = row.languages[language] ?? emptyLanguageState()
       row.languages[language] = {
@@ -658,11 +670,11 @@ export function ApplicationBundle({
                 )}
               </ul>
 
-              {state && state.changeSummary.length > 0 && (
+              {changeSummary.length > 0 && (
                 <div className="mt-3">
                   <h4 className="text-sm font-semibold text-ink">{t('bundle.changeSummary')}</h4>
                   <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-muted">
-                    {state.changeSummary.map((change, index) => (
+                    {changeSummary.map((change, index) => (
                       <li key={`${index}-${change}`} className="wrap-anywhere">{change}</li>
                     ))}
                   </ul>

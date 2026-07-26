@@ -19,7 +19,9 @@ const LEGACY_FAILED_RATIONALE = 'Scoring failed for this batch.'
 export function isFailedMatchPlaceholder(match: MatchResult): boolean {
   // IndexedDB can contain rows written by older JavaScript bundles, so coerce
   // the score and trim the message instead of assuming today's runtime types.
-  return Number(match.fitScore) === 0 && match.rationale.trim() === LEGACY_FAILED_RATIONALE
+  return Number(match.fitScore) === 0 &&
+    typeof match.rationale === 'string' &&
+    match.rationale.trim() === LEGACY_FAILED_RATIONALE
 }
 
 /** Build the (deterministic, testable) user prompt for one batch. */
@@ -88,38 +90,67 @@ export function buildRerankPrompt(
   ].join('\n')
 }
 
-type RawScore = Partial<MatchResult> & { jobId: string }
-
 /** Parse + defensively normalize the model's JSON into MatchResult[]. */
-export function parseRerank(text: string, scoredAt: string, model: string): MatchResult[] {
-  const parsed = extractJson<{ results?: RawScore[] }>(text)
-  const rows = parsed.results ?? []
-  return rows.map((r) => {
-    const fitScore = clampScore(r.fitScore)
-    return {
-      jobId: r.jobId,
+export function parseRerank(
+  text: string,
+  scoredAt: string,
+  model: string,
+  expectedJobIds?: readonly string[],
+): MatchResult[] {
+  const parsed = record(extractJson<unknown>(text))
+  const rows = Array.isArray(parsed.results) ? parsed.results : []
+  const expectedOrder = expectedJobIds
+    ? uniqueStrings(expectedJobIds)
+    : undefined
+  const expected = expectedOrder ? new Set(expectedOrder) : undefined
+  const byJobId = new Map<string, MatchResult>()
+  const modelOrder: string[] = []
+
+  for (const value of rows) {
+    const row = record(value)
+    const jobId = cleanText(row.jobId)
+    const rawScore = finiteNumber(row.fitScore)
+    // An omitted score is not an honest 0/100. Drop malformed rows so callers
+    // never cache a provider/schema failure as a real weak match.
+    if (!jobId || rawScore == null) continue
+    if (expected && !expected.has(jobId)) continue
+    if (byJobId.has(jobId)) continue
+
+    const fitScore = clampScore(rawScore)
+    byJobId.set(jobId, {
+      jobId,
       fitScore,
-      verdict: r.verdict ?? verdictFromScore(fitScore),
-      rationale: r.rationale ?? '',
-      matchedSkills: r.matchedSkills ?? [],
-      missingSkills: r.missingSkills ?? [],
-      salaryFit: r.salaryFit ?? 'unknown',
-      locationFit: r.locationFit,
-      seniorityFit: r.seniorityFit,
-      redFlags: r.redFlags ?? [],
+      verdict: verdict(row.verdict) ?? verdictFromScore(fitScore),
+      rationale: cleanText(row.rationale),
+      matchedSkills: stringList(row.matchedSkills),
+      missingSkills: stringList(row.missingSkills),
+      salaryFit: salaryFit(row.salaryFit) ?? 'unknown',
+      locationFit: locationFit(row.locationFit),
+      seniorityFit: seniorityFit(row.seniorityFit),
+      redFlags: stringList(row.redFlags),
       // Per-factor breakdown for the explainable score. If the model omitted it,
       // fall back to the holistic fitScore so the composite is always defined.
-      factors: coerceFactors(r.factors, fitScore),
-      confidence: clampUnit(r.confidence),
+      factors: coerceFactors(row.factors, fitScore),
+      confidence: clampUnit(row.confidence),
       scoredAt,
       modelVersion: model,
-    }
+    })
+    modelOrder.push(jobId)
+  }
+
+  // When a requested batch is supplied, preserve its order and reject invented
+  // job IDs and duplicate rows. Without it, retain the model's original order
+  // for backwards-compatible direct callers.
+  const order = expectedOrder ?? modelOrder
+  return order.flatMap((jobId) => {
+    const match = byJobId.get(jobId)
+    return match ? [match] : []
   })
 }
 
 /** Coerce a factors object to four 0–100 numbers, defaulting each to `fallback`. */
 function coerceFactors(raw: unknown, fallback: number): MatchResult['factors'] {
-  const f = (raw ?? {}) as Record<string, unknown>
+  const f = record(raw)
   const one = (v: unknown) => (v == null ? fallback : clampScore(v))
   return {
     skills: one(f.skills),
@@ -142,6 +173,65 @@ function clampScore(n: unknown): number {
   if (!isFinite(v)) return 0
   return Math.max(0, Math.min(100, Math.round(v)))
 }
+
+function record(value: unknown): Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {}
+}
+
+function cleanText(value: unknown): string {
+  return typeof value === 'string' ? value.trim() : ''
+}
+
+function finiteNumber(value: unknown): number | undefined {
+  if (typeof value === 'number') return isFinite(value) ? value : undefined
+  if (typeof value !== 'string' || !value.trim()) return undefined
+  const parsed = Number(value)
+  return isFinite(parsed) ? parsed : undefined
+}
+
+function stringList(value: unknown): string[] {
+  if (!Array.isArray(value)) return []
+  return uniqueStrings(value)
+}
+
+function uniqueStrings(values: readonly unknown[]): string[] {
+  const seen = new Set<string>()
+  const out: string[] = []
+  for (const value of values) {
+    const item = cleanText(value)
+    if (!item || seen.has(item)) continue
+    seen.add(item)
+    out.push(item)
+  }
+  return out
+}
+
+function verdict(value: unknown): MatchResult['verdict'] | undefined {
+  return value === 'strong' || value === 'good' || value === 'stretch' || value === 'weak'
+    ? value
+    : undefined
+}
+
+function salaryFit(value: unknown): MatchResult['salaryFit'] | undefined {
+  return value === 'above' || value === 'in-range' || value === 'below' || value === 'unknown'
+    ? value
+    : undefined
+}
+
+function locationFit(value: unknown): MatchResult['locationFit'] | undefined {
+  return value === 'exact' || value === 'commutable' || value === 'remote' || value === 'mismatch'
+    ? value
+    : undefined
+}
+
+function seniorityFit(value: unknown): MatchResult['seniorityFit'] | undefined {
+  return value === 'under' || value === 'match' || value === 'over'
+    ? value
+    : undefined
+}
+
 function verdictFromScore(s: number): MatchResult['verdict'] {
   if (s >= 80) return 'strong'
   if (s >= 60) return 'good'
@@ -172,7 +262,16 @@ export async function rerankBatch(
     maxTokens: estimateRerankOutputTokens(batch.length),
     signal,
   })
-  return parseRerank(text, new Date().toISOString(), resolveModel(engine, { fast: engine.fastMatching }))
+  const parsed = parseRerank(
+    text,
+    new Date().toISOString(),
+    resolveModel(engine, { fast: engine.fastMatching }),
+    batch.map((job) => job.id),
+  )
+  if (batch.length && parsed.length === 0) {
+    throw new Error('Scoring response contained no valid job results.')
+  }
+  return parsed
 }
 
 /** Score all candidates, batch by batch, invoking onProgress after each batch. */

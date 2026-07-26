@@ -55,10 +55,11 @@ type RewrittenProject = {
   summary: string
 }
 
-type ModelTailoringResponse = {
+export type ModelTailoringResponse = {
   summary: string
   experience: RewrittenExperience[]
   projects: RewrittenProject[]
+  /** Derived locally. It is deliberately not part of the provider contract. */
   changeSummary: string[]
 }
 
@@ -86,6 +87,18 @@ function isNonEmptyString(value: unknown): value is string {
   return typeof value === 'string' && value.trim().length > 0
 }
 
+function objectValue(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null
+  return value as Record<string, unknown>
+}
+
+/** Defensive compatibility for pre-v2.3 fixtures and restored legacy data. */
+function sourceBulletText(value: unknown): string {
+  if (typeof value === 'string') return value.trim()
+  const row = objectValue(value)
+  return typeof row?.text === 'string' ? row.text.trim() : ''
+}
+
 /**
  * Some models occasionally return one-based bullet indexes:
  * 1, 2, 3 instead of the required 0, 1, 2.
@@ -99,28 +112,31 @@ function normalizeClearlyOneBasedEvidenceIndexes(
 ): void {
   if (!value || typeof value !== 'object') return
 
-  const response = value as Partial<ModelTailoringResponse>
-  if (!Array.isArray(response.experience)) return
+  const response = objectValue(value)
+  if (!Array.isArray(response?.experience)) return
 
   for (const item of response.experience) {
-    if (!Number.isInteger(item?.sourceIndex)) continue
+    const role = objectValue(item)
+    if (!role || !Number.isInteger(role.sourceIndex)) continue
+    const sourceIndex = role.sourceIndex as number
 
     if (
-      item.sourceIndex < 0 ||
-      item.sourceIndex >= source.experience.length ||
-      !Array.isArray(item.bullets)
+      sourceIndex < 0 ||
+      sourceIndex >= source.experience.length ||
+      !Array.isArray(role.bullets)
     ) {
       continue
     }
 
     const bulletCount =
-      source.experience[item.sourceIndex].bullets.length
+      source.experience[sourceIndex].bullets.length
 
-    const returnedIndexes = item.bullets.flatMap((bullet) =>
-      Array.isArray(bullet?.sourceBulletIndexes)
-        ? bullet.sourceBulletIndexes
-        : [],
-    )
+    const returnedIndexes = role.bullets.flatMap((bullet) => {
+      const row = objectValue(bullet)
+      return Array.isArray(row?.sourceBulletIndexes)
+        ? row.sourceBulletIndexes
+        : []
+    })
 
     const clearlyOneBased =
       bulletCount > 0 &&
@@ -135,10 +151,143 @@ function normalizeClearlyOneBasedEvidenceIndexes(
 
     if (!clearlyOneBased) continue
 
-    for (const bullet of item.bullets) {
-      bullet.sourceBulletIndexes =
-        bullet.sourceBulletIndexes.map((index) => index - 1)
+    for (const bullet of role.bullets) {
+      const row = objectValue(bullet)
+      if (!Array.isArray(row?.sourceBulletIndexes)) continue
+      row.sourceBulletIndexes =
+        row.sourceBulletIndexes.map((index) =>
+          Number.isInteger(index) ? (index as number) - 1 : index,
+        )
     }
+  }
+}
+
+/**
+ * Treat the model response as a partial edit proposal, never as a replacement
+ * document. Anything absent, empty, duplicated, or tied to invalid/blank
+ * evidence falls back to the person's source text. This keeps a truncated
+ * English or German completion usable without weakening the evidence audit.
+ */
+export function normalizeTailoringResponse(
+  value: unknown,
+  source: ResumeData,
+  deterministicSummary?: string,
+): ModelTailoringResponse {
+  normalizeClearlyOneBasedEvidenceIndexes(value, source)
+  const response = objectValue(value)
+
+  const summary = [
+    response?.summary,
+    deterministicSummary,
+    source.summary,
+    source.experience.find((role) => role.title.trim())?.title,
+    source.contact.name,
+  ].find(isNonEmptyString)?.trim() ?? ''
+
+  const rawRoles = Array.isArray(response?.experience)
+    ? response.experience
+    : []
+  const rolesBySourceIndex = new Map<number, Record<string, unknown>>()
+  for (const value of rawRoles) {
+    const role = objectValue(value)
+    if (!role || !Number.isInteger(role.sourceIndex)) continue
+    const sourceIndex = role.sourceIndex as number
+    if (
+      sourceIndex < 0 ||
+      sourceIndex >= source.experience.length ||
+      rolesBySourceIndex.has(sourceIndex)
+    ) {
+      continue
+    }
+    rolesBySourceIndex.set(sourceIndex, role)
+  }
+
+  const experience = source.experience.map((sourceRole, sourceIndex) => {
+    const proposal = rolesBySourceIndex.get(sourceIndex)
+    const bullets: RewrittenBullet[] = []
+    const covered = new Set<number>()
+    const rawBullets = Array.isArray(proposal?.bullets)
+      ? proposal.bullets
+      : []
+
+    for (const value of rawBullets) {
+      const bullet = objectValue(value)
+      if (!bullet || !isNonEmptyString(bullet.text)) continue
+      if (!Array.isArray(bullet.sourceBulletIndexes) || bullet.sourceBulletIndexes.length === 0) {
+        continue
+      }
+
+      const indexes = [...new Set(bullet.sourceBulletIndexes)]
+      if (
+        indexes.some(
+          (index) =>
+            !Number.isInteger(index) ||
+            (index as number) < 0 ||
+            (index as number) >= sourceRole.bullets.length ||
+            !sourceBulletText(sourceRole.bullets[index as number]),
+        )
+      ) {
+        continue
+      }
+
+      const sourceBulletIndexes = indexes as number[]
+      bullets.push({ text: bullet.text.trim(), sourceBulletIndexes })
+      sourceBulletIndexes.forEach((index) => covered.add(index))
+    }
+
+    // A partial/malformed proposal must not silently delete source facts.
+    sourceRole.bullets.forEach((bullet, sourceBulletIndex) => {
+      const text = sourceBulletText(bullet)
+      if (!text || covered.has(sourceBulletIndex)) return
+      bullets.push({ text, sourceBulletIndexes: [sourceBulletIndex] })
+    })
+
+    return {
+      sourceIndex,
+      title: sourceRole.title.trim() && isNonEmptyString(proposal?.title)
+        ? proposal.title.trim()
+        : sourceRole.title.trim(),
+      bullets,
+    }
+  })
+
+  const rawProjects = Array.isArray(response?.projects)
+    ? response.projects
+    : []
+  const projectsBySourceIndex = new Map<number, Record<string, unknown>>()
+  for (const value of rawProjects) {
+    const project = objectValue(value)
+    if (!project || !Number.isInteger(project.sourceIndex)) continue
+    const sourceIndex = project.sourceIndex as number
+    if (
+      sourceIndex < 0 ||
+      sourceIndex >= source.projects.length ||
+      projectsBySourceIndex.has(sourceIndex)
+    ) {
+      continue
+    }
+    projectsBySourceIndex.set(sourceIndex, project)
+  }
+
+  const projects = source.projects.map((sourceProject, sourceIndex) => {
+    const proposal = projectsBySourceIndex.get(sourceIndex)
+    const original = sourceProject.summary?.trim() ?? ''
+    return {
+      sourceIndex,
+      // No source text means there is no evidence from which to invent a rewrite.
+      summary:
+        original && isNonEmptyString(proposal?.summary)
+          ? proposal.summary.trim()
+          : original,
+    }
+  })
+
+  return {
+    summary,
+    experience,
+    projects,
+    // Cosmetic notes are derived after audited ChangeRecords exist.
+    changeSummary: [],
   }
 }
 
@@ -161,12 +310,18 @@ export function validateTailoringResponse(
     }
     if (seen.has(item.sourceIndex)) throw new Error('The same source role was returned more than once.')
     seen.add(item.sourceIndex)
-    if (!isNonEmptyString(item.title)) throw new Error('An experience entry has no title.')
-    if (!Array.isArray(item.bullets) || item.bullets.length === 0) {
+    if (typeof item.title !== 'string' || (source.experience[item.sourceIndex].title.trim() && !item.title.trim())) {
+      throw new Error('An experience entry has no title.')
+    }
+    if (!Array.isArray(item.bullets)) {
       throw new Error('An experience entry has no bullets.')
     }
 
     const sourceBullets = source.experience[item.sourceIndex].bullets
+    const hasUsableSourceBullet = sourceBullets.some((bullet) => sourceBulletText(bullet))
+    if (hasUsableSourceBullet && item.bullets.length === 0) {
+      throw new Error('An experience entry has no bullets.')
+    }
     for (const bullet of item.bullets) {
       if (!isNonEmptyString(bullet?.text)) throw new Error('A rewritten bullet is empty.')
       if (!Array.isArray(bullet.sourceBulletIndexes) || bullet.sourceBulletIndexes.length === 0) {
@@ -174,7 +329,11 @@ export function validateTailoringResponse(
       }
       if (
         bullet.sourceBulletIndexes.some(
-          (index) => !Number.isInteger(index) || index < 0 || index >= sourceBullets.length,
+          (index) =>
+            !Number.isInteger(index) ||
+            index < 0 ||
+            index >= sourceBullets.length ||
+            !sourceBulletText(sourceBullets[index]),
         )
       ) {
         throw new Error('A rewritten bullet references unknown source evidence.')
@@ -219,7 +378,7 @@ export function systemPrompt(language: ResumeLanguage): string {
 Write all generated prose in ${languageName}.
 
 Rules:
-1. Aggressively rewrite the summary, every experience bullet that can be improved, and every existing project summary.
+1. Rewrite the summary, supported experience bullets, and existing project summaries concisely.
 2. Lead with evidence that is most relevant to the job posting.
 3. Prefer action + scope + outcome phrasing.
 4. Mirror the job posting's terminology only when the source résumé supports it. The posting's key requirements are supplied as job.requirements — use that exact wording where, and only where, the source bullet already describes that work.
@@ -235,7 +394,9 @@ Rules:
 14. Return every source experience role exactly once using its supplied sourceIndex.
 15. Return every source project exactly once using its supplied sourceIndex.
 16. Rewrite a project summary only when a source summary exists. Otherwise return an empty summary.
-17. Return valid JSON only using exactly this shape:
+17. If a source role has no supplied bullets, return "bullets": [] for that role. Never invent a bullet.
+18. Keep the summary to at most 55 words, each bullet to at most 32 words, and each project summary to at most 40 words. Do not write change notes or explanations.
+19. Return compact valid JSON only, with no markdown, using exactly this shape. When the input has no projects, return "projects": []:
 
 {
   "summary": "string",
@@ -256,8 +417,7 @@ Rules:
       "sourceIndex": 0,
       "summary": "string"
     }
-  ],
-  "changeSummary": ["string"]
+  ]
 }`
 }
 
@@ -312,13 +472,20 @@ export function auditTailoringResponse(
   jdTerms: string[],
 ): AuditedResponse {
   const blockers: AuditedResponse['blockers'] = []
-  const allBullets = source.experience.flatMap((role) => role.bullets.map((bullet) => bullet.text))
+  const allBullets = source.experience
+    .flatMap((role) => role.bullets.map(sourceBulletText))
+    .filter(Boolean)
   const sourceTitles = source.experience.map((role) => role.title)
+  const summarySources = [
+    source.summary ?? '',
+    ...allBullets,
+    ...source.skills.flatMap((group) => group.items.map((item) => item.name)),
+  ].filter((text) => text.trim())
 
   const summaryFinding = auditSummary(response.summary.trim(), {
     jobTitle: job.title,
     sourceTitles,
-    sources: allBullets,
+    sources: summarySources,
     jdTerms,
   })
   if (summaryFinding.status === 'blocked') {
@@ -346,7 +513,9 @@ export function auditTailoringResponse(
     }
 
     role.bullets.forEach((bullet, bulletIndex) => {
-      const sources = bullet.sourceBulletIndexes.map((index) => sourceRole.bullets[index].text)
+      const sources = bullet.sourceBulletIndexes.map((index) =>
+        sourceBulletText(sourceRole.bullets[index]),
+      )
       const finding = auditBullet({ after: bullet.text.trim(), sources, jdTerms })
       bullets.push({
         roleIndex: role.sourceIndex,
@@ -428,6 +597,48 @@ export function tooLargeError(cost: RequestCost, limit: number): AppError {
   })
 }
 
+/** Build cosmetic review notes from accepted, audited changes — never from AI. */
+export function deriveTailoringChangeSummary(
+  changes: ChangeRecord[],
+  language: ResumeLanguage,
+): string[] {
+  const accepted = changes.filter(
+    (change) =>
+      change.decision === 'accepted' &&
+      change.target.kind !== 'bullet-removed' &&
+      change.before.trim() !== (change.edited ?? change.after).trim(),
+  )
+  const summaryChanged = accepted.some((change) => change.target.kind === 'summary')
+  const experienceChanges = accepted.filter(
+    (change) => change.target.kind === 'role-title' || change.target.kind === 'bullet',
+  ).length
+  const projectChanges = accepted.filter(
+    (change) => change.target.kind === 'project-summary',
+  ).length
+
+  if (language === 'de') {
+    return [
+      ...(summaryChanged ? ['Kurzprofil auf die Stelle ausgerichtet.'] : []),
+      ...(experienceChanges
+        ? [`${experienceChanges} Formulierung${experienceChanges === 1 ? '' : 'en'} aus belegter Erfahrung angepasst.`]
+        : []),
+      ...(projectChanges
+        ? [`${projectChanges} Projektbeschreibung${projectChanges === 1 ? '' : 'en'} aus dem Ausgangstext angepasst.`]
+        : []),
+    ]
+  }
+
+  return [
+    ...(summaryChanged ? ['Professional summary aligned to the role.'] : []),
+    ...(experienceChanges
+      ? [`${experienceChanges} experience statement${experienceChanges === 1 ? '' : 's'} reframed from source evidence.`]
+      : []),
+    ...(projectChanges
+      ? [`${projectChanges} project summar${projectChanges === 1 ? 'y' : 'ies'} reframed from source text.`]
+      : []),
+  ]
+}
+
 // --- The public entry point ---------------------------------------------------
 
 export async function tailorResumeWithAi(
@@ -467,16 +678,17 @@ export async function tailorResumeWithAi(
       maxTokens: priced.maxTokens,
       signal: options.signal,
     })
-    const candidate = extractJson<unknown>(raw)
-
-    // Correct a clearly one-based response before performing
-    // the strict no-fabrication validation.
-    normalizeClearlyOneBasedEvidenceIndexes(candidate, source)
-
+    let candidate: ModelTailoringResponse
     try {
+      candidate = normalizeTailoringResponse(
+        extractJson<unknown>(raw),
+        source,
+        deterministic.data.summary,
+      )
       validateTailoringResponse(candidate, source)
     } catch (error) {
-      // Shape failures burn the same single retry, then surface honestly.
+      // Invalid/truncated JSON burns the same single retry, then surfaces
+      // honestly. Structurally partial valid JSON is repaired locally above.
       if (attempts >= GENERATION.maxTailoringAttempts) throw error
       corrections = [error instanceof Error ? error.message : String(error)]
       continue
@@ -509,7 +721,7 @@ export async function tailorResumeWithAi(
     baseline,
     source,
     changes,
-    changeSummary: parsed.changeSummary.map((item) => item.trim()),
+    changeSummary: deriveTailoringChangeSummary(changes, language),
     attempts,
     unresolved: audited.blockers.map((blocker) => blocker.issue),
     data: applyChanges(baseline, source, changes),
