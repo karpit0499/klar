@@ -11,6 +11,7 @@
 // Keep FABRIC_HOSTS in sync with src/flexible/connectors/registry.de.ts
 // (FABRIC_ALLOWED_HOSTS). A test asserts the registry's hosts are a subset.
 // ============================================================================
+import { readBoundedBody } from './groq'
 
 /** host → allowed path prefixes. '/' approves the whole host. */
 export const FABRIC_HOSTS: Record<string, string[]> = {
@@ -130,16 +131,22 @@ export async function fabricFetch(
     // Manual redirect handling — validate every hop against the allowlist.
     if (res.status >= 300 && res.status < 400) {
       const location = res.headers.get('location')
-      if (!location) return failure('source', 'Redirect without a location.', 502, 'redirect_no_location')
+      if (!location) {
+        await res.body?.cancel()
+        return failure('source', 'Redirect without a location.', 502, 'redirect_no_location')
+      }
       let next: URL
       try {
         next = new URL(location, url)
       } catch {
+        await res.body?.cancel()
         return failure('source', 'Invalid redirect target.', 502, 'redirect_bad_url')
       }
       if (next.protocol !== 'https:' || !isAllowedTarget(next.host, next.pathname + next.search)) {
+        await res.body?.cancel()
         return failure('validation', 'Redirect left the allowlist.', 403, `blocked_redirect:${next.host}`)
       }
+      await res.body?.cancel()
       currentHost = next.host
       currentPath = next.pathname + next.search
       continue
@@ -158,8 +165,19 @@ export async function fabricFetch(
       return failure('source', 'Source response too large.', 413, `too_large:${declaredLength}`)
     }
 
-    let body = await res.text()
-    if (body.length > maxBytes) body = body.slice(0, maxBytes)
+    let bounded
+    try {
+      bounded = await readBoundedBody(res.body, maxBytes)
+    } catch (error) {
+      return failure(
+        'source',
+        'The source response could not be read.',
+        502,
+        error instanceof Error ? error.message : 'response_read_failed',
+      )
+    }
+    if (!bounded.ok) return failure('source', 'Source response too large.', 413, 'response_too_large')
+    let body = bounded.text
     if (input.accept !== 'json') body = hardenXml(body)
 
     return { status: res.status, contentType, body }

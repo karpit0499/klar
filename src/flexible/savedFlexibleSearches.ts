@@ -5,9 +5,15 @@
 // model so a reposted job is not mislabelled as new. All local, no backend.
 // ============================================================================
 import { useLiveQuery } from 'dexie-react-hooks'
-import { db, type FlexibleSearchRow } from '../db/db'
+import type { FlexibleSearchRow } from '../db/db'
 import type { FlexibleWorkPreferences, NormalizedJob } from '../types'
 import { jobIdentities, mergeSeenIdentities, splitBySeenIdentities } from '../search/savedSearches'
+import {
+  deleteFlexibleSearchRow,
+  getFlexibleSearchRow,
+  listFlexibleSearchRows,
+  putFlexibleSearchRow,
+} from '../storage/careerData'
 
 export type FlexibleSearchInput = {
   name: string
@@ -18,7 +24,7 @@ export type FlexibleSearchInput = {
 /** Live list for the UI (newest first). */
 export function useFlexibleSearches(): FlexibleSearchRow[] {
   return useLiveQuery(
-    () => db.flexibleSearches.orderBy('updatedAt').reverse().toArray(),
+    listFlexibleSearchRows,
     [],
     [],
   )
@@ -36,24 +42,24 @@ export async function createFlexibleSearch(input: FlexibleSearchInput): Promise<
     createdAt: now,
     updatedAt: now,
   }
-  await db.flexibleSearches.put(row)
+  await putFlexibleSearchRow(row)
   return id
 }
 
 export async function deleteFlexibleSearch(id: string): Promise<void> {
-  await db.flexibleSearches.delete(id)
+  await deleteFlexibleSearchRow(id)
 }
 
 export async function getFlexibleSearch(id: string): Promise<FlexibleSearchRow | undefined> {
-  return db.flexibleSearches.get(id)
+  return getFlexibleSearchRow(id)
 }
 
 export async function renameFlexibleSearch(id: string, name: string): Promise<void> {
-  const row = await db.flexibleSearches.get(id)
+  const row = await getFlexibleSearchRow(id)
   if (!row) return
   row.name = name.trim() || row.name
   row.updatedAt = new Date().toISOString()
-  await db.flexibleSearches.put(row)
+  await putFlexibleSearchRow(row)
 }
 
 /**
@@ -65,7 +71,7 @@ export async function recordFlexibleRun(
   id: string,
   opportunities: NormalizedJob[],
 ): Promise<NormalizedJob[]> {
-  const row = await db.flexibleSearches.get(id)
+  const row = await getFlexibleSearchRow(id)
   if (!row) return []
   const firstRun = !row.lastRunAt
   const known = row.seenIdentities ?? []
@@ -74,7 +80,7 @@ export async function recordFlexibleRun(
   row.seenIdentities = mergeSeenIdentities(known, opportunities, now)
   row.lastRunAt = now.toISOString()
   row.updatedAt = row.lastRunAt
-  await db.flexibleSearches.put(row)
+  await putFlexibleSearchRow(row)
   return fresh
 }
 

@@ -6,6 +6,7 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import {
   db,
+  type FlexibleSearchRow,
   type MatchRow,
   type PreferencesRow,
   type SavedSearchRow,
@@ -171,4 +172,49 @@ export async function deleteSavedSearchRow(id: string): Promise<void> {
   }
   if (status === 'locked') await readSensitiveContent()
   await db.savedSearches.delete(id)
+}
+
+export async function listFlexibleSearchRows(): Promise<FlexibleSearchRow[]> {
+  const status = await getVaultStatus()
+  if (status === 'unlocked') {
+    return [...((await readSensitiveContent())?.flexibleSearches ?? [])]
+      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+  }
+  if (status === 'locked') await readSensitiveContent()
+  return db.flexibleSearches.orderBy('updatedAt').reverse().toArray()
+}
+
+export async function getFlexibleSearchRow(id: string): Promise<FlexibleSearchRow | undefined> {
+  const status = await getVaultStatus()
+  if (status === 'unlocked') {
+    return (await readSensitiveContent())?.flexibleSearches.find((row) => row.id === id)
+  }
+  if (status === 'locked') await readSensitiveContent()
+  return db.flexibleSearches.get(id)
+}
+
+export async function putFlexibleSearchRow(row: FlexibleSearchRow): Promise<void> {
+  const status = await getVaultStatus()
+  if (status === 'unlocked') {
+    await updateSensitiveContent((content) => {
+      const index = content.flexibleSearches.findIndex((item) => item.id === row.id)
+      if (index >= 0) content.flexibleSearches[index] = row
+      else content.flexibleSearches.push(row)
+    })
+    return
+  }
+  if (status === 'locked') await readSensitiveContent()
+  await db.flexibleSearches.put(row)
+}
+
+export async function deleteFlexibleSearchRow(id: string): Promise<void> {
+  const status = await getVaultStatus()
+  if (status === 'unlocked') {
+    await updateSensitiveContent((content) => {
+      content.flexibleSearches = content.flexibleSearches.filter((row) => row.id !== id)
+    })
+    return
+  }
+  if (status === 'locked') await readSensitiveContent()
+  await db.flexibleSearches.delete(id)
 }

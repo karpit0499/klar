@@ -7,6 +7,9 @@
 import {
   db,
   type DashboardRow,
+  type ConnectorHealthRow,
+  type FlexibleCacheRow,
+  type FlexibleSearchRow,
   type JobCacheRow,
   type MatchRow,
   type PreferencesRow,
@@ -18,6 +21,7 @@ import {
 } from '../db/db'
 import type { TrackedJob } from '../types'
 import type { CanonicalResumeRow, ResumeDraftRow, ResumeSnapshotRow } from '../resume/types'
+import type { PacketRow } from '../packets/types'
 import { normalizeResume, resumeFromLegacyProfile } from '../resume/canonical'
 import { decryptJSON, encryptJSON, isCipherEnvelope } from '../crypto/resumeCrypto'
 import {
@@ -32,10 +36,11 @@ import {
 } from '../crypto/vault'
 import { AppError, toAppError } from '../errors/appError'
 import { loadGroqKey } from '../settings/keys'
+import { APP_VERSION } from '../lib/version'
 
 export const BACKUP_FORMAT = 'klar-backup'
-export const BACKUP_SCHEMA_VERSION = 5
-export const KLAR_VERSION = '2.3.0'
+export const BACKUP_SCHEMA_VERSION = 6
+export const KLAR_VERSION = APP_VERSION
 
 const SECRET_SETTINGS = new Set(['groqKey', 'groqKeyRemember', 'adzunaAppId', 'adzunaAppKey'])
 const LEGACY_RESUME_DATA_KEY = 'resumeDataV1'
@@ -54,6 +59,10 @@ export type BackupWorkspace = {
   dashboard: DashboardRow[]
   vectors: VectorRow[]
   savedSearches: SavedSearchRow[]
+  flexibleSearches: FlexibleSearchRow[]
+  flexibleCache: FlexibleCacheRow[]
+  connectorHealth: ConnectorHealthRow[]
+  packets: PacketRow[]
   vault: VaultRow[]
 }
 
@@ -65,7 +74,7 @@ export type BackupEnvelope = {
   mode: BackupMode
   workspace: BackupWorkspace
   integrity: { algorithm: 'SHA-256'; digest: string }
-  migration?: { from: 'v1' | 'v2' | 'v2.1' | 'v2.2' }
+  migration?: { from: 'v1' | 'v2' | 'v2.1' | 'v2.2' | 'v2.3-v2.5' }
 }
 
 export type BackupPreview = {
@@ -136,6 +145,8 @@ export async function createDecryptedExport(confirmation: string): Promise<Backu
       workspace.dashboard = content.dashboard
       workspace.vectors = content.vectors
       workspace.savedSearches = content.savedSearches
+      workspace.flexibleSearches = content.flexibleSearches
+      workspace.packets = content.packets
       workspace.vault = []
     }
     return seal('standard', workspace)
@@ -148,6 +159,7 @@ export async function parseAndValidateBackup(value: unknown): Promise<BackupEnve
   let candidate: unknown = value
   if (isLegacyWorkspace(candidate)) candidate = await migrateLegacyBackup(candidate)
   else if (isV22Envelope(candidate)) candidate = await migrateV22Envelope(candidate)
+  else if (isV23ToV25Envelope(candidate)) candidate = await migrateV23ToV25Envelope(candidate)
   if (!candidate || typeof candidate !== 'object') throw invalidBackup('The backup is not a JSON object.')
   const envelope = candidate as Partial<BackupEnvelope>
   if (envelope.format !== BACKUP_FORMAT) throw invalidBackup('This is not a Klar backup file.')
@@ -175,6 +187,8 @@ export async function inspectBackup(value: unknown): Promise<BackupPreview> {
     workspace.tracked.length && 'applications',
     workspace.dashboard.length && 'dashboard',
     workspace.savedSearches.length && 'saved searches',
+    workspace.flexibleSearches.length && 'saved Flexible Work searches',
+    workspace.packets.length && 'application packets',
     workspace.vault.length && 'encrypted workspace',
   ].filter(Boolean) as string[]
   return {
@@ -193,12 +207,15 @@ export async function importBackup(value: unknown, passphrase?: string): Promise
     await db.transaction('rw', [
       db.settings, db.profiles, db.resumes, db.resumeHistory, db.resumeDrafts,
       db.preferences, db.jobs, db.matches, db.tracked, db.dashboard, db.vectors,
-      db.savedSearches, db.vault,
+      db.savedSearches, db.flexibleSearches, db.flexibleCache, db.connectorHealth,
+      db.packets, db.vault,
     ], async () => {
       await Promise.all([
         db.settings.clear(), db.profiles.clear(), db.resumes.clear(), db.resumeHistory.clear(),
         db.resumeDrafts.clear(), db.preferences.clear(), db.jobs.clear(), db.matches.clear(),
-        db.tracked.clear(), db.dashboard.clear(), db.vectors.clear(), db.savedSearches.clear(), db.vault.clear(),
+        db.tracked.clear(), db.dashboard.clear(), db.vectors.clear(), db.savedSearches.clear(),
+        db.flexibleSearches.clear(), db.flexibleCache.clear(), db.connectorHealth.clear(),
+        db.packets.clear(), db.vault.clear(),
       ])
       if (workspace.settings.length) await db.settings.bulkPut(workspace.settings)
       if (workspace.resumes.length) await db.resumes.bulkPut(workspace.resumes)
@@ -211,11 +228,12 @@ export async function importBackup(value: unknown, passphrase?: string): Promise
       if (workspace.dashboard.length) await db.dashboard.bulkPut(workspace.dashboard)
       if (workspace.vectors.length) await db.vectors.bulkPut(workspace.vectors)
       if (workspace.savedSearches.length) await db.savedSearches.bulkPut(workspace.savedSearches)
+      if (workspace.flexibleSearches.length) await db.flexibleSearches.bulkPut(workspace.flexibleSearches)
+      if (workspace.flexibleCache.length) await db.flexibleCache.bulkPut(workspace.flexibleCache)
+      if (workspace.connectorHealth.length) await db.connectorHealth.bulkPut(workspace.connectorHealth)
+      if (workspace.packets.length) await db.packets.bulkPut(workspace.packets)
       if (workspace.vault.length) await db.vault.bulkPut(workspace.vault)
     })
-    clearVaultSession()
-    if (vault && passphrase) await unlockVault(passphrase)
-    return envelope
   } catch (error) {
     throw toAppError(error, {
       category: 'import', message: 'Klar could not restore this backup.', dataSafe: true,
@@ -223,6 +241,21 @@ export async function importBackup(value: unknown, passphrase?: string): Promise
       action: { label: 'Check the file and try again', kind: 'choose_file' },
     })
   }
+  clearVaultSession()
+  if (vault && passphrase) {
+    try {
+      await unlockVault(passphrase)
+    } catch (error) {
+      throw toAppError(error, {
+        category: 'import',
+        message: 'The encrypted backup was restored, but Klar could not unlock it automatically.',
+        dataSafe: true,
+        available: 'The restored data is still encrypted and safe. Reload Klar, then unlock the vault with the same password.',
+        action: { label: 'Reload and unlock the vault', kind: 'retry' },
+      })
+    }
+  }
+  return envelope
 }
 
 export async function migrateLegacyBackup(value: Record<string, unknown>): Promise<BackupEnvelope> {
@@ -241,7 +274,8 @@ export async function migrateLegacyBackup(value: Record<string, unknown>): Promi
     resumeHistory: data ? [{ id: `migration-${Date.now()}`, data: structuredClone(data), createdAt: now, reason: 'migration', name: 'Imported legacy profile' }] : [],
     resumeDrafts: [], preferences: getArray('preferences'), jobs: getArray('jobs'), matches: [],
     tracked: getArray('tracked'), dashboard: getArray('dashboard'), vectors: [],
-    savedSearches: getArray('savedSearches'), vault: [],
+    savedSearches: getArray('savedSearches'),
+    flexibleSearches: [], flexibleCache: [], connectorHealth: [], packets: [], vault: [],
   }
   const envelope = await seal('standard', workspace)
   envelope.migration = { from }
@@ -280,11 +314,13 @@ async function migrateV22Envelope(value: Record<string, unknown>): Promise<Backu
     resumeDrafts: [], preferences: old.preferences as PreferencesRow[], jobs: old.jobs as JobCacheRow[],
     matches: old.matches as MatchRow[], tracked: old.tracked as TrackedJob[], dashboard: old.dashboard as DashboardRow[],
     vectors: old.vectors as VectorRow[], savedSearches: old.savedSearches as SavedSearchRow[], vault: old.vault as VaultRow[],
+    flexibleSearches: [], flexibleCache: [], connectorHealth: [], packets: [],
   }
   if (workspace.vault.length) {
     workspace.resumes = []; workspace.resumeHistory = []; workspace.resumeDrafts = []
     workspace.preferences = []; workspace.jobs = []; workspace.matches = []; workspace.tracked = []
     workspace.dashboard = []; workspace.vectors = []; workspace.savedSearches = []
+    workspace.flexibleSearches = []; workspace.packets = []
   }
   const envelope = await seal(oldMode, workspace)
   envelope.migration = { from: 'v2.2' }
@@ -294,27 +330,93 @@ async function migrateV22Envelope(value: Record<string, unknown>): Promise<Backu
   return envelope
 }
 
+/** Preserve v2.3–v2.5 backups while adding stores introduced after schema 5. */
+async function migrateV23ToV25Envelope(value: Record<string, unknown>): Promise<BackupEnvelope> {
+  const integrity = object(value.integrity)
+  if (integrity.algorithm !== 'SHA-256' || typeof integrity.digest !== 'string') {
+    throw invalidBackup('The backup integrity record is missing.')
+  }
+  if (await digestWithoutIntegrity(value) !== integrity.digest) {
+    throw invalidBackup('The backup integrity check failed. The file may be damaged or edited.')
+  }
+  const old = object(value.workspace)
+  const required = [
+    'settings', 'resumes', 'resumeHistory', 'resumeDrafts', 'preferences', 'jobs',
+    'matches', 'tracked', 'dashboard', 'vectors', 'savedSearches', 'vault',
+  ]
+  for (const key of required) {
+    if (!Array.isArray(old[key])) throw invalidBackup(`The older workspace field ${key} is invalid.`)
+  }
+  const workspace: BackupWorkspace = {
+    settings: old.settings as Setting[],
+    resumes: old.resumes as CanonicalResumeRow[],
+    resumeHistory: old.resumeHistory as ResumeSnapshotRow[],
+    resumeDrafts: old.resumeDrafts as ResumeDraftRow[],
+    preferences: old.preferences as PreferencesRow[],
+    jobs: old.jobs as JobCacheRow[],
+    matches: old.matches as MatchRow[],
+    tracked: old.tracked as TrackedJob[],
+    dashboard: old.dashboard as DashboardRow[],
+    vectors: old.vectors as VectorRow[],
+    savedSearches: old.savedSearches as SavedSearchRow[],
+    flexibleSearches: Array.isArray(old.flexibleSearches)
+      ? old.flexibleSearches as FlexibleSearchRow[]
+      : [],
+    flexibleCache: Array.isArray(old.flexibleCache)
+      ? old.flexibleCache as FlexibleCacheRow[]
+      : [],
+    connectorHealth: Array.isArray(old.connectorHealth)
+      ? old.connectorHealth as ConnectorHealthRow[]
+      : [],
+    packets: Array.isArray(old.packets) ? old.packets as PacketRow[] : [],
+    vault: old.vault as VaultRow[],
+  }
+  const envelope = await seal(
+    value.mode === 'complete-encrypted' ? 'complete-encrypted' : 'standard',
+    workspace,
+  )
+  envelope.migration = { from: 'v2.3-v2.5' }
+  envelope.klarVersion =
+    typeof value.klarVersion === 'string' ? value.klarVersion : '2.5.0'
+  envelope.exportedAt =
+    typeof value.exportedAt === 'string' ? value.exportedAt : new Date().toISOString()
+  envelope.integrity.digest = await digestWithoutIntegrity(envelope)
+  return envelope
+}
+
 async function readWorkspace(): Promise<BackupWorkspace> {
   return db.transaction('r', [
     db.settings, db.resumes, db.resumeHistory, db.resumeDrafts, db.preferences,
-    db.jobs, db.matches, db.tracked, db.dashboard, db.vectors, db.savedSearches, db.vault,
+    db.jobs, db.matches, db.tracked, db.dashboard, db.vectors, db.savedSearches,
+    db.flexibleSearches, db.flexibleCache, db.connectorHealth, db.packets, db.vault,
   ], async () => {
-    const [settings, resumes, resumeHistory, resumeDrafts, preferences, jobs, matches, tracked, dashboard, vectors, savedSearches, vault] = await Promise.all([
+    const [
+      settings, resumes, resumeHistory, resumeDrafts, preferences, jobs, matches,
+      tracked, dashboard, vectors, savedSearches, flexibleSearches, flexibleCache,
+      connectorHealth, packets, vault,
+    ] = await Promise.all([
       db.settings.toArray(), db.resumes.toArray(), db.resumeHistory.toArray(), db.resumeDrafts.toArray(),
       db.preferences.toArray(), db.jobs.toArray(), db.matches.toArray(), db.tracked.toArray(),
-      db.dashboard.toArray(), db.vectors.toArray(), db.savedSearches.toArray(), db.vault.toArray(),
+      db.dashboard.toArray(), db.vectors.toArray(), db.savedSearches.toArray(),
+      db.flexibleSearches.toArray(), db.flexibleCache.toArray(), db.connectorHealth.toArray(),
+      db.packets.toArray(), db.vault.toArray(),
     ])
-    return { settings, resumes, resumeHistory, resumeDrafts, preferences, jobs, matches, tracked, dashboard, vectors, savedSearches, vault }
+    return {
+      settings, resumes, resumeHistory, resumeDrafts, preferences, jobs, matches,
+      tracked, dashboard, vectors, savedSearches, flexibleSearches, flexibleCache,
+      connectorHealth, packets, vault,
+    }
   })
 }
 
 function plaintextContent(workspace: BackupWorkspace): SensitiveContent {
   return {
-    version: 2, canonicalResume: workspace.resumes[0], resumeHistory: workspace.resumeHistory,
+    version: 3, canonicalResume: workspace.resumes[0], resumeHistory: workspace.resumeHistory,
     resumeDraft: workspace.resumeDrafts[0], preferences: workspace.preferences, jobs: workspace.jobs,
     matches: workspace.matches, dashboard: workspace.dashboard, tracked: workspace.tracked,
     vectors: workspace.vectors, savedSearches: workspace.savedSearches,
-    packets: [], originalFiles: [], knowledgeBase: [],
+    flexibleSearches: workspace.flexibleSearches, packets: workspace.packets,
+    originalFiles: [], knowledgeBase: [],
   }
 }
 
@@ -330,7 +432,8 @@ function plaintextCredentials(settings: Setting[], currentGroqKey?: string): Vau
 function emptyReadableWorkspace(settings: Setting[]): BackupWorkspace {
   return {
     settings, resumes: [], resumeHistory: [], resumeDrafts: [], preferences: [], jobs: [], matches: [],
-    tracked: [], dashboard: [], vectors: [], savedSearches: [], vault: [],
+    tracked: [], dashboard: [], vectors: [], savedSearches: [], flexibleSearches: [],
+    flexibleCache: [], connectorHealth: [], packets: [], vault: [],
   }
 }
 
@@ -355,12 +458,36 @@ async function digestWithoutIntegrity(value: object): Promise<string> {
 function validateWorkspace(workspace: BackupWorkspace, mode: BackupMode): void {
   const keys: (keyof BackupWorkspace)[] = [
     'settings', 'resumes', 'resumeHistory', 'resumeDrafts', 'preferences', 'jobs', 'matches',
-    'tracked', 'dashboard', 'vectors', 'savedSearches', 'vault',
+    'tracked', 'dashboard', 'vectors', 'savedSearches', 'flexibleSearches',
+    'flexibleCache', 'connectorHealth', 'packets', 'vault',
   ]
   for (const key of keys) if (!Array.isArray(workspace[key])) throw invalidBackup(`Workspace field ${key} is invalid.`)
   if (workspace.settings.some((row) => !row || typeof row.key !== 'string' || SECRET_SETTINGS.has(row.key))) throw invalidBackup('Readable API credentials are not allowed in a Klar backup.')
   if (workspace.resumes.length > 1 || workspace.resumes.some((row) => row.id !== 'current')) throw invalidBackup('The canonical résumé row is invalid.')
   for (const preferences of workspace.preferences) validateFlexiblePreferences(preferences)
+  for (const saved of workspace.flexibleSearches) {
+    if (
+      typeof saved.name !== 'string' ||
+      saved.name.length > 200 ||
+      !saved.preferences ||
+      typeof saved.preferences !== 'object'
+    ) {
+      throw invalidBackup('A saved Flexible Work search is invalid.')
+    }
+    validateFlexiblePreferences({
+      id: 'current',
+      targetTitles: [],
+      fields: [],
+      seniority: 'mid',
+      salary: { currency: 'EUR', period: 'year' },
+      locations: [],
+      workAuth: {},
+      languages: [],
+      mustHaves: [],
+      dealbreakers: [],
+      flexibleWork: saved.preferences,
+    })
+  }
   validatePrimaryKeys(workspace)
   if (workspace.vault.length > 1) throw invalidBackup('The backup contains more than one vault.')
   const vault = workspace.vault[0]
@@ -430,6 +557,18 @@ function validateFlexiblePreferences(preferences: PreferencesRow): void {
     throw invalidBackup('Flexible Work bike preference is invalid.')
   }
   if (!safeOptionalString(flexible.earliestStart, 32)) throw invalidBackup('Flexible Work start date is invalid.')
+  if (flexible.contact !== undefined) {
+    const contact = flexible.contact
+    if (
+      !contact ||
+      typeof contact !== 'object' ||
+      !safeOptionalString(contact.name, 160) ||
+      !safeOptionalString(contact.email, 320) ||
+      !safeOptionalString(contact.phone, 80)
+    ) {
+      throw invalidBackup('Flexible Work contact details are invalid.')
+    }
+  }
 }
 
 function validatePrimaryKeys(workspace: BackupWorkspace): void {
@@ -440,6 +579,10 @@ function validatePrimaryKeys(workspace: BackupWorkspace): void {
     [workspace.jobs, 'queryKey', 'jobs'], [workspace.matches, 'cacheKey', 'matches'],
     [workspace.tracked, 'jobId', 'tracked jobs'], [workspace.dashboard, 'id', 'dashboard'],
     [workspace.vectors, 'jobId', 'vectors'], [workspace.savedSearches, 'id', 'saved searches'],
+    [workspace.flexibleSearches, 'id', 'saved Flexible Work searches'],
+    [workspace.flexibleCache, 'queryKey', 'Flexible Work cache'],
+    [workspace.connectorHealth, 'connectorId', 'connector health'],
+    [workspace.packets, 'id', 'application packets'],
   ]
   for (const [rows, key, label] of checks) if (!valid(rows, key)) throw invalidBackup(`One or more ${label} rows are invalid.`)
 }
@@ -447,7 +590,9 @@ function validatePrimaryKeys(workspace: BackupWorkspace): void {
 function hasReadableSensitiveContent(workspace: BackupWorkspace): boolean {
   return workspace.resumes.length > 0 || workspace.resumeHistory.length > 0 || workspace.resumeDrafts.length > 0 ||
     workspace.preferences.length > 0 || workspace.jobs.length > 0 || workspace.matches.length > 0 ||
-    workspace.tracked.length > 0 || workspace.dashboard.length > 0 || workspace.vectors.length > 0 || workspace.savedSearches.length > 0
+    workspace.tracked.length > 0 || workspace.dashboard.length > 0 || workspace.vectors.length > 0 ||
+    workspace.savedSearches.length > 0 || workspace.flexibleSearches.length > 0 ||
+    workspace.packets.length > 0
 }
 
 async function verifyVault(vault: VaultRow, mode: BackupMode, passphrase?: string): Promise<void> {
@@ -481,6 +626,12 @@ function isV22Envelope(value: unknown): value is Record<string, unknown> {
   if (!value || typeof value !== 'object') return false
   const candidate = value as Record<string, unknown>
   return candidate.format === BACKUP_FORMAT && candidate.schemaVersion === 4
+}
+
+function isV23ToV25Envelope(value: unknown): value is Record<string, unknown> {
+  if (!value || typeof value !== 'object') return false
+  const candidate = value as Record<string, unknown>
+  return candidate.format === BACKUP_FORMAT && candidate.schemaVersion === 5
 }
 
 function isIsoDate(value: unknown): value is string {

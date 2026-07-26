@@ -24,7 +24,7 @@ await db.settings.bulkPut([
 ])
 
 const standard = await createStandardBackup()
-assert.equal(standard.schemaVersion, 5)
+assert.equal(standard.schemaVersion, 6)
 assert.equal(standard.workspace.resumes[0].data.contact.name, 'Backup Person')
 assert.equal(JSON.stringify(standard).includes('gsk_secret'), false)
 
@@ -40,7 +40,7 @@ assert.equal((await readSensitiveContent())?.canonicalResume?.data.contact.name,
 await resetDb()
 const v22 = await makeV22StandardEnvelope()
 const migrated = await parseAndValidateBackup(v22)
-assert.equal(migrated.schemaVersion, 5)
+assert.equal(migrated.schemaVersion, 6)
 assert.equal(migrated.migration?.from, 'v2.2')
 assert.equal(migrated.workspace.resumes[0].data.summary, 'Legacy profile')
 

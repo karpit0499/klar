@@ -8,6 +8,7 @@ import {
   migrateLegacyBackup,
   parseAndValidateBackup,
 } from '../src/backup/backup'
+import { APP_VERSION } from '../src/lib/version'
 
 await resetDb()
 await db.settings.bulkPut([
@@ -24,8 +25,8 @@ await db.preferences.put({
 
 const standard = await createStandardBackup()
 assert.equal(standard.format, 'klar-backup')
-assert.equal(standard.schemaVersion, 5)
-assert.equal(standard.klarVersion, '2.3.0')
+assert.equal(standard.schemaVersion, 6)
+assert.equal(standard.klarVersion, APP_VERSION)
 assert.ok(standard.integrity.digest.length === 64)
 assert.equal(JSON.stringify(standard).includes('invalid-but-secret-key'), false)
 
@@ -70,7 +71,7 @@ for (const [label, legacy] of [
 ] as const) {
   const migrated = await migrateLegacyBackup(legacy)
   assert.equal(migrated.migration?.from, label)
-  assert.equal((await parseAndValidateBackup(migrated)).schemaVersion, 5)
+  assert.equal((await parseAndValidateBackup(migrated)).schemaVersion, 6)
 }
 
 const legacyWithReadableCredentials = await migrateLegacyBackup({

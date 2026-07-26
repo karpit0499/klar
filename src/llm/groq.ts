@@ -17,15 +17,17 @@ import { parseLimitFromError, saveTpmLimit } from './budget'
 import {
   engineDisplayName,
   engineRequestUrl,
+  isDefaultEngine,
   loadEngineSettings,
   probeEngineAccess,
   type EngineSettings,
 } from './provider'
+import type { StructuredOutputSchema } from './jsonSchemas'
 
 type ChatMessage = { role: 'system' | 'user' | 'assistant'; content: string }
 
 type ChatApiResponse = {
-  choices?: { message?: { content?: string } }[]
+  choices?: { finish_reason?: string; message?: { content?: string | null } }[]
   error?: { message?: string }
 }
 
@@ -38,8 +40,10 @@ export type ChatOptions = {
   /** Prefer the engine's smaller/faster model (high-volume work like matching). */
   fast?: boolean
   temperature?: number
-  /** Ask for a strict JSON object (OpenAI-compatible json_object mode). */
+  /** Ask for a JSON object. Prefer `jsonSchema` for a defined contract. */
   json?: boolean
+  /** Closed JSON Schema used with constrained decoding on supported Groq models. */
+  jsonSchema?: StructuredOutputSchema
   maxTokens?: number
   signal?: AbortSignal
 }
@@ -61,21 +65,61 @@ export function resolveModel(engine: EngineSettings, opts: Pick<ChatOptions, 'mo
   return opts.fast ? engine.fastModel : engine.model
 }
 
+const STRICT_GROQ_MODELS = new Set([
+  'openai/gpt-oss-20b',
+  'openai/gpt-oss-120b',
+])
+
+/** Whether Klar can safely request Groq's guaranteed constrained decoding. */
+export function supportsStrictJson(engine: EngineSettings, model: string): boolean {
+  return isDefaultEngine(engine) && STRICT_GROQ_MODELS.has(model)
+}
+
+/** Pure request builder so provider compatibility is covered without a network call. */
+export function buildChatRequestBody(
+  engine: EngineSettings,
+  opts: Omit<ChatOptions, 'apiKey' | 'signal'>,
+): Record<string, unknown> {
+  const model = resolveModel(engine, opts)
+  const body: Record<string, unknown> = {
+    model,
+    messages: [
+      { role: 'system', content: opts.system },
+      { role: 'user', content: opts.user },
+    ] satisfies ChatMessage[],
+    temperature: opts.temperature ?? 0,
+  }
+
+  // Groq deprecated max_tokens. Keep it for custom OpenAI-compatible engines,
+  // where max_completion_tokens is not universally implemented.
+  if (isDefaultEngine(engine)) {
+    body.max_completion_tokens = opts.maxTokens ?? 2048
+    if (model.startsWith('openai/gpt-oss-')) body.reasoning_effort = 'low'
+  } else {
+    body.max_tokens = opts.maxTokens ?? 2048
+  }
+
+  if (opts.jsonSchema && supportsStrictJson(engine, model)) {
+    body.response_format = {
+      type: 'json_schema',
+      json_schema: {
+        name: opts.jsonSchema.name,
+        strict: true,
+        schema: opts.jsonSchema.schema,
+      },
+    }
+  } else if (opts.json || opts.jsonSchema) {
+    // Custom engines and other Groq models retain the broadly compatible mode.
+    body.response_format = { type: 'json_object' }
+  }
+  return body
+}
+
 /** One chat completion. Returns the raw assistant text. Throws on API errors. */
 export async function chatComplete(opts: ChatOptions): Promise<string> {
   const engine = await loadEngineSettings()
   const name = engineDisplayName(engine)
-  const messages: ChatMessage[] = [
-    { role: 'system', content: opts.system },
-    { role: 'user', content: opts.user },
-  ]
-  const body: Record<string, unknown> = {
-    model: resolveModel(engine, opts),
-    messages,
-    temperature: opts.temperature ?? 0,
-    max_tokens: opts.maxTokens ?? 2048,
-  }
-  if (opts.json) body.response_format = { type: 'json_object' }
+  const body = buildChatRequestBody(engine, opts)
 
   const headers: Record<string, string> = { 'Content-Type': 'application/json' }
   if (opts.apiKey) headers.Authorization = `Bearer ${opts.apiKey}`
@@ -157,7 +201,19 @@ export async function chatComplete(opts: ChatOptions): Promise<string> {
       technical: msg,
     })
   }
-  return data.choices?.[0]?.message?.content ?? ''
+  const choice = data.choices?.[0]
+  const content = choice?.message?.content?.trim()
+  if (!content) {
+    throw new AppError({
+      category: 'source',
+      message: `${name} returned no usable text.`,
+      dataSafe: true,
+      available: 'Your existing profile and workspace are unchanged.',
+      action: { label: 'Try the action again', kind: 'retry' },
+      technical: `empty_completion${choice?.finish_reason ? `; finish_reason=${choice.finish_reason}` : ''}`,
+    })
+  }
+  return content
 }
 
 /**

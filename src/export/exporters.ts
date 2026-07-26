@@ -10,6 +10,7 @@
 // The row builders + CSV serializer are pure, so they're unit-testable.
 // ============================================================================
 import type { MatchResult, NormalizedJob, TrackedJob } from '../types'
+import { triggerBlobDownload } from './download'
 
 /** A flat, string-keyed row — the shape both CSV and XLSX consume. */
 export type Row = Record<string, string | number>
@@ -100,13 +101,7 @@ export function safeSheetName(value: string): string {
 
 /** Trigger a browser download of `content` as a file. */
 export function downloadBlob(filename: string, content: BlobPart, type: string): void {
-  const blob = new Blob([content], { type })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = filename
-  a.click()
-  URL.revokeObjectURL(url)
+  triggerBlobDownload(new Blob([content], { type }), filename)
 }
 
 /** Download rows as a CSV file. */

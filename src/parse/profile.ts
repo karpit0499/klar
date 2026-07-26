@@ -4,6 +4,7 @@
 // ============================================================================
 import type { Profile } from '../types'
 import { groqChat, extractJson } from '../llm/groq'
+import { PROFILE_OUTPUT } from '../llm/jsonSchemas'
 
 const SYSTEM = `You extract structured data from résumés. You never invent facts not present in the text. Reply with ONE JSON object and nothing else.`
 
@@ -53,7 +54,7 @@ export async function parseProfile(
     apiKey,
     system: SYSTEM,
     user: buildProfilePrompt(rawText),
-    json: true,
+    jsonSchema: PROFILE_OUTPUT,
     temperature: 0,
     maxTokens: 2048,
     signal,

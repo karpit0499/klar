@@ -15,6 +15,7 @@ import {
 } from 'docx'
 import type { ResumeData, ResumeLanguage } from './types'
 import { SECTION_HEADINGS, formatDateRange } from './types'
+import { triggerBlobDownload } from '../export/download'
 
 const BODY_FONT = 'Calibri'
 const BODY_SIZE = 22 // 11pt (half-points)
@@ -162,10 +163,5 @@ export async function downloadResumeDocx(
   filename: string,
 ): Promise<void> {
   const blob = await resumeToDocxBlob(data, lang)
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = filename
-  a.click()
-  URL.revokeObjectURL(url)
+  triggerBlobDownload(blob, filename)
 }

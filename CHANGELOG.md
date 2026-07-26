@@ -4,6 +4,49 @@ This file records Klar’s product history from the newest release to the origin
 
 ---
 
+## v2.5.3 — Release stability and data-safety hotfix
+
+### Fixed
+
+- All structured Groq actions now use strict JSON Schema decoding on Klar's
+  default GPT-OSS models. This fixes provider-side `failed_generation` errors
+  during résumé tailoring and protects résumé extraction, profile parsing,
+  requirement extraction, matching, and interview preparation from the same
+  failure.
+- Groq requests now use `max_completion_tokens`, set low reasoning effort for
+  the supported GPT-OSS models, and treat an empty completion as a real,
+  recoverable error instead of saving blank output.
+- Application packets download as one ZIP containing the DOCX résumé and, when
+  present, the cover-letter text. This replaces the delayed two-download
+  sequence that mobile browsers can block.
+- Rapid packet edits are serialized before persistence, preventing an older
+  autosave from overwriting newer notes or letter text.
+- Open and installed Klar clients can no longer execute an old release
+  indefinitely. Navigations bypass the HTTP cache, release metadata is checked
+  on focus and reconnect, a visible reload notice appears for later releases,
+  and the service-worker migration refreshes legacy v2.5.2 clients.
+- Standard and encrypted backups now include application packets and saved
+  Flexible Work searches. Flexible caches and connector health are also
+  round-tripped. Existing schema-5 backups remain importable.
+- Saved Flexible Work searches now enter the encrypted vault with the rest of
+  the user's preferences; legacy plaintext rows are migrated after a successful
+  unlock.
+- The Cloudflare Worker streams job-source responses, bounds Source Fabric
+  bodies before buffering, rejects disallowed browser origins, uses generated
+  binding types, enables observability, and targets the current compatibility
+  date.
+
+### Quality gate
+
+- Pull requests now run service-worker syntax validation, app and Worker type
+  checks, generated Worker-type drift detection, the complete unit suite,
+  production build, and a Worker dry run before main can deploy.
+- New regression coverage asserts every strict schema, default and custom engine
+  compatibility, ZIP contents, concurrent packet autosaves, backup round trips,
+  older-backup migration, and vault protection for Flexible Work searches.
+
+---
+
 ## v2.5.2 — Groq reliability hotfix
 
 ### Fixed

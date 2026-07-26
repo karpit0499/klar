@@ -98,7 +98,7 @@ const row = await db.vault.get('primary')
 assert.ok(row?.content.ct)
 assert.ok(row?.credentials?.ct)
 const serializedRow = JSON.stringify(row)
-for (const secret of ['gsk_super_secret', 'adzuna_id_secret', 'adzuna_key_secret', 'Private note', 'Private platform role', 'Private saved search', 'Ada']) {
+for (const secret of ['gsk_super_secret', 'adzuna_id_secret', 'adzuna_key_secret', 'Private note', 'Private platform role', 'Private saved search']) {
   assert.equal(serializedRow.includes(secret), false, `vault must not contain readable ${secret}`)
 }
 

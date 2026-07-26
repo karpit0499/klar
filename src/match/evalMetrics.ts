@@ -14,7 +14,7 @@ export function precisionAtK(rankedLabels: number[], k: number, threshold: numbe
 /** Average-tie ranks of an array (1 = smallest). */
 export function ranks(xs: number[]): number[] {
   const order = xs.map((x, i) => ({ x, i })).sort((a, b) => a.x - b.x)
-  const r = new Array<number>(xs.length)
+  const r = Array.from({ length: xs.length }, () => 0)
   let i = 0
   while (i < order.length) {
     let j = i

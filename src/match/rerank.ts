@@ -9,6 +9,7 @@ import { MATCH } from '../lib/config'
 import { estimateRerankOutputTokens } from '../llm/budget'
 import { chatComplete, extractJson, resolveModel } from '../llm/groq'
 import { loadEngineSettings } from '../llm/provider'
+import { RERANK_OUTPUT } from '../llm/jsonSchemas'
 
 const SYSTEM = `You are a precise technical recruiter. You compare a candidate profile to job postings and score fit HONESTLY. You never inflate scores. You must reply with a single JSON object and nothing else.`
 
@@ -161,7 +162,7 @@ export async function rerankBatch(
     apiKey,
     system: SYSTEM,
     user: buildRerankPrompt(profile, prefs, batch),
-    json: true,
+    jsonSchema: RERANK_OUTPUT,
     fast: engine.fastMatching,
     temperature: 0,
     maxTokens: estimateRerankOutputTokens(batch.length),

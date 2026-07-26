@@ -48,7 +48,7 @@ export function makeHashingEmbedder(dim = 512): TextEmbedder {
     id: `hashing-tf-v1-${dim}`,
     dim,
     embed(text: string): number[] {
-      const vec = new Array<number>(dim).fill(0)
+      const vec = Array.from({ length: dim }, () => 0)
       for (const tok of tokenize(text)) {
         const h = hashToken(tok)
         const bucket = h % dim

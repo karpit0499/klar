@@ -42,7 +42,7 @@ type BoundedBody =
  * Read only up to `maxBytes`. Checking after `request.text()`/`response.text()`
  * would already have buffered an attacker-controlled body, defeating the cap.
  */
-async function readBoundedBody(
+export async function readBoundedBody(
   stream: ReadableStream<Uint8Array> | null,
   maxBytes: number,
 ): Promise<BoundedBody> {

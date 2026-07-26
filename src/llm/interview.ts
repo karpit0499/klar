@@ -2,6 +2,7 @@ import type { NormalizedJob, Profile } from '../types'
 import type { ResumeData } from '../resume/types'
 import { resumeFromLegacyProfile } from '../resume/canonical'
 import { extractJson, groqChat } from './groq'
+import { INTERVIEW_OUTPUT } from './jsonSchemas'
 
 const SYSTEM = `You are an interview coach. Use only the supplied verified résumé achievements and the job description. Never invent experience. Return one JSON object only.`
 
@@ -33,7 +34,7 @@ export async function generateInterviewPrep(
   apiKey: string,
   signal?: AbortSignal,
 ): Promise<InterviewPrep> {
-  const raw = await groqChat({ apiKey, system: SYSTEM, user: buildInterviewPrompt(source, job), json: true, temperature: 0, maxTokens: 1800, signal })
+  const raw = await groqChat({ apiKey, system: SYSTEM, user: buildInterviewPrompt(source, job), jsonSchema: INTERVIEW_OUTPUT, temperature: 0, maxTokens: 1800, signal })
   const parsed = extractJson<Partial<InterviewPrep>>(raw)
   return {
     likelyQuestions: Array.isArray(parsed.likelyQuestions) ? parsed.likelyQuestions : [],

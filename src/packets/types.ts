@@ -24,7 +24,7 @@ export type PacketKind = 'career' | 'flexible'
 
 export type PacketExport = {
   at: string
-  format: 'docx' | 'pdf' | 'txt' | 'card'
+  format: 'docx' | 'pdf' | 'txt' | 'zip' | 'card'
   filename?: string
 }
 
