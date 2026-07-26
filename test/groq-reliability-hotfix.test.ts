@@ -1,4 +1,5 @@
 import { strict as assert } from 'node:assert'
+import { readFileSync } from 'node:fs'
 import worker from '../worker/src/index'
 import {
   MAX_GROQ_REQUEST_BYTES,
@@ -8,8 +9,20 @@ import {
 import {
   DEFAULT_ENGINE,
   engineRequestUrl,
+  probeEngineAccess,
   type EngineSettings,
 } from '../src/llm/provider'
+import { resolveAvailableGroqKey } from '../src/settings/keys'
+
+const workerConfig = readFileSync(
+  new URL('../worker/wrangler.toml', import.meta.url),
+  'utf8',
+)
+assert.match(
+  workerConfig,
+  /compatibility_flags\s*=\s*\[[^\]]*"global_fetch_strictly_public"/,
+  'the deployed Worker must route Groq through Cloudflare’s public front door',
+)
 
 assert.deepEqual(resolveGroqEndpoint('models'), {
   method: 'GET',
@@ -40,6 +53,45 @@ assert.equal(
   'https://models.example/v1/chat/completions',
   'custom engines are never silently sent through Klar',
 )
+
+{
+  let requestedUrl = ''
+  let requestedInit: RequestInit | undefined
+  const result = await probeEngineAccess(DEFAULT_ENGINE, 'gsk_integration_test', {
+    fetcher: (async (input: string | URL | Request, init?: RequestInit) => {
+      requestedUrl = String(input)
+      requestedInit = init
+      return new Response(JSON.stringify({ data: [] }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      })
+    }) as typeof fetch,
+  })
+  assert.deepEqual(result, { ok: true }, 'an empty model list can still authenticate a valid key')
+  assert.equal(requestedUrl, 'https://api.groq.com/openai/v1/models')
+  assert.equal(requestedInit?.method, 'GET', 'validation does not spend completion quota')
+  assert.equal(
+    new Headers(requestedInit?.headers).get('Authorization'),
+    'Bearer gsk_integration_test',
+  )
+}
+
+{
+  let loads = 0
+  const current = await resolveAvailableGroqKey(' gsk_current ', async () => {
+    loads += 1
+    return 'gsk_stored'
+  })
+  assert.equal(current, 'gsk_current')
+  assert.equal(loads, 0, 'an in-memory key does not trigger a storage read')
+
+  const stored = await resolveAvailableGroqKey(undefined, async () => {
+    loads += 1
+    return ' gsk_stored '
+  })
+  assert.equal(stored, 'gsk_stored', 'a returning user’s saved key is recovered at action time')
+  assert.equal(loads, 1)
+}
 
 {
   let upstreamUrl = ''
@@ -73,6 +125,11 @@ assert.equal(
   assert.equal(result.status, 200)
   assert.equal(upstreamUrl, 'https://api.groq.com/openai/v1/chat/completions')
   assert.equal(upstreamInit?.method, 'POST')
+  assert.equal(
+    upstreamInit?.redirect,
+    'manual',
+    'the Worker uses the redirect mode supported at the edge',
+  )
   assert.equal(
     new Headers(upstreamInit?.headers).get('Authorization'),
     'Bearer gsk_integration_test',
@@ -149,4 +206,22 @@ assert.equal(
   assert.equal(missingKey.headers.get('Cache-Control'), 'no-store')
 }
 
-console.log('groq-integration-hotfix.test.ts: all tests passed')
+{
+  const redirected = await proxyGroqRequest(new Request(
+    'https://worker.example/groq/models',
+    {
+      method: 'GET',
+      headers: { Authorization: 'Bearer gsk_test' },
+    },
+  ), 'models', (async () => new Response(null, {
+    status: 307,
+    headers: { location: 'https://unexpected.example/models' },
+  })) as typeof fetch)
+  assert.equal(redirected.status, 502)
+  assert.ok(
+    !redirected.body.includes('unexpected.example'),
+    'redirect locations are not exposed or followed with the user key',
+  )
+}
+
+console.log('groq-reliability-hotfix.test.ts: all tests passed')

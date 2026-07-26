@@ -17,7 +17,7 @@ import { WorkModeSwitch } from './ui/WorkModeSwitch'
 import { useT } from './i18n/LocaleProvider'
 import type { TranslationKey } from './i18n/translations'
 import { DEFAULT_WEIGHTS } from './match/weights'
-import { loadGroqKey } from './settings/keys'
+import { loadGroqKey, resolveAvailableGroqKey } from './settings/keys'
 import { getVaultStatus } from './crypto/vault'
 import {
   detectLocalSetupState,
@@ -76,8 +76,14 @@ export default function App() {
     })
   }, [vaultStatus])
 
-  function requireGroq(action: string): Promise<string | null> {
-    if (apiKey) return Promise.resolve(apiKey)
+  async function requireGroq(action: string): Promise<string | null> {
+    // Re-read storage at action time. A returning user can click before the
+    // startup effect has copied their saved key into React state.
+    const available = await resolveAvailableGroqKey(apiKey).catch(() => undefined)
+    if (available) {
+      setApiKey(available)
+      return available
+    }
     return new Promise((resolve) => setKeyRequest({ action, resolve }))
   }
   function finishKey(key: string | null) {

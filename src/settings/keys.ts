@@ -18,6 +18,21 @@ const SS_KEY = 'klar.groqKey'
 const DB_KEY = 'groqKey'
 const REMEMBER_KEY = 'groqKeyRemember'
 
+/**
+ * Resolve the key at the exact moment an AI action starts. App startup loads
+ * IndexedDB asynchronously, so relying only on React state can briefly prompt a
+ * returning user even though a saved key already exists.
+ */
+export async function resolveAvailableGroqKey(
+  current: string | undefined,
+  loader: () => Promise<string | undefined> = loadGroqKey,
+): Promise<string | undefined> {
+  const inMemory = current?.trim()
+  if (inMemory) return inMemory
+  const stored = (await loader())?.trim()
+  return stored || undefined
+}
+
 export async function saveGroqKey(key: string, remember: boolean): Promise<void> {
   const trimmed = key.trim()
   const vault = await getVaultStatus()
