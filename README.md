@@ -98,7 +98,9 @@ Your career is personal. Klar treats it that way.
 
 - Your résumé, profile, saved jobs, applications, and preferences stay in your browser.
 - Klar has no application server that stores your career history.
-- Your Groq key is used directly from your browser for AI features.
+- Your Groq key is relayed to Groq by Klar’s fixed, no-storage Worker endpoint
+  for AI features. It is never stored by Klar’s Worker, put in a URL, or echoed
+  back to the app.
 - Optional vault protection can encrypt sensitive career data and saved credentials on your device.
 - A standard backup never contains API credentials.
 - A complete encrypted backup can move credentials safely while keeping them unreadable.
@@ -106,7 +108,10 @@ Your career is personal. Klar treats it that way.
 
 Employer sources are reached through a small, strictly limited relay that can only read from a fixed, published list of employer sites, and only ever reads. It cannot be pointed at anything else, and no part of your workspace passes through it.
 
-When you use an AI feature, the information needed for that feature is sent to Groq for processing. It is not stored on a Klar-controlled application server. If you enable the vault, keep your passphrase safe as Klar cannot recover it.
+When you use an AI feature, the information needed for that feature and your
+per-request authorization are relayed to Groq for processing. Klar’s Worker does
+not store either one. If you enable the vault, keep your passphrase safe as Klar
+cannot recover it.
 
 ---
 
@@ -184,10 +189,10 @@ cp .env.example .env.local
 npm run dev
 ```
 
-`.env.local` holds a single optional value, `VITE_WORKER_URL`. Leave it empty and
-Flexible Work runs against bundled sample data, so the whole app is usable
-offline with no services to deploy. Set it to your own deployed Worker to search
-real employer sources.
+`.env.local` holds one value, `VITE_WORKER_URL`. Set it to your deployed Worker
+for reliable Groq access across desktop and mobile browsers and real
+employer-source searches. If it is left empty, Flexible Work uses bundled
+sample data and Groq falls back to a direct browser request.
 
 Before proposing a change, all five must pass:
 

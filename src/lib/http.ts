@@ -1,10 +1,9 @@
 // ============================================================================
 // Fetch helpers with per-source routing.
 //
-// Direct (browser → upstream): Arbeitnow, Greenhouse, Lever, Ashby, Groq —
-//   all send permissive CORS headers, verified.
-// Proxied (browser → your Worker → upstream): BA and Adzuna only — they send
-//   no CORS headers, and Adzuna also needs a secret key the Worker injects.
+// Direct (browser → upstream): Arbeitnow, Greenhouse, Lever and Ashby.
+// Proxied (browser → your Worker → upstream): BA and Adzuna because they send
+//   no CORS headers, plus default Groq requests for reliable browser support.
 // ============================================================================
 import { WORKER_URL } from './config'
 import { AppError, isAppErrorData } from '../errors/appError'

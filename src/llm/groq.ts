@@ -1,6 +1,7 @@
 // ============================================================================
-// The OpenAI-compatible chat client — called DIRECTLY from the browser. The
-// user's key never touches our Worker.
+// The OpenAI-compatible chat client. Default Groq requests use Klar's fixed
+// browser-safe Worker relay; custom engines remain direct. A relayed key exists
+// only in the Authorization header for that one request and is never stored.
 //
 // v2.5 (WS3): the endpoint and model are no longer hardcoded. Every request now
 // resolves `EngineSettings` from ./provider.ts first, so the same call sites work
@@ -13,7 +14,12 @@
 // ============================================================================
 import { AppError, serializeAppError, toAppError, type AppErrorData } from '../errors/appError'
 import { parseLimitFromError, saveTpmLimit } from './budget'
-import { engineDisplayName, loadEngineSettings, type EngineSettings } from './provider'
+import {
+  engineDisplayName,
+  engineRequestUrl,
+  loadEngineSettings,
+  type EngineSettings,
+} from './provider'
 
 type ChatMessage = { role: 'system' | 'user' | 'assistant'; content: string }
 
@@ -75,7 +81,7 @@ export async function chatComplete(opts: ChatOptions): Promise<string> {
 
   let res: Response
   try {
-    res = await fetch(`${engine.baseUrl}/chat/completions`, {
+    res = await fetch(engineRequestUrl(engine, '/chat/completions'), {
       method: 'POST',
       headers,
       body: JSON.stringify(body),
