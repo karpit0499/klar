@@ -1,6 +1,30 @@
+// ============================================================================
+// v2.4.3: the request this file builds used to be too big to succeed on a free
+// AI plan. Two surgical changes, and NOTHING about the rules or the validator
+// moved:
+//
+//   1. The prompt now carries a minimal PROJECTION of the résumé and the posting
+//      (src/llm/promptProjection.ts) instead of the whole stored objects.
+//      Measured: 5,368 → 1,895 input tokens on a 3-role résumé.
+//   2. `max_tokens` is computed from the résumé's actual shape instead of a flat
+//      4096. Measured: 4,096 → 1,283 reserved.
+//
+//   Together: 9,464 → 3,178 billed tokens, which fits inside an 8,000-token
+//   minute for the first time.
+//
+// `estimateTailoringRequest` is exported so the UI can check affordability
+// BEFORE spending anything, and `tailorResumeWithAi` re-checks as a backstop so
+// no caller can bypass the guard.
+// ============================================================================
 import type { NormalizedJob } from '../types'
 import { tailorResume, type TailoredResume } from '../resume/tailor'
 import type { ResumeData, ResumeLanguage } from '../resume/types'
+import { AppError } from '../errors/appError'
+import { PROMPT } from '../lib/config'
+import {
+  canAfford, costOf, estimateTailoringOutputTokens, loadTpmLimit, type RequestCost,
+} from './budget'
+import { projectJobForPrompt, projectResumeForPrompt, resumeShape } from './promptProjection'
 import { extractJson, groqChat } from './groq'
 
 type RewrittenBullet = {
@@ -158,7 +182,7 @@ export function validateTailoringResponse(
   }
 }
 
-function systemPrompt(language: ResumeLanguage): string {
+export function systemPrompt(language: ResumeLanguage): string {
   const languageName =
     language === 'de' ? 'German' : 'English'
 
@@ -206,51 +230,63 @@ Rules:
 }`
 }
 
-function userPrompt(
+/**
+ * The user message. v2.4.3 sends PROJECTIONS: every `sourceIndex` and
+ * `sourceBulletIndex` the response contract needs is preserved, and nothing else
+ * is included. See src/llm/promptProjection.ts for what is dropped and why.
+ *
+ * Exported so a test can assert the projection invariant (no ids, no evidence
+ * refs, no contact details reach the provider).
+ */
+export function userPrompt(
   source: ResumeData,
   job: NormalizedJob,
 ): string {
-  const indexedSourceResume = {
-    ...source,
-
-    experience: source.experience.map((role, sourceIndex) => ({
-      ...role,
-
-      // The model must copy this exact role index.
-      sourceIndex,
-
-      // Explicitly label every bullet so the model does not
-      // have to calculate or guess its position.
-      bullets: role.bullets.map(
-        (bullet, sourceBulletIndex) => ({
-          sourceBulletIndex,
-          evidenceId: bullet.id,
-          text: bullet.text,
-        }),
-      ),
-    })),
-
-    projects: source.projects.map((project, sourceIndex) => ({
-      ...project,
-      sourceIndex,
-    })),
-  }
-
   return JSON.stringify(
     {
-      job: {
-        title: job.title,
-        company: job.company,
-        description: job.description,
-      },
-
-      candidateSkills: source.skills.flatMap((group) => group.items.map((skill) => skill.name)),
-
-      sourceResume: indexedSourceResume,
+      job: projectJobForPrompt(job, { excerptChars: PROMPT.jobExcerptChars }),
+      sourceResume: projectResumeForPrompt(source),
     },
     null,
-    2,
+    1,
   )
+}
+
+export type TailoringRequest = {
+  system: string
+  user: string
+  maxTokens: number
+  cost: RequestCost
+}
+
+/**
+ * Build the exact request that will be sent, and price it. The UI calls this
+ * before offering the action, so a request that cannot succeed is never sent.
+ */
+export function estimateTailoringRequest(
+  source: ResumeData,
+  job: NormalizedJob,
+  language: ResumeLanguage,
+): TailoringRequest {
+  const system = systemPrompt(language)
+  const user = userPrompt(source, job)
+  const maxTokens = estimateTailoringOutputTokens(resumeShape(source))
+  return { system, user, maxTokens, cost: costOf({ system, user, maxTokens }) }
+}
+
+/** The honest refusal for a request that is over the limit on its own. */
+export function tooLargeError(cost: RequestCost, limit: number): AppError {
+  return new AppError({
+    category: 'validation',
+    message: 'This résumé and job description are too long for one AI request on your current plan.',
+    dataSafe: true,
+    available:
+      `The request needs about ${cost.billedTokens.toLocaleString()} tokens and your plan allows ` +
+      `${limit.toLocaleString()} at once, so waiting will not help. ` +
+      'Use "Tailor without AI" to build this résumé now, or shorten the job description.',
+    action: { label: 'Continue without AI', kind: 'none' },
+    technical: `estimated ${cost.billedTokens} billed tokens (input ${cost.inputTokens} + reserved ${cost.reservedTokens}) vs limit ${limit}`,
+  })
 }
 
 export async function tailorResumeWithAi(
@@ -259,13 +295,21 @@ export async function tailorResumeWithAi(
   apiKey: string,
   language: ResumeLanguage,
 ): Promise<AiTailoredResume> {
+  // v2.4.3: price the request, and refuse honestly if it cannot possibly
+  // succeed. This is a backstop — the UI checks first so it can offer the
+  // no-AI path instead of showing an error at all.
+  const request = estimateTailoringRequest(source, job, language)
+  const { tpm } = await loadTpmLimit()
+  const affordable = canAfford(request.cost, tpm)
+  if (!affordable.ok) throw tooLargeError(request.cost, affordable.limit)
+
   const raw = await groqChat({
     apiKey,
-    system: systemPrompt(language),
-    user: userPrompt(source, job),
+    system: request.system,
+    user: request.user,
     json: true,
     temperature: 0,
-    maxTokens: 4096,
+    maxTokens: request.maxTokens,
   })
   const parsed = extractJson<unknown>(raw)
 

@@ -24,7 +24,7 @@ export const GROQ = {
   /**
    * Model ID. Groq rotates its catalogue often — verify the current list at
    * https://console.groq.com/docs/models and change this one constant if needed.
-   * 70B gives the best parse/matching quality on the free tier.
+   * The 120B model gives the best parse/matching quality on the free tier.
    */
   model: 'openai/gpt-oss-120b',
   /** A smaller/faster fallback you can switch to for speed over quality. */
@@ -36,4 +36,40 @@ export const MATCH = {
   candidateLimit: 40,      // max jobs sent to the LLM after pre-filter
   batchSize: 5,            // jobs per LLM call
   descriptionChars: 1500,  // truncate each description before scoring
+  /**
+   * v2.4.3: stop the batch loop after this many consecutive failures. A rate
+   * limit does not clear inside one search, so firing the remaining batches only
+   * burns request quota. Klar already shows an honest partial-results notice.
+   */
+  maxConsecutiveBatchFailures: 2,
+} as const
+
+/**
+ * v2.4.3 · Prompt size limits.
+ *
+ * The job description is the single largest variable part of a request. German
+ * postings routinely run 3,000–9,000 characters, and most of the tail is
+ * benefits and legal boilerplate. The role and duties are at the START, so a
+ * bounded excerpt from the beginning keeps the signal and drops the padding.
+ */
+export const PROMPT = {
+  /** Characters of the description sent with a résumé rewrite. */
+  jobExcerptChars: 1200,
+  /** Characters of the description sent with a cover letter (needs a little more tone). */
+  letterExcerptChars: 1600,
+} as const
+
+/**
+ * v2.4.3 · Token budget.
+ *
+ * `billed = input tokens + reserved max_tokens`, and the reservation counts
+ * whether the model uses it or not. `assumedTpm` is a deliberately conservative
+ * default matching the smallest common free-tier tokens-per-minute allowance;
+ * Klar replaces it with the provider's real number the first time a provider
+ * reports one in an error body (see src/llm/budget.ts).
+ */
+export const BUDGET = {
+  assumedTpm: 8000,
+  minReservedTokens: 512,
+  maxReservedTokens: 4096,
 } as const

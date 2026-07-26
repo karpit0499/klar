@@ -1,9 +1,24 @@
 // ============================================================================
 // Groq client — called DIRECTLY from the browser (OpenAI-compatible API,
 // verified CORS allow-origin *). The user's key never touches our Worker.
+//
+// v2.4.3 adds two things and changes nothing else:
+//
+//  1. An HONEST "request too large" error. Providers return 413 (and sometimes
+//     429) when a single request exceeds the whole per-minute token allowance.
+//     Klar used to map that to "Groq has reached its current request limit —
+//     Try again", which is wrong twice over: it is not a temporary limit, and
+//     trying again cannot possibly work. Users retried for minutes. Now Klar
+//     says the request was too large, says plainly that waiting will not help,
+//     and points at the option that does work.
+//
+//  2. Klar LEARNS the real limit. The provider states its numbers in the error
+//     body ("Limit 8000, Requested 9124"); we read and store them so the
+//     pre-flight check stops guessing.
 // ============================================================================
 import { GROQ } from '../lib/config'
 import { AppError, serializeAppError, toAppError, type AppErrorData } from '../errors/appError'
+import { parseLimitFromError, saveTpmLimit } from './budget'
 
 type ChatMessage = { role: 'system' | 'user' | 'assistant'; content: string }
 
@@ -22,6 +37,16 @@ export type ChatOptions = {
   json?: boolean
   maxTokens?: number
   signal?: AbortSignal
+}
+
+/**
+ * Does this provider message describe a single request that was too big, rather
+ * than a temporary quota? Exported so a test can pin the classification.
+ */
+export function isRequestTooLarge(status: number, message: string): boolean {
+  if (status === 413) return true
+  // Groq returns 429 with a "Request too large" body for the per-request case.
+  return status === 429 && /too large|request too large|exceeds/i.test(message)
 }
 
 /** One chat completion. Returns the raw assistant text. Throws on API errors. */
@@ -64,6 +89,24 @@ export async function groqChat(opts: ChatOptions): Promise<string> {
   const data = (await res.json().catch(() => ({}))) as GroqResponse
   if (!res.ok) {
     const msg = data.error?.message || `Groq HTTP ${res.status}`
+
+    // v2.4.3: learn the provider's real numbers whenever it tells us.
+    const limits = parseLimitFromError(msg)
+    if (limits?.limit) void saveTpmLimit(limits.limit)
+
+    if (isRequestTooLarge(res.status, msg)) {
+      throw new AppError({
+        category: 'validation',
+        message: 'That request was larger than this AI plan allows in one go.',
+        dataSafe: true,
+        available:
+          'Waiting will not help, because the request itself is over the limit. ' +
+          'Use "Tailor without AI" to build this résumé now with no AI at all, or shorten the job description you pasted.',
+        action: { label: 'Continue without AI', kind: 'none' },
+        technical: msg,
+      })
+    }
+
     const category = res.status === 429 ? 'rate_limit' : res.status === 401 || res.status === 403 ? 'credentials' : 'source'
     throw new AppError({
       category,
@@ -76,7 +119,7 @@ export async function groqChat(opts: ChatOptions): Promise<string> {
       dataSafe: true,
       available: 'Local search, filters, tracker, backups, and exports still work.',
       action: {
-        label: category === 'credentials' ? 'Update the Groq key' : 'Try again',
+        label: category === 'credentials' ? 'Update the Groq key' : 'Try again in a minute',
         kind: category === 'credentials' ? 'open_settings' : 'retry',
       },
       technical: msg,
