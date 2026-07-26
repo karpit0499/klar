@@ -1,6 +1,8 @@
 import packageJson from '../../package.json'
 
-export const APP_VERSION = packageJson.version
+// npm requires SemVer (three numeric components), while Klar hotfix names use
+// a fourth component. Keep package metadata valid and show the exact release.
+export const APP_VERSION = packageJson.klarRelease
 
 type ReleaseFile = { version?: unknown }
 
@@ -29,8 +31,8 @@ export function isNewerRelease(published: string | null): boolean {
   return false
 }
 
-function numericRelease(version: string): [number, number, number] | null {
-  const match = version.trim().match(/^v?(\d+)\.(\d+)\.(\d+)(?:[-+].*)?$/)
+function numericRelease(version: string): [number, number, number, number] | null {
+  const match = version.trim().match(/^v?(\d+)\.(\d+)\.(\d+)(?:\.(\d+))?(?:[-+].*)?$/)
   if (!match) return null
-  return [Number(match[1]), Number(match[2]), Number(match[3])]
+  return [Number(match[1]), Number(match[2]), Number(match[3]), Number(match[4] ?? 0)]
 }

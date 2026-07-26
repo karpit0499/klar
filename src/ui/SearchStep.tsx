@@ -10,7 +10,7 @@ import type { TranslationKey } from '../i18n/translations'
 import { GapSummary } from './GapSummary'
 import { WeightsPanel } from './WeightsPanel'
 import { gatherJobs } from '../sources'
-import { runMatching, type MatchProgress } from '../match'
+import { enrichBaDescriptions, runMatching, type MatchProgress } from '../match'
 import { addToTracker, useTracked } from '../tracker/store'
 import { compositeScore, DEFAULT_WEIGHTS } from '../match/weights'
 import { partitionByHardFilters } from '../match/germanMarket'
@@ -35,6 +35,7 @@ import { ErrorNotice } from './ErrorNotice'
 import { toAppError, type AppErrorData } from '../errors/appError'
 import { EMPLOYMENT_ORDER, type EmploymentCategory } from '../match/employment'
 import { updatePreferenceWeights } from '../storage/careerData'
+import { filterCareerRelevantJobs } from '../match/relevance'
 import {
   createSavedSearch,
   deleteSavedSearch,
@@ -74,6 +75,7 @@ export function SearchStep({
   const [diagnosticBase, setDiagnosticBase] = useState<{
     gathered: GatherResult
     filters: LocalFilterDiagnostics
+    relevanceRemoved: number
   } | null>(null)
   const [savedName, setSavedName] = useState('')
   const [activeSavedSearchId, setActiveSavedSearchId] = useState('')
@@ -95,6 +97,7 @@ export function SearchStep({
   const query: SearchQuery = useMemo(
     () => ({
       what: prefs.targetTitles.length ? prefs.targetTitles : [''],
+      fields: prefs.fields,
       where: prefs.locations[0],
       remote: prefs.remoteOnly,
     }),
@@ -184,6 +187,15 @@ export function SearchStep({
         maxAgeDays: saved?.maxAgeDays ?? (maxAgeDays ? Number(maxAgeDays) : undefined),
         maxDistanceKm: saved?.maxDistanceKm ?? searchQuery.where?.radius_km,
         origin,
+        targetCity: searchQuery.where?.city,
+        targetCountries: regionCountryAliases(searchRegion?.code),
+        resolveLocation: searchRegion?.resolveLocation,
+        // A radius search should not silently admit worldwide remote roles.
+        // Remote is location-independent only when the user asked for remote.
+        keepRemoteRegardlessOfDistance: searchQuery.remote === true,
+        // Unknown ATS locations are counted in diagnostics, but a radius is a
+        // hard promise and must not silently treat them as nearby.
+        keepUnlocatable: false,
       })
       if (filtered.diagnostics.distanceRequested && !filtered.diagnostics.distanceEnforced) {
         filtered.diagnostics.distanceMessage = t('search.distanceUnenforced')
@@ -194,20 +206,30 @@ export function SearchStep({
           t('search.unsafeHideTerms', { terms: hideValidation.rejected.map((item) => item.term).join(', ') }),
         ].filter(Boolean).join(' ')
       }
-      setJobs(filtered.jobs)
-      setDiagnosticBase({ gathered, filters: filtered.diagnostics })
+      // First remove clear title/seniority/known-market mismatches. BA search
+      // rows have no description, so enrich only the small role-relevant subset
+      // and then verify the market again before saving or scoring anything.
+      const preliminary = filterCareerRelevantJobs(filtered.jobs, profile, prefs)
+      await enrichBaDescriptions(preliminary.jobs)
+      const relevant = filterCareerRelevantJobs(preliminary.jobs, profile, prefs)
+      setJobs(relevant.jobs)
+      setDiagnosticBase({
+        gathered,
+        filters: filtered.diagnostics,
+        relevanceRemoved: filtered.jobs.length - relevant.jobs.length,
+      })
       if (saved) {
-        const fresh = await recordRun(saved.id, filtered.jobs)
+        const fresh = await recordRun(saved.id, relevant.jobs)
         setNewJobIds(new Set(fresh.map((job) => job.id)))
       }
 
-      if (filtered.jobs.length === 0) {
+      if (relevant.jobs.length === 0) {
         setPhase('done')
         return
       }
 
       setPhase('matching')
-      const results = await runMatching(filtered.jobs, profile, prefs, apiKey, {
+      const results = await runMatching(relevant.jobs, profile, prefs, apiKey, {
         onProgress: setProgress,
         prefilterMode: mode,
       })
@@ -267,6 +289,7 @@ export function SearchStep({
   const diagnostics: SearchDiagnostics | null = useMemo(() => {
     if (!diagnosticBase) return null
     return buildSearchDiagnostics(diagnosticBase.gathered, diagnosticBase.filters, {
+      relevanceRemoved: diagnosticBase.relevanceRemoved,
       hardFilterRemoved: finished ? view.hidden.length : 0,
       unscoredCount: finished ? Math.max(0, jobs.length - Object.keys(matches).length) : 0,
       finalCount: finished ? view.withScore.length : diagnosticBase.filters.finalCount,
@@ -487,6 +510,18 @@ export function SearchStep({
       )}
     </div>
   )
+}
+
+function regionCountryAliases(code: string | undefined): string[] {
+  const aliases: Record<string, string[]> = {
+    de: ['DE', 'Germany', 'Deutschland'],
+    at: ['AT', 'Austria', 'Österreich', 'Oesterreich'],
+    ch: ['CH', 'Switzerland', 'Schweiz', 'Suisse'],
+    nl: ['NL', 'Netherlands', 'Nederland'],
+    lu: ['LU', 'Luxembourg', 'Luxemburg'],
+    li: ['LI', 'Liechtenstein'],
+  }
+  return code ? (aliases[code] ?? []) : []
 }
 
 function regionLabelKey(code: string): TranslationKey {

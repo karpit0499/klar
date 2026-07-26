@@ -39,6 +39,9 @@ function baWebUrl(refnr: string): string {
 }
 
 export const fetchBa: Adapter = async (q: SearchQuery, opts = {}) => {
+  // Search the role broadly; Klar applies the field/market gate after fetching
+  // the posting. Combining every field here can make the upstream API require
+  // all terms and hide otherwise relevant account roles.
   const was = q.what.join(' ')
   const wo = q.where?.city ?? ''
   const umkreis = q.where?.radius_km ?? 25

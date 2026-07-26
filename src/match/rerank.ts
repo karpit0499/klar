@@ -29,6 +29,7 @@ export function buildRerankPrompt(
   batch: NormalizedJob[],
 ): string {
   const profileBlock = {
+    summary: profile.summary,
     titles: profile.titles,
     skills: profile.skills.map((s) => s.name),
     totalYears: profile.totalYears,
@@ -37,6 +38,7 @@ export function buildRerankPrompt(
   }
   const prefsBlock = {
     targetTitles: prefs.targetTitles,
+    fields: prefs.fields,
     seniority: prefs.seniority,
     salary: prefs.salary,
     locations: prefs.locations,
@@ -78,6 +80,8 @@ export function buildRerankPrompt(
     'factors (object with 0-100 integer sub-scores: {"skills":..,"salary":..,"location":..,"seniority":..}),',
     'confidence (number 0-1: how sure you are, lower it when the description is thin).',
     'The factors must justify the fitScore: skills = how well the candidate\'s skills match,',
+    'Treat the requested title AND job market/field as primary fit criteria. A shared secondary skill',
+    'must not compensate for an unrelated role or industry (for example, data skills in a marketing résumé).',
     'salary = fit vs the candidate\'s salary preference (use 50 when unknown),',
     'location = fit vs the candidate\'s locations/remote preference, seniority = level fit.',
     'Reply ONLY as: {"results":[ ... ]} with one entry per job, same order.',

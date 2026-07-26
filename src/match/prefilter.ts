@@ -5,6 +5,7 @@
 // ============================================================================
 import type { NormalizedJob, Preferences, Profile } from '../types'
 import { normalizeKey } from '../lib/hash'
+import { judgeCareerRelevance } from './relevance'
 
 /** Tokenize to a Set of lowercase word stems for overlap tests. */
 function tokens(s: string): Set<string> {
@@ -25,33 +26,33 @@ export type Scored = { job: NormalizedJob; score: number }
 
 /** Deterministic candidate score in roughly 0–100. */
 export function scoreJob(job: NormalizedJob, profile: Profile, prefs: Preferences): number {
-  const titleTok = tokens(job.title)
-  const wantTitles = tokens([...prefs.targetTitles, ...profile.titles.map((t) => t.title)].join(' '))
+  const relevance = judgeCareerRelevance(job, profile, prefs)
+  if (!relevance.keep) return 0
   const skillTok = tokens(profile.skills.map((s) => s.name).join(' '))
   const descTok = tokens(job.description.slice(0, 2000))
 
-  const titleHit = overlap(titleTok, wantTitles)          // strong signal
   const skillHit = overlap(skillTok, descTok)             // supporting signal
 
-  let score = 0
-  score += Math.min(titleHit, 3) * 18                     // up to 54
-  score += Math.min(skillHit, 8) * 4                      // up to 32
-  if (job.salary.min != null || job.salary.max != null) score += 6
+  // v2.5.3.1: requested-role relevance is the dominant signal. Skills only
+  // distinguish jobs that have already passed the title gate.
+  let score = relevance.score * 0.78
+  score += Math.min(skillHit, 8) * 1.25                   // up to 10
+  if (job.salary.min != null || job.salary.max != null) score += 3
   // Recency: within 30 days gets a boost that fades with age.
   if (job.posted_at) {
     const ageDays = (Date.now() - new Date(job.posted_at).getTime()) / 86_400_000
-    if (ageDays >= 0) score += Math.max(0, 8 - ageDays / 5)
+    if (ageDays >= 0) score += Math.max(0, 4 - ageDays / 10)
   }
   // Location alignment.
   if (prefs.remoteOnly) {
-    if (job.location.remote) score += 6
+    if (job.location.remote) score += 4
   } else if (job.location.city) {
     const cityTok = normalizeKey(job.location.city)
     const wantCities = prefs.locations.map((l) => normalizeKey(l.city))
-    if (wantCities.some((c) => c && cityTok.includes(c))) score += 8
-    else if (job.location.remote) score += 4
+    if (wantCities.some((c) => c && cityTok.includes(c))) score += 5
+    else if (job.location.remote) score += 2
   }
-  return score
+  return Math.max(0, Math.min(100, score))
 }
 
 function hasDealbreaker(job: NormalizedJob, prefs: Preferences): boolean {
@@ -69,6 +70,7 @@ export function prefilter(
   const survivors = jobs.filter((j) => {
     if (hasDealbreaker(j, prefs)) return false
     if (prefs.remoteOnly && !j.location.remote) return false
+    if (!judgeCareerRelevance(j, profile, prefs).keep) return false
     return true
   })
   const scored: Scored[] = survivors.map((job) => ({ job, score: scoreJob(job, profile, prefs) }))

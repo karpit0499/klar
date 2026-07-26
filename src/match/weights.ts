@@ -3,11 +3,9 @@
 //
 // The LLM returns a holistic `fitScore` AND four per-factor sub-scores
 // (skills / salary / location / seniority). The number the UI ranks by is a
-// COMPOSITE: a weighted average of those four factors using weights the user
-// controls. Because the factors are cached with each MatchResult, changing the
-// weights re-ranks instantly — no new LLM call. That is what makes the score
-// both explainable ("here's what drove it") and correctable ("I don't care
-// about salary → drag it to zero").
+// COMPOSITE: the holistic role/market fit plus a weighted average of the four
+// user-correctable factors. Keeping the holistic signal prevents a secondary
+// résumé skill from making an unrelated role outrank the requested career.
 // ============================================================================
 import type { MatchResult, ScoreWeights } from '../types'
 
@@ -35,9 +33,9 @@ export function normalizeWeights(w: ScoreWeights): ScoreWeights {
 }
 
 /**
- * The composite 0–100 score used for ranking. If a result has no per-factor
- * breakdown (an older cached score, or a failed batch), we fall back to the
- * model's holistic fitScore so ranking still works.
+ * The composite 0–100 score used for ranking. Holistic role/market fit is 60%;
+ * the four adjustable factors share the remaining 40%. If a result has no
+ * factor breakdown, use its holistic score unchanged.
  */
 export function compositeScore(match: MatchResult, weights: ScoreWeights): number {
   if (!match.factors) return match.fitScore
@@ -45,7 +43,7 @@ export function compositeScore(match: MatchResult, weights: ScoreWeights): numbe
   const f = match.factors
   const raw =
     f.skills * w.skills + f.salary * w.salary + f.location * w.location + f.seniority * w.seniority
-  return Math.max(0, Math.min(100, Math.round(raw)))
+  return Math.max(0, Math.min(100, Math.round(match.fitScore * 0.6 + raw * 0.4)))
 }
 
 /** Are these weights different from the defaults (i.e. has the user customized them)? */

@@ -230,6 +230,7 @@ export type TrackedJob = {
 /** What the UI hands to the gather layer. */
 export type SearchQuery = {
   what: string[]                 // target titles / keywords
+  fields?: string[]              // job market/domain terms (kept separate in the UI)
   where?: { city: string; radius_km: number }
   remote?: boolean
   employmentType?: string[]

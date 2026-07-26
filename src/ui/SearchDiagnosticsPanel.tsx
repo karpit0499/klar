@@ -19,6 +19,7 @@ export function SearchDiagnosticsPanel({ diagnostics }: { diagnostics: SearchDia
         <Diagnostic label={t('search.ageRemoved')} value={diagnostics.filters.removed.recency} />
         <Diagnostic label={t('search.distanceRemoved')} value={diagnostics.filters.removed.distance} />
         <Diagnostic label={t('search.couldNotDistance')} value={diagnostics.filters.unlocatableCount} />
+        <Diagnostic label={t('search.relevanceRemoved')} value={diagnostics.relevanceRemoved} />
         <Diagnostic label={t('search.hardRemoved')} value={diagnostics.hardFilterRemoved} />
         <Diagnostic label={t('search.notScored')} value={diagnostics.unscoredCount} />
         <Diagnostic label={t('search.finalCount')} value={diagnostics.finalCount} />
@@ -59,6 +60,7 @@ function zeroResultTranslation(reason: ZeroResultReason): TranslationKey {
     employment: 'search.zero.employment',
     recency: 'search.zero.recency',
     distance: 'search.zero.distance',
+    relevance: 'search.zero.relevance',
     hard_filters: 'search.zero.hardFilters',
     no_raw_results: 'search.zero.noRawResults',
     unscored: 'search.zero.unscored',

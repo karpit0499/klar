@@ -4,6 +4,49 @@ This file records Klar’s product history from the newest release to the origin
 
 ---
 
+## v2.5.3.1 — Targeted search-relevance hotfix
+
+### Fixed
+
+- Career search now applies one shared role-and-market relevance gate before
+  keyword ranking, local vocabulary ranking, or paid AI scoring. Broad employer
+  feeds can no longer fill the result list with unrelated roles simply because
+  they were among the best items in an irrelevant pool.
+- Matching distinguishes the role from its job market. For example, an account
+  role in email/CRM/digital marketing is not treated as equivalent to account
+  sales in car rental, cybersecurity IAM, or another unrelated industry.
+- The requested titles and fields now outrank secondary résumé skills. Data
+  skills on a marketing résumé can support a relevant match but cannot admit or
+  elevate data-science and software-engineering jobs.
+- Junior searches reject clearly senior titles such as Principal, Lead, Head,
+  and Director before scoring.
+- Radius searches now use the active region's offline city resolver and reject
+  explicit out-of-country ATS locations even when a posting has no coordinates.
+  Worldwide remote roles bypass distance only when remote work was requested.
+- Local "semantic" mode now combines title/market relevance with its local
+  vocabulary score, uses a larger refreshed vector cache, and is labelled
+  accurately as a no-AI vocabulary comparison.
+- AI matching now receives the résumé summary and requested field, and match
+  caches include both plus the ranking version. Existing stale scores therefore
+  cannot survive this release.
+- The final displayed score preserves holistic role/market fit while keeping
+  salary, location, skills, and seniority weights adjustable.
+- Career setup now exposes an editable **Job market / field** input. Sources
+  retrieve the role broadly, then Klar verifies the posting's market locally
+  after any missing job detail has been fetched.
+
+### Quality gate
+
+- A résumé-derived regression set covers email/CRM account roles against the
+  exact failure classes reported: car-rental sales, IAM sales, senior data
+  science, engineering management, planning leadership, and unrelated media
+  leadership.
+- The regression also covers Berlin radius filtering, keyword and local
+  vocabulary modes, prompt context, cache invalidation, diagnostics, and final
+  score blending.
+
+---
+
 ## v2.5.3 — Release stability and data-safety hotfix
 
 ### Fixed

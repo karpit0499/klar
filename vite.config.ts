@@ -9,7 +9,7 @@ function releaseMetadata(): Plugin {
       this.emitFile({
         type: 'asset',
         fileName: 'version.json',
-        source: JSON.stringify({ version: packageJson.version }),
+        source: JSON.stringify({ version: packageJson.klarRelease }),
       })
     },
   }

@@ -7,6 +7,7 @@ export type SearchDiagnostics = {
   rawCount: number
   duplicatesRemoved: number
   filters: LocalFilterDiagnostics
+  relevanceRemoved: number
   hardFilterRemoved: number
   unscoredCount: number
   finalCount: number
@@ -20,6 +21,7 @@ export type ZeroResultReason =
   | 'employment'
   | 'recency'
   | 'distance'
+  | 'relevance'
   | 'hard_filters'
   | 'no_raw_results'
   | 'unscored'
@@ -28,7 +30,12 @@ export type ZeroResultReason =
 export function buildSearchDiagnostics(
   gathered: GatherResult,
   filters: LocalFilterDiagnostics,
-  update: { hardFilterRemoved?: number; unscoredCount?: number; finalCount?: number } = {},
+  update: {
+    relevanceRemoved?: number
+    hardFilterRemoved?: number
+    unscoredCount?: number
+    finalCount?: number
+  } = {},
 ): SearchDiagnostics {
   const diagnostics: SearchDiagnostics = {
     sourcesRequested: gathered.sourcesRequested,
@@ -36,6 +43,7 @@ export function buildSearchDiagnostics(
     rawCount: gathered.rawCount,
     duplicatesRemoved: gathered.duplicatesRemoved,
     filters,
+    relevanceRemoved: update.relevanceRemoved ?? 0,
     hardFilterRemoved: update.hardFilterRemoved ?? 0,
     unscoredCount: update.unscoredCount ?? 0,
     finalCount: update.finalCount ?? filters.finalCount,
@@ -56,6 +64,10 @@ export function zeroResultReason(diagnostics: SearchDiagnostics): ZeroResultReas
   if (diagnostics.filters.removedAllBy === 'employment') return 'employment'
   if (diagnostics.filters.removedAllBy === 'recency') return 'recency'
   if (diagnostics.filters.removedAllBy === 'distance') return 'distance'
+  if (
+    diagnostics.relevanceRemoved > 0
+    && diagnostics.filters.finalCount - diagnostics.relevanceRemoved <= 0
+  ) return 'relevance'
   if (diagnostics.hardFilterRemoved > 0) return 'hard_filters'
   if (diagnostics.rawCount === 0) return 'no_raw_results'
   if (diagnostics.unscoredCount > 0) return 'unscored'
@@ -69,6 +81,7 @@ export function zeroResultNextStep(reason: ZeroResultReason): string {
     employment: 'The employment-type filter removed every result. Select more employment types.',
     recency: 'The age filter removed every result. Increase the maximum age or turn it off.',
     distance: 'The distance filter removed every result. Increase the radius or search a different city.',
+    relevance: 'No posting matched both the requested role and its job market. Review the target title or field.',
     hard_filters: 'German-level or visa filters hid all scored roles. Review the hidden-results section or relax a filter.',
     no_raw_results: 'The sources returned no postings. Broaden the title or location, then try again.',
     unscored: 'Matching did not finish. Retry the search to score the remaining candidates.',

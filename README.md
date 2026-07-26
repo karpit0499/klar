@@ -4,7 +4,7 @@
 
 Klar brings your entire job search into one calm, private workspace. Discover live roles, understand where you fit, create stronger applications, and keep every opportunity moving, without losing yourself in tabs, spreadsheets, and scattered notes.
 
-[**Open Klar →**](https://karpit0499.github.io/klar/) · [See what’s new in v2.5.3](CHANGELOG.md)
+[**Open Klar →**](https://karpit0499.github.io/klar/) · [See what’s new in v2.5.3.1](CHANGELOG.md)
 
 ![Klar dashboard](docs/klar-dashboard.png)
 _**Klar Dashboard**_
