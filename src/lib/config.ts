@@ -4,7 +4,8 @@
 
 /**
  * Base URL of YOUR deployed Cloudflare Worker (Phase 0), WITHOUT a trailing slash.
- * Only two sources are proxied through it: BA and Adzuna (they lack CORS).
+ * BA and Adzuna job-source calls are proxied through it because they lack CORS.
+ * Default Groq requests also use its fixed relay for reliable browser support.
  * In local dev with `wrangler dev` this is typically http://127.0.0.1:8787.
  *
  * We read it from a Vite env var so you never hard-code it:
@@ -19,8 +20,9 @@ const workerFromEnv =
 export const WORKER_URL: string = (workerFromEnv || '').replace(/\/$/, '')
 
 /**
- * Groq (LLM) — the DEFAULT engine, called DIRECTLY from the browser (verified
- * CORS: allow-origin *).
+ * Groq (LLM) — the DEFAULT engine. When VITE_WORKER_URL is configured, its
+ * requests use Klar's fixed browser-safe relay; otherwise self-hosted builds
+ * retain the direct-browser fallback.
  *
  * v2.5 note: these are now DEFAULTS, not the only option. `src/llm/provider.ts`
  * stores a user-configurable `EngineSettings` (base URL + models) that seeds

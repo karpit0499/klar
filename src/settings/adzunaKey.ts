@@ -4,7 +4,8 @@
 // Worker per request (as headers) and the Worker relays them to Adzuna. They're
 // stored locally and, like the Groq key, are EXCLUDED from the JSON export so a
 // backup file never contains a credential. Adzuna keys are low-sensitivity
-// (read-only job data); the crown-jewel Groq key still never touches the Worker.
+// (read-only job data); the Groq key is likewise relayed per request and is
+// never stored by the Worker.
 // ============================================================================
 import { getSetting, db } from '../db/db'
 import {

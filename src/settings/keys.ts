@@ -1,8 +1,9 @@
 // ============================================================================
 // Key storage. The ONLY per-user secret is the Groq key. "Remember on device"
 // ON  → IndexedDB (persists). OFF → sessionStorage (gone when the tab closes).
-// Clear wipes both. We never send the Groq key to our Worker — it goes straight
-// to Groq (verified CORS), so it's only ever visible to this browser + Groq.
+// Clear wipes both. For the default Groq engine the key passes through Klar's
+// fixed Worker relay only in the Authorization header for one request; the
+// Worker never stores it. Custom engines remain direct.
 // ============================================================================
 import { getSetting, setSetting, db } from '../db/db'
 import {

@@ -45,7 +45,12 @@ export function GroqKeyPrompt({ action, onReady, onCancel }: {
           {de ? `Klar fragt jetzt, weil du „${action}“ gestartet hast. Lokale Funktionen benötigen keinen Schlüssel.` : `Klar is asking now because you started “${action}”. Local features do not need a key.`}
         </p>
         <div className="mt-4">
-          <Field label={de ? 'Groq API-Schlüssel' : 'Groq API key'} hint={de ? 'Wird direkt an Groq gesendet.' : 'Sent directly to Groq.'}>
+          <Field
+            label={de ? 'Groq API-Schlüssel' : 'Groq API key'}
+            hint={de
+              ? 'Wird über Klars nicht speichernde Weiterleitung sicher an Groq gesendet.'
+              : 'Sent securely to Groq through Klar’s no-storage relay.'}
+          >
             <TextInput type="password" value={key} onChange={(event) => setKey(event.target.value)} placeholder="gsk_…" autoComplete="off" />
           </Field>
         </div>

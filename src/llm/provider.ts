@@ -22,7 +22,7 @@
 //     explicit, honest warning; the full local experience is v2.6 work, gated on
 //     that blocker being solved. `engineWarning()` below is how we stay honest.
 // ============================================================================
-import { GROQ } from '../lib/config'
+import { GROQ, WORKER_URL } from '../lib/config'
 import { getSetting, setSetting } from '../db/db'
 
 export type EngineSettings = {
@@ -87,6 +87,22 @@ export function validateEngineDraft(
 /** True when the settings still point at Klar's default hosted engine. */
 export function isDefaultEngine(settings: EngineSettings): boolean {
   return settings.baseUrl === DEFAULT_ENGINE.baseUrl
+}
+
+/**
+ * Resolve an engine endpoint. Groq calls use Klar's fixed Worker relay when it
+ * is configured; custom engines remain direct so bring-your-own-engine keeps
+ * working. The relay avoids browser CORS/privacy failures and never
+ * stores the per-request API key.
+ */
+export function engineRequestUrl(
+  settings: EngineSettings,
+  endpoint: '/chat/completions' | '/models',
+  workerUrl: string = WORKER_URL,
+): string {
+  const relay = normalizeBaseUrl(workerUrl)
+  if (relay && isDefaultEngine(settings)) return `${relay}/groq${endpoint}`
+  return `${settings.baseUrl}${endpoint}`
 }
 
 /** A short, human label for error messages: "Groq" or the endpoint's host. */
@@ -181,7 +197,7 @@ export async function listEngineModels(
 ): Promise<string[]> {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' }
   if (apiKey) headers.Authorization = `Bearer ${apiKey}`
-  const res = await fetch(`${settings.baseUrl}/models`, { headers, signal })
+  const res = await fetch(engineRequestUrl(settings, '/models'), { headers, signal })
   if (!res.ok) return []
   const body = (await res.json().catch(() => null)) as { data?: { id?: unknown }[] } | null
   const ids = (body?.data ?? [])

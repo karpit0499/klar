@@ -4,6 +4,28 @@ This file records Klar’s product history from the newest release to the origin
 
 ---
 
+## v2.5.1 — Groq integration hotfix
+
+### Fixed
+
+- Groq AI actions work across desktop and mobile browsers again. Klar now sends
+  default Groq requests through its existing fixed Worker relay, avoiding
+  browser cross-origin failures.
+- The relay accepts only Groq model-listing and chat-completion routes, carries
+  each person’s own key only in the request authorization header, never stores
+  or echoes it, rejects malformed and oversized requests, and disables response
+  caching.
+- Custom OpenAI-compatible engines remain direct and are never silently routed
+  through Klar.
+
+### Unchanged
+
+No data-schema change, migration, or new dependency. Local search, matching,
+tailoring validation, application packets, and existing saved credentials are
+unchanged.
+
+---
+
 ## v2.5 — Application Quality
 
 Klar could already find the right roles. What it produced for them was still generic: one hidden coverage number, a résumé rewrite you had to accept whole or not at all, an Anglo cover letter with no register control, and nothing kept once the drawer closed. Flexible Work could find a minijob but gave you no way to reach out. This release makes what Klar produces materially better than what you started with — and shows you exactly what it changed and why.

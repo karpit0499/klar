@@ -1,21 +1,24 @@
 // ============================================================================
-// Klar proxy Worker. The app calls this ONLY for the two sources that can't be
-// called directly from the browser:
+// Klar proxy Worker. The app calls this for sources that cannot be called
+// directly from the browser:
 //   • BA (rest.arbeitsagentur.de) — no CORS. We inject the public API key.
 //   • Adzuna (api.adzuna.com)     — no CORS + needs a key we inject.
-// Everything else (Arbeitnow, Greenhouse, Lever, Ashby, Groq) is called
-// directly by the browser and never touches this Worker.
+//   • Groq                       — browser-safe fixed relay for a user's own key.
+// Everything else (Arbeitnow, Greenhouse, Lever, Ashby) is called directly by
+// the browser and never touches this Worker.
 //
-// Security: this is NOT an open proxy. It knows how to talk to exactly two
-// upstream hosts, mapped from two fixed routes. Anything else → 404.
+// Security: this is NOT an open proxy. Every upstream host and endpoint is
+// fixed in code. Anything else → 404.
 //
 // v2 (feature 4): Adzuna credentials may come from the USER (relayed per-request
 // via X-Adzuna-App-Id / X-Adzuna-App-Key headers) OR from Worker secrets. User
 // keys are relayed, never stored. This is an acceptable trade — Adzuna keys are
-// low-sensitivity, read-only job data — and it keeps the ONE crown-jewel secret,
-// the user's Groq/LLM key, browser→Groq only, never touching this Worker.
+// low-sensitivity, read-only job data. The user's Groq key is relayed only in an
+// Authorization header for the duration of one fixed request. It is never
+// stored, logged by application code, placed in a URL, or echoed in a response.
 // ============================================================================
 import { fabricFetch, isFabricFailure } from './fabric'
+import { proxyGroqRequest } from './groq'
 
 export interface Env {
   // Set via: npx wrangler secret put ADZUNA_APP_ID   (and ADZUNA_APP_KEY)
@@ -71,9 +74,10 @@ export function corsOrigin(requestOrigin: string | null, allowed?: string): stri
 function corsHeaders(origin: string): Record<string, string> {
   return {
     'Access-Control-Allow-Origin': origin,
-    'Access-Control-Allow-Methods': 'GET,OPTIONS',
-    // Allow the optional per-request Adzuna key headers (feature 4).
-    'Access-Control-Allow-Headers': 'content-type,x-adzuna-app-id,x-adzuna-app-key',
+    'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
+    // Allow the optional per-request source keys and Groq bearer key.
+    'Access-Control-Allow-Headers':
+      'authorization,content-type,x-adzuna-app-id,x-adzuna-app-key',
     'Access-Control-Max-Age': '86400',
     Vary: 'Origin',
   }
@@ -149,14 +153,28 @@ export default {
     if (request.method === 'OPTIONS') {
       return new Response(null, { status: 204, headers: corsHeaders(origin) })
     }
-    // We only proxy GETs.
-    if (request.method !== 'GET') {
-      return json({ error: 'method not allowed' }, 405, origin)
-    }
 
     const url = new URL(request.url)
     const segments = url.pathname.replace(/^\/+/, '').split('/')
     const route = segments[0]
+
+    // Browser-safe Groq relay. This is handled before the GET-only source routes.
+    if (route === 'groq') {
+      const result = await proxyGroqRequest(request, segments.slice(1).join('/'))
+      return new Response(result.body, {
+        status: result.status,
+        headers: {
+          'content-type': 'application/json',
+          'cache-control': 'no-store',
+          ...corsHeaders(origin),
+        },
+      })
+    }
+
+    // Every non-Groq route is read-only.
+    if (request.method !== 'GET') {
+      return json({ error: 'method not allowed' }, 405, origin)
+    }
 
     if (route === 'health' || url.pathname === '/') {
       return json({ ok: true, service: 'klar-proxy' }, 200, origin)

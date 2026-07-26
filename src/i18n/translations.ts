@@ -160,7 +160,7 @@ const en = {
   // Groq key gate
   'key.title': 'Connect your free Groq key',
   'key.intro':
-    "Klar uses Groq's free API for résumé parsing and job matching. Your key is sent only to Groq, directly from your browser — never to our server.",
+    "Klar uses Groq's free API for résumé parsing and job matching. Klar's fixed relay passes your key to Groq for each request and never stores it.",
   'key.step1Open': 'Open',
   'key.step1After': 'and create a key (free, ~30 seconds).',
   'key.step2': 'Paste it below and click Validate.',
@@ -803,7 +803,7 @@ const de: Record<TranslationKey, string> = {
   // Groq-Schlüssel-Gate
   'key.title': 'Kostenlosen Groq-Schlüssel verbinden',
   'key.intro':
-    'Klar nutzt die kostenlose Groq-API für Lebenslauf-Analyse und Job-Matching. Dein Schlüssel geht nur an Groq — direkt aus deinem Browser, niemals an unseren Server.',
+    'Klar nutzt die kostenlose Groq-API für Lebenslauf-Analyse und Job-Matching. Klars feste Weiterleitung überträgt deinen Schlüssel pro Anfrage an Groq und speichert ihn nie.',
   'key.step1Open': 'Öffne',
   'key.step1After': 'und erstelle einen Schlüssel (kostenlos, ~30 Sekunden).',
   'key.step2': 'Füge ihn unten ein und klicke auf „Prüfen“.',
