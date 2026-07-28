@@ -10,7 +10,12 @@ import type { TranslationKey } from '../i18n/translations'
 import { GapSummary } from './GapSummary'
 import { WeightsPanel } from './WeightsPanel'
 import { gatherJobs } from '../sources'
-import { enrichBaDescriptions, runMatching, type MatchProgress } from '../match'
+import {
+  enrichBaDescriptions,
+  runMatching,
+  type MatchProgress,
+  type MatchRunDiagnostics,
+} from '../match'
 import { addToTracker, useTracked } from '../tracker/store'
 import { compositeScore, DEFAULT_WEIGHTS } from '../match/weights'
 import { partitionByHardFilters } from '../match/germanMarket'
@@ -28,7 +33,11 @@ import {
   validateHideTerms,
   type LocalFilterDiagnostics,
 } from '../match/localFilters'
-import { buildSearchDiagnostics, type SearchDiagnostics } from '../search/diagnostics'
+import {
+  buildResultDisplayState,
+  buildSearchDiagnostics,
+  type SearchDiagnostics,
+} from '../search/diagnostics'
 import type { GatherResult } from '../sources'
 import { SearchDiagnosticsPanel } from './SearchDiagnosticsPanel'
 import { ErrorNotice } from './ErrorNotice'
@@ -66,6 +75,7 @@ export function SearchStep({
   const [status, setStatus] = useState<SourceStatus[]>([])
   const [phase, setPhase] = useState<'idle' | 'gathering' | 'matching' | 'done'>('idle')
   const [progress, setProgress] = useState<MatchProgress | null>(null)
+  const [matchDiagnostics, setMatchDiagnostics] = useState<MatchRunDiagnostics | null>(null)
   const tracked = useTracked()
   const [open, setOpen] = useState<NormalizedJob | null>(null)
   const [error, setError] = useState<AppErrorData | null>(null)
@@ -76,6 +86,7 @@ export function SearchStep({
     gathered: GatherResult
     filters: LocalFilterDiagnostics
     relevanceRemoved: number
+    relevanceRemovedBy: { role: number; market: number; seniority: number }
   } | null>(null)
   const [savedName, setSavedName] = useState('')
   const [activeSavedSearchId, setActiveSavedSearchId] = useState('')
@@ -156,6 +167,7 @@ export function SearchStep({
   async function run() {
     setError(null)
     setProgress(null)
+    setMatchDiagnostics(null)
     setPhase('gathering')
     setMatches({})
     setNewJobIds(new Set())
@@ -217,6 +229,17 @@ export function SearchStep({
         gathered,
         filters: filtered.diagnostics,
         relevanceRemoved: filtered.jobs.length - relevant.jobs.length,
+        relevanceRemovedBy: {
+          role:
+            preliminary.diagnostics.removedBy.role +
+            relevant.diagnostics.removedBy.role,
+          market:
+            preliminary.diagnostics.removedBy.market +
+            relevant.diagnostics.removedBy.market,
+          seniority:
+            preliminary.diagnostics.removedBy.seniority +
+            relevant.diagnostics.removedBy.seniority,
+        },
       })
       if (saved) {
         const fresh = await recordRun(saved.id, relevant.jobs)
@@ -232,6 +255,13 @@ export function SearchStep({
       const results = await runMatching(relevant.jobs, profile, prefs, apiKey, {
         onProgress: setProgress,
         prefilterMode: mode,
+        onCandidates: setJobs,
+        onMatches: (snapshot) => {
+          const map: Record<string, MatchResult> = {}
+          for (const match of snapshot) map[match.jobId] = match
+          setMatches(map)
+        },
+        onDiagnostics: setMatchDiagnostics,
       })
       const map: Record<string, MatchResult> = {}
       for (const m of results) map[m.jobId] = m
@@ -282,19 +312,42 @@ export function SearchStep({
   }, [jobs, matches, weights, hideGerman, hideNoVisa, prefs])
 
   const finished = phase === 'done'
-  const hasMatches = finished && view.withScore.length + view.hidden.length > 0
-  const shownJobs = finished ? view.withScore.map((x) => x.job) : jobs
+  const resultDisplay = buildResultDisplayState(view.withScore, view.hidden.length)
+  const hasMatches = resultDisplay.hasAny
+  const hasShownMatches = resultDisplay.hasShown
+  const shownJobs = resultDisplay.shown.map((row) => row.job)
   const savedIds = useMemo(() => new Set(tracked.map((row) => row.jobId)), [tracked])
-  const partial = finished && progress?.phase === 'done' && progress.done < progress.total
+  const partial =
+    finished &&
+    matchDiagnostics != null &&
+    matchDiagnostics.aiRequestedCount > 0 &&
+    matchDiagnostics.localFallbackCount > 0
   const diagnostics: SearchDiagnostics | null = useMemo(() => {
     if (!diagnosticBase) return null
     return buildSearchDiagnostics(diagnosticBase.gathered, diagnosticBase.filters, {
       relevanceRemoved: diagnosticBase.relevanceRemoved,
-      hardFilterRemoved: finished ? view.hidden.length : 0,
-      unscoredCount: finished ? Math.max(0, jobs.length - Object.keys(matches).length) : 0,
-      finalCount: finished ? view.withScore.length : diagnosticBase.filters.finalCount,
+      relevanceRemovedBy: diagnosticBase.relevanceRemovedBy,
+      hardFilterRemoved: view.hidden.length,
+      unscoredCount: 0,
+      candidateCount: matchDiagnostics?.candidateCount ?? 0,
+      notPrioritizedCount: matchDiagnostics?.notPrioritizedCount ?? 0,
+      aiCompletedCount: matchDiagnostics
+        ? matchDiagnostics.aiCachedCount + matchDiagnostics.aiFreshCount
+        : 0,
+      localFallbackCount: matchDiagnostics?.localFallbackCount ?? 0,
+      aiBatchFailureCount: matchDiagnostics
+        ? matchDiagnostics.failedBatchCount + matchDiagnostics.partialBatchCount
+        : 0,
+      aiFailureCategories: matchDiagnostics
+        ? Object.entries(matchDiagnostics.failuresByCategory)
+          .filter((entry): entry is [string, number] => typeof entry[1] === 'number' && entry[1] > 0)
+          .map(([category, count]) => `${category}: ${count}`)
+        : [],
+      finalCount: phase === 'matching' || finished || matchDiagnostics
+        ? view.withScore.length
+        : diagnosticBase.filters.finalCount,
     })
-  }, [diagnosticBase, finished, jobs.length, matches, view.hidden.length, view.withScore.length])
+  }, [diagnosticBase, finished, matchDiagnostics, phase, view.hidden.length, view.withScore.length])
 
   function exportResults(kind: 'csv' | 'xlsx' | 'pdf') {
     const rows = jobsToRows(shownJobs, matches)
@@ -418,12 +471,15 @@ export function SearchStep({
         {error && <div className="mt-3"><ErrorNotice error={error} /></div>}
         {partial && (
           <p className="mt-2 text-sm text-muted">
-            {t('search.partialScores', { done: progress.done, total: progress.total })}
+            {t('search.partialScores', {
+              done: matchDiagnostics.aiCachedCount + matchDiagnostics.aiFreshCount,
+              total: matchDiagnostics.candidateCount,
+            })}
           </p>
         )}
 
         {/* Export the current results (feature 3.1). */}
-        {hasMatches && (
+        {hasShownMatches && (
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <span className="text-sm text-muted">{t('search.export')}</span>
             <Button variant="ghost" size="sm" onClick={() => exportResults('csv')}>CSV</Button>
@@ -435,7 +491,7 @@ export function SearchStep({
         {diagnostics && <SearchDiagnosticsPanel diagnostics={diagnostics} />}
       </Card>
 
-      {hasMatches && (
+      {hasShownMatches && (
         <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
           <GapSummary data={view.gap} />
           <WeightsPanel weights={weights} onChange={updateWeights} />
@@ -443,7 +499,7 @@ export function SearchStep({
       )}
 
       <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
-        {(finished ? view.withScore : shownJobs.map((job) => ({ job, match: undefined, score: undefined }))).map(
+        {resultDisplay.shown.map(
           (row) => (
             <div key={row.job.id} className="min-w-0">
               {newJobIds.has(row.job.id) && <div className="mb-1"><Badge tone="success">{t('search.newBadge')}</Badge></div>}
@@ -490,7 +546,7 @@ export function SearchStep({
         </details>
       )}
 
-      {finished && shownJobs.length === 0 && !partial && (
+      {finished && !hasShownMatches && !partial && (
         <p className="mt-6 text-center text-sm text-faint">
           {t('search.noMatches')}
         </p>

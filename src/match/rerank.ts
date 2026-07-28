@@ -10,10 +10,20 @@ import { estimateRerankOutputTokens } from '../llm/budget'
 import { chatComplete, extractJson, resolveModel } from '../llm/groq'
 import { loadEngineSettings } from '../llm/provider'
 import { RERANK_OUTPUT } from '../llm/jsonSchemas'
+import { AppError, type ErrorCategory } from '../errors/appError'
 
 const SYSTEM = `You are a precise technical recruiter. You compare a candidate profile to job postings and score fit HONESTLY. You never inflate scores. You must reply with a single JSON object and nothing else.`
 
 const LEGACY_FAILED_RATIONALE = 'Scoring failed for this batch.'
+
+export type RerankDiagnostics = {
+  requestedCount: number
+  completedCount: number
+  missingCount: number
+  failedBatchCount: number
+  partialBatchCount: number
+  failuresByCategory: Partial<Record<ErrorCategory, number>>
+}
 
 /** Identify 0/100 placeholders written by older Klar builds after an API error. */
 export function isFailedMatchPlaceholder(match: MatchResult): boolean {
@@ -282,28 +292,68 @@ export async function rerankAll(
   apiKey: string,
   onProgress?: (done: number, total: number) => void,
   signal?: AbortSignal,
+  onDiagnostics?: (diagnostics: RerankDiagnostics) => void,
+  onBatch?: (matches: MatchResult[]) => void,
 ): Promise<MatchResult[]> {
   const out: MatchResult[] = []
   const size = MATCH.batchSize
   let consecutiveFailures = 0
+  const diagnostics: RerankDiagnostics = {
+    requestedCount: candidates.length,
+    completedCount: 0,
+    missingCount: candidates.length,
+    failedBatchCount: 0,
+    partialBatchCount: 0,
+    failuresByCategory: {},
+  }
   for (let i = 0; i < candidates.length; i += size) {
     const batch = candidates.slice(i, i + size)
     try {
-      out.push(...(await rerankBatch(profile, prefs, batch, apiKey, signal)))
+      const matches = await rerankBatch(profile, prefs, batch, apiKey, signal)
+      out.push(...matches)
+      onBatch?.(matches)
+      if (matches.length < batch.length) diagnostics.partialBatchCount += 1
       consecutiveFailures = 0
-    } catch {
+    } catch (caught) {
+      if (isAbortError(caught)) throw caught
       // A failed batch is not a real 0/100 match. Omit it so the UI can show a
       // partial-results notice and retry those jobs on the next run. Failed
       // placeholders would otherwise be cached and look like honest scores.
       consecutiveFailures += 1
+      diagnostics.failedBatchCount += 1
+      const category = scoringFailureCategory(caught)
+      diagnostics.failuresByCategory[category] =
+        (diagnostics.failuresByCategory[category] ?? 0) + 1
       // v2.4.3: a token or request limit will not clear inside one search, so
       // firing the remaining batches only burns the user's quota for nothing.
-      if (consecutiveFailures >= MATCH.maxConsecutiveBatchFailures) {
+      const terminal =
+        category === 'rate_limit' ||
+        category === 'credentials' ||
+        category === 'validation'
+      if (terminal || consecutiveFailures >= MATCH.maxConsecutiveBatchFailures) {
         onProgress?.(Math.min(i + size, candidates.length), candidates.length)
         break
       }
     }
     onProgress?.(Math.min(i + size, candidates.length), candidates.length)
   }
+  diagnostics.completedCount = out.length
+  diagnostics.missingCount = Math.max(0, candidates.length - out.length)
+  onDiagnostics?.(diagnostics)
   return out
+}
+
+function scoringFailureCategory(caught: unknown): ErrorCategory {
+  if (caught instanceof AppError) return caught.category
+  return caught instanceof SyntaxError ? 'parsing' : 'unknown'
+}
+
+function isAbortError(caught: unknown): boolean {
+  return (
+    (caught instanceof DOMException && caught.name === 'AbortError') ||
+    (!!caught &&
+      typeof caught === 'object' &&
+      'name' in caught &&
+      (caught as { name?: unknown }).name === 'AbortError')
+  )
 }

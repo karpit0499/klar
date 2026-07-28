@@ -20,8 +20,19 @@ export function SearchDiagnosticsPanel({ diagnostics }: { diagnostics: SearchDia
         <Diagnostic label={t('search.distanceRemoved')} value={diagnostics.filters.removed.distance} />
         <Diagnostic label={t('search.couldNotDistance')} value={diagnostics.filters.unlocatableCount} />
         <Diagnostic label={t('search.relevanceRemoved')} value={diagnostics.relevanceRemoved} />
+        <Diagnostic label={t('search.roleRemoved')} value={diagnostics.relevanceRemovedBy.role} />
+        <Diagnostic label={t('search.marketRemoved')} value={diagnostics.relevanceRemovedBy.market} />
+        <Diagnostic label={t('search.seniorityRemoved')} value={diagnostics.relevanceRemovedBy.seniority} />
         <Diagnostic label={t('search.hardRemoved')} value={diagnostics.hardFilterRemoved} />
-        <Diagnostic label={t('search.notScored')} value={diagnostics.unscoredCount} />
+        <Diagnostic label={t('search.candidatesSelected')} value={diagnostics.candidateCount} />
+        <Diagnostic label={t('search.notPrioritized')} value={diagnostics.notPrioritizedCount} />
+        <Diagnostic label={t('search.aiCompleted')} value={diagnostics.aiCompletedCount} />
+        <Diagnostic label={t('search.localFallback')} value={diagnostics.localFallbackCount} />
+        <Diagnostic label={t('search.aiBatchFailures')} value={diagnostics.aiBatchFailureCount} />
+        <Diagnostic
+          label={t('search.aiFailureCategories')}
+          value={diagnostics.aiFailureCategories.join(', ') || '—'}
+        />
         <Diagnostic label={t('search.finalCount')} value={diagnostics.finalCount} />
       </dl>
       {diagnostics.filters.distanceMessage && (

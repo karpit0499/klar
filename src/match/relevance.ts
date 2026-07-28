@@ -13,7 +13,7 @@
 import type { NormalizedJob, Preferences, Profile } from '../types'
 import { normalizeKey } from '../lib/hash'
 
-export const CAREER_RELEVANCE_VERSION = 'career-relevance-v2.5.3.1'
+export const CAREER_RELEVANCE_VERSION = 'career-relevance-v2.5.3.3'
 
 type RoleFamily =
   | 'account'
@@ -57,12 +57,15 @@ const FAMILY_PATTERNS: Record<RoleFamily, RegExp[]> = {
   data: [
     /\bdata\b/, /\banalytics?\b/, /\banalyst\b/, /\banalystin\b/,
     /\bbusiness intelligence\b/, /\bmachine learning\b/, /\bml\b/,
-    /\bdata scien\w*\b/, /\breporting\b/,
+    /\bartificial intelligence\b/, /\bai\b/, /\bbi\b/, /\bdata scien\w*\b/,
+    /\breporting\b/, /\bdatenanal\w*\b/, /\bdateningenieur\w*\b/,
+    /\bdatenwissenschaft\w*\b/, /\bki\b/,
   ],
   engineering: [
     /\bengineer\w*\b/, /\bdeveloper\w*\b/, /\bsoftware\b/, /\bdevops\b/,
     /\barchitect\w*\b/, /\bprogrammier\w*\b/, /\bentwickler\w*\b/,
-    /\bentwicklung\b/, /\bfrontend\b/, /\bbackend\b/, /\bfullstack\b/,
+    /\bentwicklung\b/, /\bdateningenieur\w*\b/, /\bfrontend\b/, /\bbackend\b/,
+    /\bfullstack\b/,
   ],
   product: [/\bproduct\b/, /\bproduktmanager\w*\b/, /\bproduct owner\b/],
   design: [/\bdesign\w*\b/, /\bux\b/, /\bui\b/, /\bcreative\b/, /\bkreativ\w*\b/],
@@ -105,7 +108,11 @@ const MARKET_PATTERNS: Record<MarketFamily, RegExp[]> = {
   technology: [
     /\bsoftware\b/, /\bsaas\b/, /\bcloud\b/, /\bcyber\w*\b/, /\bsecurity\b/,
     /\bidentity access\b/, /\biam\b/, /\bdata\b/, /\bmachine learning\b/,
-    /\bartificial intelligence\b/, /\bengineering\b/, /\bit services?\b/,
+    /\bartificial intelligence\b/, /\banalytics?\b/, /\banalyst\b/,
+    /\bengineer\w*\b/, /\bdeveloper\w*\b/, /\bengineering\b/,
+    /\bbusiness intelligence\b/, /\bml\b/, /\bai\b/, /\bbi\b/,
+    /\bdatenanal\w*\b/, /\bdateningenieur\w*\b/, /\bdatenwissenschaft\w*\b/,
+    /\bki\b/, /\bit services?\b/,
   ],
   finance: [
     /\bfintech\b/, /\bbanking\b/, /\binsurance\b/, /\bfinancial services?\b/,
@@ -144,6 +151,8 @@ const MARKET_PATTERNS: Record<MarketFamily, RegExp[]> = {
 const SENIOR_TITLE = /\b(senior|sr|staff|principal|lead|head|director|chief|vice president|vp|c[etf]o|general manager|geschäftsführer\w*|bereichsleit\w*|abteilungsleit\w*|teamleit\w*)\b/
 const JUNIOR_TITLE = /\b(junior|jr|entry level|graduate|trainee|intern|internship|werkstudent\w*|praktik\w*|associate)\b/
 const ACCOUNT_ACQUISITION_TITLE = /\b(account|sales|business) development representative\b|\b(sdr|bdr)\b/
+const ACCOUNT_SALES_EVIDENCE =
+  /\b(sales cycle|sales pipeline|close (?:the )?deal|close quota|quota[- ]carrying|quota target|prospecting|cold call|lead generation)\b/
 const STRONG_MARKETING_EVIDENCE = [
   /\bdigital marketing\b/, /\bemail marketing\b/, /\bmarketing automation\b/,
   /\bmarketing agency\b/, /\badvertising agency\b/, /\bmedia agency\b/,
@@ -220,6 +229,18 @@ function occurrences(text: string, pattern: RegExp): number {
   return [...text.matchAll(new RegExp(pattern.source, 'g'))].length
 }
 
+function marketHits(text: string): Map<MarketFamily, number> {
+  const hits = new Map<MarketFamily, number>()
+  for (const [market, patterns] of Object.entries(MARKET_PATTERNS) as [MarketFamily, RegExp[]][]) {
+    const count = patterns.reduce(
+      (total, pattern) => total + Math.min(3, occurrences(text, pattern)),
+      0,
+    )
+    if (count > 0) hits.set(market, count)
+  }
+  return hits
+}
+
 function jobMarketEvidence(
   job: NormalizedJob,
   wanted: Set<MarketFamily>,
@@ -248,7 +269,20 @@ function jobMarketEvidence(
   }
   if (matched.length) return { fit: 'matched', matched }
   if (job.description.trim().length < 40) return { fit: 'unknown', matched: [] }
-  return { fit: 'mismatch', matched: [] }
+
+  // Missing positive vocabulary is not proof of a market mismatch. Reject only
+  // when the title/tags name another known market or the description contains at
+  // least two pieces of evidence for one. This keeps short or unusually-worded
+  // Data/AI/BI postings while still rejecting explicit car-rental or IAM sales.
+  const titleMarkets = markets(`${job.title} ${job.tags.join(' ')}`)
+  const conflictingTitle = [...titleMarkets].some((market) => !wanted.has(market))
+  const descriptionMarkets = marketHits(description)
+  const conflictingDescription = [...descriptionMarkets].some(
+    ([market, count]) => !wanted.has(market) && count >= 2,
+  )
+  return conflictingTitle || conflictingDescription
+    ? { fit: 'mismatch', matched: [] }
+    : { fit: 'unknown', matched: [] }
 }
 
 function distinctiveTokens(values: string[]): Set<string> {
@@ -319,6 +353,18 @@ export function judgeCareerRelevance(
 
   const wantedMarkets = requestedMarkets(profile, prefs, targets)
   const marketEvidence = jobMarketEvidence(job, wantedMarkets)
+  if (
+    targetFamilies.has('account') &&
+    wantedMarkets.has('marketing') &&
+    ACCOUNT_SALES_EVIDENCE.test(normalized(job.description.slice(0, 1800))) &&
+    !STRONG_MARKETING_EVIDENCE.some(
+      (pattern) => pattern.test(normalized(job.description.slice(0, 1800))),
+    )
+  ) {
+    return {
+      keep: false, score: 0, reason: 'market', matchedFamilies, matchedMarkets: [],
+    }
+  }
   if (marketEvidence.fit === 'mismatch') {
     return {
       keep: false, score: 0, reason: 'market', matchedFamilies, matchedMarkets: [],
