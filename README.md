@@ -1,6 +1,4 @@
-# <center>Klar</center>
-
-## <center>Your next move, made clear.</center>
+![Klar](docs/klar-logo.png)
 
 Klar is a private, browser-based workspace for finding work, understanding job
 fit, preparing grounded applications, and tracking every opportunity from first
@@ -12,11 +10,11 @@ look to final decision.
 [What changed →](CHANGELOG.md) ·
 [Report an issue →](https://github.com/karpit0499/klar/issues)
 
-![Klar dashboard](docs/klar-dashboard.png)
+![Klar](docs/klar-desktop.png)
 _Dashboard_
 
-![Klar search](docs/klar-search.png)
-_Career search and matching_
+![Klar Highlights](docs/klar-bento.png)
+_Highlights from Latest Update_
 
 ---
 
