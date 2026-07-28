@@ -258,6 +258,7 @@ export async function rerankBatch(
   signal?: AbortSignal,
 ): Promise<MatchResult[]> {
   // v2.5 (B2 cost control): matching is the highest-volume LLM path in Klar —
+  // only the top MATCH.candidateLimit locally ranked jobs enter this path, for
   // up to MATCH.candidateLimit / MATCH.batchSize calls per search. A person on a
   // free tier can opt into the engine's smaller model for this path alone in
   // Settings › AI engine, without touching tailoring or letter quality.

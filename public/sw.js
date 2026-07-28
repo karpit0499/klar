@@ -4,7 +4,7 @@
 // are cached on demand with stale-while-revalidate.
 // and NEVER touch the job APIs or the Groq/Worker calls — those must always be
 // live, and caching them would be both wrong and a privacy risk.
-const CACHE = 'klar-shell-v6'
+const CACHE = 'klar-shell-v7'
 
 self.addEventListener('install', (event) => {
   event.waitUntil(self.skipWaiting())

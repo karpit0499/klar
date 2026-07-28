@@ -45,7 +45,7 @@ export const GROQ = {
 
 /** Matching tuning knobs (Phase 5). */
 export const MATCH = {
-  candidateLimit: 40,      // max jobs sent to the LLM after pre-filter
+  candidateLimit: 40,      // max locally ranked jobs enriched by the LLM
   batchSize: 5,            // jobs per LLM call
   descriptionChars: 1500,  // truncate each description before scoring
   /**

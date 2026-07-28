@@ -4,7 +4,7 @@ Klar is a private, browser-based workspace for finding work, understanding job
 fit, preparing grounded applications, and tracking every opportunity from first
 look to final decision.
 
-**Current release: v2.5.3.3**
+**Current release: v2.5.3.4**
 
 [**Open Klar →**](https://karpit0499.github.io/klar/) ·
 [What changed →](CHANGELOG.md) ·
@@ -18,14 +18,12 @@ _Highlights from Latest Update_
 
 ---
 
-v2.5.3.3 keeps career-search results available when AI scoring is partial,
-rate-limited, malformed, or unavailable. Every selected candidate receives a
-private local relevance score first; valid cached or fresh AI scores enrich
-those results without deciding whether a job remains visible. The release also
-expands English and German Data/AI/BI title coverage and makes the search funnel
-reconcile candidate selection, AI completion, and local fallback from the first
-displayed snapshot. German-level and visa-hidden rows remain in their separate
-hidden section instead of falling back into the main result grid.
+v2.5.3.4 keeps every relevant career-search result instead of truncating the
+visible list at 40. All selected jobs receive private local scores; only the top
+40 enter optional AI enrichment, preserving the cost guard without hiding the
+rest. Local scores now include skills, salary, location, and seniority factors,
+so **Tune what matters** immediately changes card scores and ranking even when
+AI is unavailable or rate-limited.
 
 ## What Klar does
 
@@ -61,8 +59,8 @@ Both local ranking modes use the same relevance rules:
 - **Semantic** uses local vocabulary-vector similarity. It is private and has no
   AI cost, but it is not a neural embedding model.
 
-Groq matching is optional and runs only after Klar has reduced the feed to a
-small, relevant candidate set.
+Groq matching is optional and enriches only the top 40 locally ranked jobs. That
+AI boundary never limits how many relevant jobs Klar displays.
 
 ### Search diagnostics you can act on
 
@@ -284,6 +282,10 @@ browser origins must include the production GitHub Pages origin.
 
 ## Release history
 
+- **v2.5.3.4 — Complete ranked results:** every relevant career job stays
+  visible, the 40-job guard applies only to AI enrichment, and deterministic
+  local factors make the ranking sliders responsive during partial or no-AI
+  searches.
 - **v2.5.3.3 — Search continuity:** complete local fallback for every selected
   career candidate, progressive AI enrichment, explicit partial/failure
   diagnostics, reconciled candidate counts, strict hard-filter partitioning,

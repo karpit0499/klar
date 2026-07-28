@@ -1,7 +1,7 @@
 // ============================================================================
-// Matching orchestrator: pre-filter → enrich BA descriptions (lazy, bounded) →
-// LLM re-rank (cached). The cache key is hash(profile+prefs)+jobId so re-running
-// the same search is instant and cheap; only new jobs hit the LLM.
+// Matching orchestrator: locally rank every relevant job → enrich the top
+// candidates with the LLM (cached). The cache key is hash(profile+prefs)+jobId
+// so re-running the same search is instant and cheap; only new jobs hit the LLM.
 // ============================================================================
 import type { MatchResult, NormalizedJob, Preferences, Profile } from '../types'
 import { MATCH } from '../lib/config'
@@ -74,7 +74,7 @@ export async function runMatching(
     signal?: AbortSignal
     /** 'keyword' (default) or 'semantic' cosine-similarity candidate selection (feature 1.4). */
     prefilterMode?: 'keyword' | 'semantic'
-    /** Publish the bounded candidate set before optional AI work starts. */
+    /** Publish every locally ranked candidate before optional AI work starts. */
     onCandidates?: (candidates: NormalizedJob[]) => void
     /** Publish complete snapshots. Every candidate always has a local or AI match. */
     onMatches?: (matches: MatchResult[]) => void
@@ -82,18 +82,23 @@ export async function runMatching(
     onDiagnostics?: (diagnostics: MatchRunDiagnostics) => void
   } = {},
 ): Promise<MatchResult[]> {
-  // 1. Pre-filter to a bounded candidate set (keyword heuristic or embeddings).
+  // 1. Apply the hard drops and rank every survivor locally. The old flow
+  // passed MATCH.candidateLimit here, which made an AI cost guard also truncate
+  // the visible result set. Keep all relevant jobs; the limit is applied only
+  // to the optional provider-enrichment subset below.
   opts.onProgress?.({ phase: 'prefilter', done: 0, total: jobs.length })
   const selected =
     opts.prefilterMode === 'semantic'
-      ? await semanticPrefilter(jobs, profile, prefs, MATCH.candidateLimit)
-      : prefilter(jobs, profile, prefs, MATCH.candidateLimit)
+      ? await semanticPrefilter(jobs, profile, prefs, jobs.length)
+      : prefilter(jobs, profile, prefs, jobs.length)
 
   // Enrich before the final relevance check. SearchStep normally did this
   // already, but keeping the invariant here protects every direct caller.
   opts.onProgress?.({ phase: 'enrich', done: 0, total: selected.length })
   await enrichBaDescriptions(selected, opts.signal)
   const candidates = filterCareerRelevantJobs(selected, profile, prefs).jobs
+  const aiCandidates = candidates.slice(0, MATCH.candidateLimit)
+  const notPrioritizedCount = Math.max(0, candidates.length - aiCandidates.length)
   opts.onCandidates?.(candidates)
 
   const localById = new Map(
@@ -109,7 +114,7 @@ export async function runMatching(
     opts.onMatches?.(local)
     opts.onDiagnostics?.({
       candidateCount: candidates.length,
-      notPrioritizedCount: Math.max(0, jobs.length - selected.length),
+      notPrioritizedCount,
       aiRequestedCount: 0,
       aiCachedCount: 0,
       aiFreshCount: 0,
@@ -126,11 +131,11 @@ export async function runMatching(
   const key = (jobId: string) => `${ctx}:${jobId}`
 
   // 2. Split cached vs. uncached.
-  const cachedRows = await getMatchRows(candidates.map((c) => key(c.id)))
+  const cachedRows = await getMatchRows(aiCandidates.map((c) => key(c.id)))
   const cached: MatchResult[] = []
   const todo: NormalizedJob[] = []
   const staleKeys: string[] = []
-  candidates.forEach((c, i) => {
+  aiCandidates.forEach((c, i) => {
     const row = cachedRows[i]
     if (row && !isFailedMatchPlaceholder(row)) cached.push(row)
     else {
@@ -153,7 +158,7 @@ export async function runMatching(
     const aiFreshCount = Math.max(0, aiById.size - cached.length)
     opts.onDiagnostics?.({
       candidateCount: candidates.length,
-      notPrioritizedCount: Math.max(0, jobs.length - selected.length),
+      notPrioritizedCount,
       aiRequestedCount: todo.length,
       aiCachedCount: cached.length,
       aiFreshCount,
@@ -197,7 +202,7 @@ export async function runMatching(
   const all = snapshot(aiById)
   const diagnostics: MatchRunDiagnostics = {
     candidateCount: candidates.length,
-    notPrioritizedCount: Math.max(0, jobs.length - selected.length),
+    notPrioritizedCount,
     aiRequestedCount: todo.length,
     aiCachedCount: cached.length,
     aiFreshCount: fresh.length,
@@ -210,7 +215,7 @@ export async function runMatching(
   opts.onDiagnostics?.(diagnostics)
   opts.onProgress?.({
     phase: 'done',
-    done: cached.length + fresh.length,
+    done: candidates.length,
     total: candidates.length,
   })
   return all

@@ -182,7 +182,8 @@ try {
     assert.equal(diagnostics?.failuresByCategory.rate_limit, 1)
   }
 
-  // Candidate limiting is a prioritization decision, not an AI failure.
+  // v2.5.3.4: the provider limit is a prioritization decision, never a display
+  // limit. Every relevant job keeps its local result even outside the AI set.
   await resetDb()
   {
     const jobs = jobsFor('bounded', 45)
@@ -193,11 +194,13 @@ try {
       },
     })
 
-    assert.equal(matches.length, 40)
+    assert.equal(matches.length, 45)
     assert.equal(matches.every(isLocalMatch), true)
-    assert.equal(diagnostics?.candidateCount, 40)
+    assert.equal(matches.every((match) => match.factors != null), true)
+    assert.equal(diagnostics?.candidateCount, 45)
     assert.equal(diagnostics?.notPrioritizedCount, 5)
     assert.equal(diagnostics?.aiRequestedCount, 0)
+    assert.equal(diagnostics?.localFallbackCount, 45)
     assert.equal(diagnostics?.failedBatchCount, 0)
   }
 } finally {

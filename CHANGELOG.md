@@ -4,6 +4,34 @@ This file records Klar’s product history from the newest release to the origin
 
 ---
 
+## v2.5.3.4 — Complete search results and responsive ranking hotfix
+
+### Fixed
+
+- Career search no longer truncates the visible result set at 40. Klar keeps
+  every job that passes the requested filters and relevance checks, locally
+  scores all of them, and displays the complete ranked set.
+- The existing 40-job boundary now limits only optional AI enrichment. This
+  preserves the provider-cost and rate-limit guard without allowing it to own
+  result membership; jobs outside that priority set retain private local scores.
+- **Tune what matters** now changes locally scored and fallback cards as well as
+  AI-scored cards. Local matches include deterministic skills, salary, location,
+  and seniority factors, so slider changes immediately update scores and order
+  even when AI is unavailable or rate-limited.
+- Search diagnostics now count every selected relevant job while separately
+  reporting how many sit outside the AI-priority set.
+
+### Quality gate
+
+- Regression coverage proves that keyword and semantic modes retain more than
+  40 relevant jobs, AI enrichment remains capped at 40, every fallback has
+  adjustable factors, and opposing slider settings can reverse local ranking.
+- The complete application and Worker type checks, unit suite, production build,
+  service-worker validation, generated Worker bindings check, Worker dry run,
+  and production browser flow must pass before release.
+
+---
+
 ## v2.5.3.3 — Search continuity and data-role relevance hotfix
 
 ### Fixed
