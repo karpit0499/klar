@@ -4,7 +4,7 @@ Klar is a private, browser-based workspace for finding work, understanding job
 fit, preparing grounded applications, and tracking every opportunity from first
 look to final decision.
 
-**Current release: v2.5.3.2**
+**Current release: v2.5.3.3**
 
 [**Open Klar →**](https://karpit0499.github.io/klar/) ·
 [What changed →](CHANGELOG.md) ·
@@ -18,11 +18,14 @@ _Highlights from Latest Update_
 
 ---
 
-v2.5.3.2 makes AI-generated application work resilient to partial structured
-responses. If Groq rejects a generated JSON object, Klar can recover the usable
-object locally or make one bounded compatibility request. A missing section or
-empty bullet now keeps the verified source content instead of discarding the
-whole English or German packet.
+v2.5.3.3 keeps career-search results available when AI scoring is partial,
+rate-limited, malformed, or unavailable. Every selected candidate receives a
+private local relevance score first; valid cached or fresh AI scores enrich
+those results without deciding whether a job remains visible. The release also
+expands English and German Data/AI/BI title coverage and makes the search funnel
+reconcile candidate selection, AI completion, and local fallback from the first
+displayed snapshot. German-level and visa-hidden rows remain in their separate
+hidden section instead of falling back into the main result grid.
 
 ## What Klar does
 
@@ -31,7 +34,7 @@ whole English or German packet.
 Klar searches public job feeds and employer career pages, removes duplicate
 listings, applies local filters, and ranks the opportunities that remain.
 
-v2.5.3.1 fixes the most important part of that pipeline: a matching title alone
+The latest version fixes the most important part of that pipeline: a matching title alone
 is not enough. Klar now evaluates these separately:
 
 - **Role** — an account-management search does not admit data science,
@@ -281,6 +284,10 @@ browser origins must include the production GitHub Pages origin.
 
 ## Release history
 
+- **v2.5.3.3 — Search continuity:** complete local fallback for every selected
+  career candidate, progressive AI enrichment, explicit partial/failure
+  diagnostics, reconciled candidate counts, strict hard-filter partitioning,
+  and expanded Data/AI/BI title relevance in English and German.
 - **v2.5.3.2 — AI output recovery:** bounded Groq schema fallback, partial
   evidence-safe résumé recovery, bilingual completion headroom, locally derived
   change notes, and defensive normalization across every structured AI action.

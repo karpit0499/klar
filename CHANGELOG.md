@@ -4,6 +4,57 @@ This file records Klar’s product history from the newest release to the origin
 
 ---
 
+## v2.5.3.3 — Search continuity and data-role relevance hotfix
+
+### Fixed
+
+- Career discovery no longer depends on every AI-scoring batch succeeding.
+  Every selected candidate receives a deterministic local relevance result
+  before provider work starts, and valid cached or fresh AI rows replace those
+  fallbacks in place.
+- Partial structured responses retain their valid requested job rows while
+  missing, malformed, invented, or duplicate rows keep local relevance scores.
+  Failed batches never create fake 0/100 matches and never remove a candidate.
+- Rate-limit, credential, validation, parsing, network, provider, and unknown
+  failures are counted by category. Terminal provider failures stop further
+  quota burn while leaving the complete candidate set usable.
+- Search diagnostics now distinguish relevant jobs outside the bounded candidate
+  set, AI-completed scores, local fallbacks, and incomplete AI batches. Role,
+  market, and seniority removals are reported separately. Candidate, AI, local,
+  and final counts reconcile from the first local snapshot rather than only
+  after provider scoring ends.
+- German-level and visa-hidden candidates stay only in the segregated hidden
+  section. An empty shown set no longer falls back to all candidates in the main
+  grid or visible-results exports.
+- Data/AI/BI relevance now recognizes common English abbreviations and German
+  titles including ML Engineer, AI Engineer, Analytics Engineer, BI Developer,
+  Dateningenieur, Datenanalyst, Datenwissenschaftler, and KI Entwickler.
+- Missing market vocabulary is treated as unknown rather than contradictory.
+  Explicit competing-market evidence still rejects cases such as automotive or
+  IAM sales in a digital-marketing account search.
+
+### Invariants
+
+- A provider outage can reduce AI enrichment, but it cannot reduce the number
+  of locally selected and displayed career candidates.
+- Local fallback rows are never persisted as provider scores. A later run can
+  retry AI enrichment normally, while valid provider rows remain cached.
+- Published candidate snapshots contain exactly one result per selected job.
+- Main-grid plus explicitly hidden results reconcile to the selected snapshot;
+  hard-filtered rows never re-enter the main grid as an empty-state fallback.
+
+### Quality gate
+
+- Regression coverage exercises partial five-job responses, progressive
+  diagnostic snapshots, total rate-limit failure, hard-filter-only display
+  state, the 40-candidate boundary, local-only matching, and the expanded
+  Data/AI/BI title family.
+- The complete application and Worker type checks, unit suite, production build,
+  service-worker validation, generated Worker bindings check, and Worker dry run
+  must pass before release.
+
+---
+
 ## v2.5.3.2 — Structured-output and bilingual tailoring recovery hotfix
 
 ### Fixed

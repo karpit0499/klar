@@ -8,8 +8,15 @@ export type SearchDiagnostics = {
   duplicatesRemoved: number
   filters: LocalFilterDiagnostics
   relevanceRemoved: number
+  relevanceRemovedBy: { role: number; market: number; seniority: number }
   hardFilterRemoved: number
   unscoredCount: number
+  candidateCount: number
+  notPrioritizedCount: number
+  aiCompletedCount: number
+  localFallbackCount: number
+  aiBatchFailureCount: number
+  aiFailureCategories: string[]
   finalCount: number
   zeroResultReason?: ZeroResultReason
   zeroResultNextStep?: string
@@ -27,13 +34,43 @@ export type ZeroResultReason =
   | 'unscored'
   | 'broaden'
 
+export type ResultDisplayState<T> = {
+  shown: T[]
+  hasShown: boolean
+  hasAny: boolean
+}
+
+/**
+ * Keep the main grid/export set separate from explicitly hard-filtered rows.
+ * Hidden rows still count as inspectable search state, but an empty main set
+ * must stay empty rather than falling back to every pre-filtered job.
+ */
+export function buildResultDisplayState<T>(
+  rankedShown: readonly T[],
+  hiddenCount: number,
+): ResultDisplayState<T> {
+  const shown = [...rankedShown]
+  return {
+    shown,
+    hasShown: shown.length > 0,
+    hasAny: shown.length + Math.max(0, hiddenCount) > 0,
+  }
+}
+
 export function buildSearchDiagnostics(
   gathered: GatherResult,
   filters: LocalFilterDiagnostics,
   update: {
     relevanceRemoved?: number
+    relevanceRemovedBy?: { role: number; market: number; seniority: number }
     hardFilterRemoved?: number
     unscoredCount?: number
+    candidateCount?: number
+    notPrioritizedCount?: number
+    aiCompletedCount?: number
+    localFallbackCount?: number
+    aiBatchFailureCount?: number
+    aiFailureCategories?: string[]
     finalCount?: number
   } = {},
 ): SearchDiagnostics {
@@ -44,8 +81,15 @@ export function buildSearchDiagnostics(
     duplicatesRemoved: gathered.duplicatesRemoved,
     filters,
     relevanceRemoved: update.relevanceRemoved ?? 0,
+    relevanceRemovedBy: update.relevanceRemovedBy ?? { role: 0, market: 0, seniority: 0 },
     hardFilterRemoved: update.hardFilterRemoved ?? 0,
     unscoredCount: update.unscoredCount ?? 0,
+    candidateCount: update.candidateCount ?? 0,
+    notPrioritizedCount: update.notPrioritizedCount ?? 0,
+    aiCompletedCount: update.aiCompletedCount ?? 0,
+    localFallbackCount: update.localFallbackCount ?? 0,
+    aiBatchFailureCount: update.aiBatchFailureCount ?? 0,
+    aiFailureCategories: update.aiFailureCategories ?? [],
     finalCount: update.finalCount ?? filters.finalCount,
   }
   if (diagnostics.finalCount === 0) {
