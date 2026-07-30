@@ -39,10 +39,26 @@ export type RequestCost = {
   billedTokens: number
 }
 
+export type TokenBudget = {
+  tpm: number
+  rpm?: number
+  tpd?: number
+  source: 'default' | 'observed'
+  observedAt?: string
+}
+
 export type Affordability =
   | { ok: true; cost: RequestCost }
   /** Permanent for this request. Do NOT offer a retry. */
   | { ok: false; reason: 'exceeds_budget'; cost: RequestCost; limit: number }
+  /** Temporary: this request fits by itself, but the rolling minute is full. */
+  | {
+      ok: false
+      reason: 'no_headroom_now'
+      cost: RequestCost
+      available: number
+      retryAfterMs: number
+    }
 
 /**
  * Rough token count. Sub-word tokenisers average ~4 characters per token in
@@ -65,12 +81,184 @@ export function costOf(input: { system: string; user: string; maxTokens: number 
   }
 }
 
-/** Can this request ever succeed against `limit` tokens per minute? */
-export function canAfford(cost: RequestCost, limit: number = BUDGET.assumedTpm): Affordability {
+/** Conservative seed used until the configured provider reports its real limit. */
+export const DEFAULT_BUDGET: TokenBudget = {
+  tpm: BUDGET.assumedTpm,
+  rpm: 30,
+  source: 'default',
+}
+
+type SpendEntry = { id: number; at: number; tokens: number }
+
+/**
+ * Rolling, in-memory 60-second ledger. It deliberately forgets on reload:
+ * persisting request timestamps would add privacy and clock-skew problems
+ * without improving safety after a fresh page load.
+ */
+export class RollingTokenLedger {
+  private entries: SpendEntry[] = []
+  private nextId = 1
+
+  constructor(
+    private readonly now: () => number = () => Date.now(),
+    private readonly windowMs = 60_000,
+  ) {}
+
+  private prune(): void {
+    const cutoff = this.now() - this.windowMs
+    this.entries = this.entries.filter((entry) => entry.at > cutoff)
+  }
+
+  record(cost: RequestCost): number {
+    this.prune()
+    const id = this.nextId++
+    this.entries.push({ id, at: this.now(), tokens: Math.max(0, cost.billedTokens) })
+    return id
+  }
+
+  settle(id: number, actualTokens?: number): void {
+    if (actualTokens == null || !Number.isFinite(actualTokens) || actualTokens < 0) return
+    const entry = this.entries.find((candidate) => candidate.id === id)
+    if (entry) entry.tokens = actualTokens
+  }
+
+  spent(): number {
+    this.prune()
+    return this.entries.reduce((sum, entry) => sum + entry.tokens, 0)
+  }
+
+  requests(): number {
+    this.prune()
+    return this.entries.length
+  }
+
+  remaining(limit: number): number {
+    return Math.max(0, limit - this.spent())
+  }
+
+  retryAfterMs(tokensNeeded: number, limit: number): number {
+    this.prune()
+    let available = Math.max(0, limit - this.spent())
+    if (tokensNeeded <= available) return 0
+    for (const entry of this.entries) {
+      available += entry.tokens
+      if (tokensNeeded <= available) {
+        return Math.max(0, entry.at + this.windowMs - this.now())
+      }
+    }
+    return this.windowMs
+  }
+
+  retryAfterRequestMs(limit: number): number {
+    this.prune()
+    if (this.entries.length < limit) return 0
+    const entry = this.entries[this.entries.length - limit]
+    return entry
+      ? Math.max(0, entry.at + this.windowMs - this.now())
+      : this.windowMs
+  }
+
+  reset(): void {
+    this.entries = []
+  }
+}
+
+const ledger = new RollingTokenLedger()
+const listeners = new Set<() => void>()
+
+export function recordSpend(cost: RequestCost): number {
+  const id = ledger.record(cost)
+  listeners.forEach((listener) => listener())
+  return id
+}
+
+export function settleSpend(id: number, actualTokens?: number): void {
+  ledger.settle(id, actualTokens)
+  listeners.forEach((listener) => listener())
+}
+
+export function spentInLastMinute(): number {
+  return ledger.spent()
+}
+
+export function requestsInLastMinute(): number {
+  return ledger.requests()
+}
+
+export function remainingThisMinute(budget: TokenBudget | number): number {
+  return ledger.remaining(typeof budget === 'number' ? budget : budget.tpm)
+}
+
+export function remainingRequestsThisMinute(budget: TokenBudget): number | undefined {
+  return budget.rpm == null
+    ? undefined
+    : Math.max(0, budget.rpm - ledger.requests())
+}
+
+export function subscribeBudget(listener: () => void): () => void {
+  listeners.add(listener)
+  return () => listeners.delete(listener)
+}
+
+/** Test-only reset; production callers never need to erase the rolling window. */
+export function resetSpendLedgerForTests(): void {
+  ledger.reset()
+  listeners.forEach((listener) => listener())
+}
+
+/** Can this request succeed against the whole and currently remaining minute? */
+export function canAfford(
+  cost: RequestCost,
+  budget: TokenBudget | number = DEFAULT_BUDGET,
+  currentSpent: number = spentInLastMinute(),
+  retryAfterMs?: number,
+  currentRequests: number = requestsInLastMinute(),
+): Affordability {
+  const limit = typeof budget === 'number' ? budget : budget.tpm
   if (cost.billedTokens > limit) {
     return { ok: false, reason: 'exceeds_budget', cost, limit }
   }
+  const available = Math.max(0, limit - Math.max(0, currentSpent))
+  const rpm = typeof budget === 'number' ? undefined : budget.rpm
+  const requestsFull = rpm != null && currentRequests >= rpm
+  if (cost.billedTokens > available || requestsFull) {
+    const tokenWait = ledger.retryAfterMs(cost.billedTokens, limit)
+    const requestWait = rpm == null ? 0 : ledger.retryAfterRequestMs(rpm)
+    return {
+      ok: false,
+      reason: 'no_headroom_now',
+      cost,
+      available,
+      retryAfterMs: retryAfterMs ?? Math.max(tokenWait, requestWait),
+    }
+  }
   return { ok: true, cost }
+}
+
+export async function waitForHeadroom(
+  cost: RequestCost,
+  budget: TokenBudget | number,
+  options: {
+    signal?: AbortSignal
+    onWait?: (remainingMs: number) => void
+    now?: () => number
+    sleep?: (ms: number) => Promise<void>
+  } = {},
+): Promise<void> {
+  const now = options.now ?? (() => Date.now())
+  const sleep = options.sleep ?? ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)))
+  while (true) {
+    if (options.signal?.aborted) throw new DOMException('Aborted', 'AbortError')
+    const verdict = canAfford(cost, budget)
+    if (verdict.ok) {
+      options.onWait?.(0)
+      return
+    }
+    if (verdict.reason === 'exceeds_budget') return
+    const until = now() + Math.max(50, verdict.retryAfterMs)
+    options.onWait?.(Math.max(0, until - now()))
+    await sleep(Math.min(1_000, Math.max(50, until - now())))
+  }
 }
 
 // --- Learning the real limit from the provider --------------------------------
@@ -105,6 +293,11 @@ export async function loadTpmLimit(): Promise<{ tpm: number; source: 'default' |
     // No database yet — the conservative default is the right answer.
   }
   return { tpm: BUDGET.assumedTpm, source: 'default' }
+}
+
+export async function loadBudget(): Promise<TokenBudget> {
+  const loaded = await loadTpmLimit()
+  return { ...DEFAULT_BUDGET, ...loaded }
 }
 
 export async function saveTpmLimit(tpm: number): Promise<void> {

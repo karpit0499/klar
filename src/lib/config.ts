@@ -43,11 +43,16 @@ export const GROQ = {
   fastModel: 'openai/gpt-oss-20b',
 } as const
 
-/** Matching tuning knobs (Phase 5). */
+export type LlmRerankMode = 'off' | 'shortlist' | 'all'
+
+/** Matching tuning knobs. v2.5.5 makes private deterministic matching the default. */
 export const MATCH = {
-  candidateLimit: 40,      // max locally ranked jobs enriched by the LLM
+  candidateLimit: 40,      // max automatic AI-priority set; never a display limit
   batchSize: 5,            // jobs per LLM call
   descriptionChars: 1500,  // truncate each description before scoring
+  /** off = zero-token search; shortlist = top 8; all = top 40. Results stay unbounded. */
+  llmRerank: 'off' as LlmRerankMode,
+  shortlistSize: 8,
   /**
    * v2.4.3: stop the batch loop after this many consecutive failures. A rate
    * limit does not clear inside one search, so firing the remaining batches only
@@ -67,6 +72,8 @@ export const MATCH = {
 export const PROMPT = {
   /** Characters of the description sent with a résumé rewrite. */
   jobExcerptChars: 1200,
+  /** Shorter excerpt used by the exceptional per-role chunking path. */
+  chunkExcerptChars: 600,
   /** Characters of the description sent with a cover letter (needs a little more tone). */
   letterExcerptChars: 1600,
 } as const

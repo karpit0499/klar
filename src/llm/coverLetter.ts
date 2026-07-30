@@ -58,6 +58,8 @@ export type LetterOptions = {
   jdTerms?: string[]
   match?: MatchResult
   signal?: AbortSignal
+  onBudgetWait?: (remainingMs: number) => void
+  onUsage?: (usage: { estimated: RequestCost; actualTokens?: number; model: string }) => void
 }
 
 /**
@@ -125,6 +127,8 @@ export async function draftCoverLetter(
     temperature: 0.3,
     maxTokens: request.maxTokens,
     signal: options.signal,
+    onBudgetWait: options.onBudgetWait,
+    onUsage: options.onUsage,
   })
 }
 
@@ -165,6 +169,8 @@ export async function draftShortMessage(
     temperature: 0.3,
     maxTokens: 400,
     signal: options.signal,
+    onBudgetWait: options.onBudgetWait,
+    onUsage: options.onUsage,
   })
 }
 

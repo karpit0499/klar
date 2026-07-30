@@ -123,6 +123,7 @@ try {
     })) as typeof fetch
 
     const matches = await runMatching(jobs, profile, prefs, 'test-key', {
+      rerankMode: 'all',
       onCandidates: (candidates) => {
         selected = candidates
       },
@@ -170,6 +171,7 @@ try {
     }, 429)) as typeof fetch
 
     const matches = await runMatching(jobs, profile, prefs, 'test-key', {
+      rerankMode: 'all',
       onDiagnostics: (value) => {
         diagnostics = value
       },
@@ -182,13 +184,14 @@ try {
     assert.equal(diagnostics?.failuresByCategory.rate_limit, 1)
   }
 
-  // v2.5.3.4: the provider limit is a prioritization decision, never a display
+  // v2.5.3.4+: the provider limit is a prioritization decision, never a display
   // limit. Every relevant job keeps its local result even outside the AI set.
   await resetDb()
   {
     const jobs = jobsFor('bounded', 45)
     let diagnostics: MatchRunDiagnostics | undefined
     const matches = await runMatching(jobs, profile, prefs, undefined, {
+      rerankMode: 'all',
       onDiagnostics: (value) => {
         diagnostics = value
       },

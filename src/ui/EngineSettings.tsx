@@ -182,6 +182,9 @@ const FLAG_LABEL: Record<keyof AppFlags, TranslationKey> = {
   tailoringReview: 'settings.flags.tailoringReview',
   customEngine: 'settings.flags.customEngine',
   packets: 'settings.flags.packets',
+  deterministicMatching: 'settings.flags.deterministicMatching',
+  budgetGuard: 'settings.flags.budgetGuard',
+  tailoringChunking: 'settings.flags.tailoringChunking',
 }
 
 const FLAG_ORDER: (keyof AppFlags)[] = [
@@ -189,6 +192,9 @@ const FLAG_ORDER: (keyof AppFlags)[] = [
   'tailoringReview',
   'customEngine',
   'packets',
+  'deterministicMatching',
+  'budgetGuard',
+  'tailoringChunking',
 ]
 
 export function FeatureFlagsCard() {

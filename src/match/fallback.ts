@@ -3,6 +3,7 @@ import { normalizeKey } from '../lib/hash'
 import { coverageReport } from '../resume/keywords'
 import { scoreJob } from './prefilter'
 
+// Keep the established identifier: trackers and regression fixtures persist it.
 export const LOCAL_MATCH_MODEL = 'local-v2.3'
 
 export function buildLocalMatch(
@@ -10,6 +11,7 @@ export function buildLocalMatch(
   profile: Profile,
   prefs: Preferences,
   scoredAt: string = new Date().toISOString(),
+  locale: 'en' | 'de' = 'en',
 ): MatchResult {
   const fitScore = Math.max(0, Math.min(100, Math.round(scoreJob(job, profile, prefs))))
   const coverage = coverageReport(job, profile)
@@ -17,6 +19,13 @@ export function buildLocalMatch(
   const salary = salaryAssessment(job, prefs)
   const location = locationFactor(job, prefs)
   const seniority = seniorityAssessment(job, prefs)
+  const rationale = locale === 'de'
+    ? coverage.total
+      ? `Private lokale Bewertung: ${coverage.coveredCount} von ${coverage.total} erkannten Fachbegriffen sind im bestätigten Profil belegt.`
+      : 'Private lokale Bewertung anhand von Rollenbezug, Arbeitsort, Aktualität und bestätigtem Profil.'
+    : coverage.total
+      ? `Private local score: ${coverage.coveredCount} of ${coverage.total} detected skill terms are evidenced in the confirmed profile.`
+      : 'Private local score based on role relevance, location, recency, and the confirmed profile.'
   return {
     jobId: job.id,
     fitScore,
@@ -27,10 +36,8 @@ export function buildLocalMatch(
           ? 'good'
           : fitScore >= 35
             ? 'stretch'
-          : 'weak',
-    rationale: coverage.total
-      ? `Private local score: ${coverage.coveredCount} of ${coverage.total} detected skill terms are evidenced in the confirmed profile.`
-      : 'Private local score based on role relevance, location, recency, and the confirmed profile.',
+            : 'weak',
+    rationale,
     matchedSkills: coverage.covered,
     missingSkills: coverage.missing,
     salaryFit: salary.fit,
@@ -51,7 +58,7 @@ export function buildLocalMatch(
 }
 
 export function isLocalMatch(match: MatchResult): boolean {
-  return match.modelVersion === LOCAL_MATCH_MODEL
+  return match.modelVersion.startsWith('local-')
 }
 
 function salaryAssessment(

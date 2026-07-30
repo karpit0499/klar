@@ -4,7 +4,7 @@
 // are cached on demand with stale-while-revalidate.
 // and NEVER touch the job APIs or the Groq/Worker calls — those must always be
 // live, and caching them would be both wrong and a privacy risk.
-const CACHE = 'klar-shell-v7'
+const CACHE = 'klar-shell-v8'
 
 self.addEventListener('install', (event) => {
   event.waitUntil(self.skipWaiting())
@@ -17,19 +17,10 @@ self.addEventListener('activate', (event) => {
       await Promise.all(keys.filter((key) => key !== CACHE).map((key) => caches.delete(key)))
       await self.clients.claim()
 
-      // v2.5.2 and older did not listen for update messages and could execute an
-      // old application bundle indefinitely. This one-time service-worker
-      // migration navigates those already-open clients onto the current shell.
-      const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
-      await Promise.all(
-        clients.map(async (client) => {
-          try {
-            await client.navigate(client.url)
-          } catch {
-            // A tab can close between matchAll() and navigate().
-          }
-        }),
-      )
+      // Never navigate a page from inside activation. Waiting for that
+      // navigation can deadlock a first production load because the document
+      // is waiting for this worker to finish activating. main.tsx already
+      // checks version.json and shows a user-controlled reload notice.
     })(),
   )
 })

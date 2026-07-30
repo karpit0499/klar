@@ -4,6 +4,65 @@ This file records Klar’s product history from the newest release to the origin
 
 ---
 
+## v2.5.5 — Quota-resilient private matching
+
+### Changed
+
+- Career search now uses Klar's deterministic keyword or local-vocabulary
+  ranking by default and spends **zero AI tokens**, even when an API key is
+  configured. Every job that passes the requested filters and relevance checks
+  remains in the displayed result set.
+- Match cards and drawers identify whether a score is private/deterministic or
+  AI-enriched. Opening any job—including one originally ranked below 40—offers
+  an explicit, cached **Explain this job with AI** action so paid attention,
+  rather than every search result, drives provider use.
+- The bounded automatic AI path remains available through the
+  `deterministicMatching` release switch for controlled comparison and rollback.
+  It can enrich at most the top 40 jobs and never controls result membership.
+
+### Added
+
+- A rolling, in-memory 60-second AI ledger distinguishes a permanently
+  oversized request from a request that merely lacks headroom right now.
+  Transient work is scheduled until it can start honestly; permanent failures
+  never suggest that waiting will help.
+- Settings and application packets show estimated tokens used, currently
+  available headroom, the pending action's estimate, and whether the limit is a
+  conservative default or learned from the provider.
+- Résumés too large for one provider request use bounded, serial per-role
+  chunks. Every chunk retains source indexes and passes the same evidence audit;
+  a failed role keeps its original text and is named as unresolved.
+- Application packets store content-addressed generation fingerprints and local
+  estimated/actual-when-supplied usage metadata. Reopening a fresh result costs
+  nothing; changed résumé, posting, language, engine, requirements, or tone is
+  reported as stale.
+- Service-worker activation no longer waits for a client navigation, preventing
+  a fresh production tab from stalling before the application mounts. Existing
+  release awareness still offers the user-controlled reload notice.
+- Offline regression coverage includes 137-result keyword and semantic
+  searches, a 40-AI/97-local compatibility run, responsive local ranking
+  factors, 1–14 résumé roles, 500–12,000-character postings, rolling-window
+  accounting, bilingual explanations, cache invalidation, and three
+  independently labelled career profiles.
+
+### Preserved
+
+- v2.5.3.4 complete-result ownership remains binding: AI enrichment cannot add
+  or remove result membership, incomplete batches retain local results, every
+  local card has slider-responsive factors, and hard-filtered rows remain
+  outside the main grid and visible exports.
+- Strict schema recovery, evidence auditing, bilingual independence, packet
+  serialization, backup compatibility, and the no-AI résumé path are unchanged.
+- Flexible Work remains its separate zero-AI discovery path.
+
+### Data
+
+- No Dexie change: database schema remains **7**.
+- Résumé schema remains **2** and backup schema remains **6**.
+- No dependency or Worker change.
+
+---
+
 ## v2.5.3.4 — Complete search results and responsive ranking hotfix
 
 ### Fixed

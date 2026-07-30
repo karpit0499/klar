@@ -3,7 +3,7 @@ import { strict as assert } from 'node:assert'
 import { db } from '../src/db/db'
 import { invalidateEngineCache } from '../src/llm/provider'
 import { buildLocalMatch, isLocalMatch } from '../src/match/fallback'
-import { runMatching, type MatchRunDiagnostics } from '../src/match'
+import { explainMatchWithAi, runMatching, type MatchRunDiagnostics } from '../src/match'
 import { compositeScore } from '../src/match/weights'
 import { makeJob } from '../src/sources/normalize'
 import type { NormalizedJob, Preferences, Profile, ScoreWeights } from '../src/types'
@@ -92,6 +92,7 @@ try {
     }) as typeof fetch
 
     const matches = await runMatching(jobsFor('ai-bounded', RELEVANT_JOB_COUNT), profile, prefs, 'test-key', {
+      rerankMode: 'all',
       onDiagnostics: (value) => {
         diagnostics = value
       },
@@ -108,6 +109,49 @@ try {
     assert.equal(diagnostics?.localFallbackCount, LOCAL_OVERFLOW_COUNT)
     assert.equal(diagnostics?.failedBatchCount, 0)
     assert.equal(diagnostics?.partialBatchCount, 0)
+  }
+
+  // Any locally ranked result can still receive an explicit, cached one-job AI
+  // explanation, including a job that started beyond the automatic top 40.
+  await resetDb()
+  {
+    const overflowJob = job('explicit-overflow-136', 136)
+    let calls = 0
+    globalThis.fetch = (async (_input, init) => {
+      calls += 1
+      const [requested] = jobsFromRequest(init)
+      return jsonResponse({
+        choices: [{
+          message: {
+            content: JSON.stringify({
+              results: [{
+                jobId: requested.jobId,
+                fitScore: 91,
+                verdict: 'strong',
+                rationale: 'Explicit provider explanation.',
+                matchedSkills: ['Python', 'SQL'],
+                missingSkills: [],
+                salaryFit: 'in-range',
+                locationFit: 'exact',
+                seniorityFit: 'match',
+                redFlags: [],
+                factors: { skills: 95, salary: 90, location: 100, seniority: 90 },
+                confidence: 0.94,
+              }],
+            }),
+          },
+        }],
+      })
+    }) as typeof fetch
+
+    const fresh = await explainMatchWithAi(overflowJob, profile, prefs, 'test-key')
+    const cached = await explainMatchWithAi(overflowJob, profile, prefs, 'test-key')
+    assert.equal(fresh.jobId, overflowJob.id)
+    assert.equal(isLocalMatch(fresh), false)
+    assert.equal(cached.jobId, fresh.jobId)
+    assert.equal(cached.fitScore, fresh.fitScore)
+    assert.equal(cached.rationale, fresh.rationale)
+    assert.equal(calls, 1, 'the beyond-40 one-job explanation is cached')
   }
 
   // The controls must change local scores and can reverse two jobs whose factor

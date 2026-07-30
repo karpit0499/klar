@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Button, Card, Spinner, Badge, Field, TextInput } from './atoms'
 import { JobCard } from './JobCard'
 import { JobDrawer } from './JobDrawer'
-import { useT } from '../i18n/LocaleProvider'
+import { useLocale } from '../i18n/LocaleProvider'
 import type { TranslationKey } from '../i18n/translations'
 import { GapSummary } from './GapSummary'
 import { WeightsPanel } from './WeightsPanel'
@@ -52,6 +52,7 @@ import {
   recordRun,
   useSavedSearches,
 } from '../search/savedSearches'
+import { DEFAULT_APP_FLAGS, loadAppFlags, type AppFlags } from '../lib/appFlags'
 
 export function SearchStep({
   resume,
@@ -70,7 +71,8 @@ export function SearchStep({
   switcher?: React.ReactNode
 }) {
   const [jobs, setJobs] = useState<NormalizedJob[]>([])
-  const t = useT()
+  const { locale, t } = useLocale()
+  const [flags, setFlags] = useState<AppFlags>(DEFAULT_APP_FLAGS)
   const [matches, setMatches] = useState<Record<string, MatchResult>>({})
   const [status, setStatus] = useState<SourceStatus[]>([])
   const [phase, setPhase] = useState<'idle' | 'gathering' | 'matching' | 'done'>('idle')
@@ -103,6 +105,7 @@ export function SearchStep({
 
   useEffect(() => {
     void getActiveRegion().then(setRegion)
+    void loadAppFlags().then(setFlags)
   }, [])
 
   const query: SearchQuery = useMemo(
@@ -262,6 +265,8 @@ export function SearchStep({
           setMatches(map)
         },
         onDiagnostics: setMatchDiagnostics,
+        rerankMode: flags.deterministicMatching ? 'off' : 'all',
+        locale,
       })
       const map: Record<string, MatchResult> = {}
       for (const m of results) map[m.jobId] = m
@@ -382,6 +387,12 @@ export function SearchStep({
             )}
           </Button>
         </div>
+
+        {flags.deterministicMatching && (
+          <p className="mt-3 rounded-md border border-border bg-surface-2 p-3 text-sm text-muted" role="status">
+            {t('match.privateBanner')}
+          </p>
+        )}
 
         {/* Candidate-selection mode (feature 1.4). */}
         <div className="mt-3 flex flex-wrap items-center gap-4 text-sm">
@@ -559,7 +570,12 @@ export function SearchStep({
           score={matches[open.id] ? compositeScore(matches[open.id], weights) : undefined}
           resume={resume}
           apiKey={apiKey}
+          profile={profile}
+          prefs={prefs}
           requireGroq={requireGroq}
+          onMatchUpdated={(next) => {
+            setMatches((current) => ({ ...current, [next.jobId]: next }))
+          }}
           saved={savedIds.has(open.id)}
           onClose={() => setOpen(null)}
         />

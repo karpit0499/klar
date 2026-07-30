@@ -41,6 +41,17 @@ export type PacketLanguageState = {
    * be presented as an AI rewrite, so the mode is stored, not inferred.
    */
   mode?: 'ai' | 'deterministic'
+  /** v2.5.5: exact input/engine fingerprint for honest cache freshness. */
+  resumeCacheKey?: string
+  letterCacheKey?: string
+  messageCacheKey?: string
+  generationStrategy?: 'whole' | 'chunked'
+  aiUsage?: {
+    estimatedTokens: number
+    actualTokens?: number
+    requests: number
+    model?: string
+  }
   /** Deterministic tailoring with original sentences — the reject-all floor. */
   baseline?: ResumeData
   /** The normalized source the decisions replay against. */
