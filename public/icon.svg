@@ -1,9 +1,22 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
-  <!-- Klar app icon / favicon: cobalt tile, white K. monogram (brand). -->
-  <rect width="512" height="512" rx="112" fill="#2C4BFF"/>
-  <text x="188" y="352" text-anchor="middle"
-        font-family="'Space Grotesk', ui-sans-serif, system-ui, sans-serif"
-        font-size="300" font-weight="700" letter-spacing="-12" fill="#FFFFFF">K</text>
-  <!-- The full stop — the fixed brand device — as a solid dot for size independence. -->
-  <circle cx="330" cy="330" r="34" fill="#FFFFFF"/>
+  <title>Klar.</title>
+  <style>
+    .tile { fill: #f5f5f3; }
+    .letter { fill: #0a0a0a; }
+    .stop { fill: #2c4bff; }
+
+    @media (prefers-color-scheme: dark) {
+      .tile { fill: #0b0b0c; }
+      .letter { fill: #f5f5f4; }
+      .stop { fill: #7b90ff; }
+    }
+  </style>
+
+  <!--
+    The K is outlined from Klar's Space Grotesk Bold wordmark so the icon does
+    not depend on a font being available in the browser or operating system.
+  -->
+  <rect class="tile" width="512" height="512" rx="112"/>
+  <path class="letter" d="M87.72 410V116h55.44v116.76h7.56L246.06 116h70.98L194.4 260.9 321.24 410h-73.08l-97.44-119.28h-7.56V410Z"/>
+  <path class="stop" d="M385.71 415.88q-17.01 0-28.56-11.23-11.55-11.22-11.55-28.77 0-17.54 11.55-28.67 11.55-11.13 28.56-11.13t28.35 11.23q11.34 11.22 11.34 28.77 0 17.54-11.34 28.67-11.34 11.13-28.35 11.13Z"/>
 </svg>
