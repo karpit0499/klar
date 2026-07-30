@@ -7,7 +7,15 @@
     <!-- Brand theme-color, one per scheme so the mobile browser chrome matches. -->
     <meta name="theme-color" content="#f5f5f3" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#0b0b0c" media="(prefers-color-scheme: dark)" />
+    <!--
+      Browser icons use explicit appearance-specific files. Installed-app
+      surfaces get a fixed dark-safe asset because operating systems may apply
+      their own icon treatment without evaluating SVG media queries.
+    -->
     <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/icon-light.svg" type="image/svg+xml" media="(prefers-color-scheme: light)" />
+    <link rel="icon" href="/icon-dark.svg" type="image/svg+xml" media="(prefers-color-scheme: dark)" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180" />
     <title>Klar — Job Tracker</title>
     <!--
       Apply the saved theme BEFORE first paint to avoid a flash of the wrong
