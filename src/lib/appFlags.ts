@@ -25,6 +25,12 @@ export type AppFlags = {
   customEngine: boolean
   /** v2.5: persist an application packet per job (career and flexible). */
   packets: boolean
+  /** v2.5.5: private deterministic matching by default; off restores AI-all. */
+  deterministicMatching: boolean
+  /** v2.5.5: schedule transiently unaffordable calls instead of firing them. */
+  budgetGuard: boolean
+  /** v2.5.5: split only permanently oversized résumé requests by role. */
+  tailoringChunking: boolean
 }
 
 const KEY = 'appFlags.v25'
@@ -34,6 +40,9 @@ export const DEFAULT_APP_FLAGS: AppFlags = {
   tailoringReview: true,
   customEngine: true,
   packets: true,
+  deterministicMatching: true,
+  budgetGuard: true,
+  tailoringChunking: true,
 }
 
 export async function loadAppFlags(): Promise<AppFlags> {

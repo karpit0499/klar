@@ -404,6 +404,14 @@ const en = {
   'drawer.saveToTracker': 'Save to tracker',
   'drawer.added': 'Added ✓',
   'drawer.alsoPostedOn': 'Also posted on:',
+  'match.originLocalShort': 'Private',
+  'match.originAiShort': 'AI',
+  'match.originLocal': 'Private deterministic score · 0 AI tokens',
+  'match.originAi': 'AI-enriched explanation',
+  'match.explainAction': 'Explain this job with AI',
+  'match.explaining': 'Explaining this job…',
+  'match.explainFailed': 'Klar could not add an AI explanation. The private score remains available.',
+  'match.privateBanner': 'Private matching is on. Search and ranking use 0 AI tokens; ask for an AI explanation only on a job you open.',
 
   // Application bundle
   'bundle.title': 'Application packet',
@@ -601,6 +609,26 @@ const en = {
   'bundle.modeDeterministicHint':
     'Your sentences are unchanged. Klar reordered them so the experience this posting asks for comes first, and wrote a summary from your own facts.',
   'bundle.costEstimate': 'This AI request uses about {tokens} tokens.',
+  'budget.title': 'AI budget',
+  'budget.spent': '{tokens} estimated tokens used in the last minute',
+  'budget.remaining': '{tokens} estimated tokens available now',
+  'budget.requests': 'Requests this minute: {used} used · {remaining} available',
+  'budget.pending': 'This action needs about {tokens} tokens.',
+  'budget.defaultSource': 'The limit is a conservative default until your provider reports its actual limit.',
+  'budget.observedSource': 'This limit was learned from your provider.',
+  'budget.waiting': 'Scheduled safely. Starts automatically in about {seconds} seconds.',
+  'budget.ready': 'Enough estimated headroom is available.',
+  'bundle.cacheFresh': 'Saved result reused · 0 new AI tokens',
+  'bundle.cacheStale': 'Your résumé, posting, language, or engine changed. Regenerate before treating this as current.',
+  'bundle.willChunk':
+    'The whole request is about {tokens} tokens, above the {limit}-token limit. Klar will split only the experience roles, schedule each bounded request, and keep any role that cannot be completed unchanged.',
+  'bundle.usageTitle': 'AI usage for this packet',
+  'bundle.usageEstimated': '{tokens} estimated tokens reserved across saved AI actions',
+  'bundle.usageActual': '{tokens} actual tokens reported by the engine',
+  'bundle.usageRequests': '{count} AI requests',
+  'bundle.usageModel': 'Model: {model}',
+  'bundle.usageWhole': 'Résumé strategy: one evidence-checked request',
+  'bundle.usageChunked': 'Résumé strategy: bounded evidence-checked role requests',
   'bundle.tooLarge':
     'This résumé and job description need about {tokens} tokens in one AI request, and your plan allows {limit} at once.',
   'bundle.tooLargeAction':
@@ -667,6 +695,9 @@ const en = {
   'settings.flags.tailoringReview': 'Show the change review before download',
   'settings.flags.customEngine': 'Allow a custom AI engine',
   'settings.flags.packets': 'Keep an application packet per job',
+  'settings.flags.deterministicMatching': 'Use private zero-token matching by default',
+  'settings.flags.budgetGuard': 'Schedule AI actions within the rolling minute budget',
+  'settings.flags.tailoringChunking': 'Split only oversized résumés into evidence-checked role chunks',
 } as const
 
 export type TranslationKey = keyof typeof en
@@ -1064,6 +1095,14 @@ const de: Record<TranslationKey, string> = {
   'drawer.saveToTracker': 'Im Tracker speichern',
   'drawer.added': 'Gespeichert ✓',
   'drawer.alsoPostedOn': 'Auch ausgeschrieben auf:',
+  'match.originLocalShort': 'Privat',
+  'match.originAiShort': 'KI',
+  'match.originLocal': 'Private deterministische Bewertung · 0 KI-Tokens',
+  'match.originAi': 'KI-angereicherte Erklärung',
+  'match.explainAction': 'Diesen Job mit KI erklären',
+  'match.explaining': 'Job wird erklärt…',
+  'match.explainFailed': 'Klar konnte keine KI-Erklärung ergänzen. Die private Bewertung bleibt verfügbar.',
+  'match.privateBanner': 'Privates Matching ist aktiv. Suche und Ranking verbrauchen 0 KI-Tokens; fordere KI nur für einen geöffneten Job an.',
 
   // Bewerbungspaket
   'bundle.title': 'Bewerbungspaket',
@@ -1256,6 +1295,26 @@ const de: Record<TranslationKey, string> = {
   'bundle.modeDeterministicHint':
     'Deine Sätze bleiben unverändert. Klar hat sie so sortiert, dass die für diese Anzeige passende Erfahrung zuerst steht, und ein Kurzprofil aus deinen eigenen Angaben erstellt.',
   'bundle.costEstimate': 'Diese KI-Anfrage verbraucht etwa {tokens} Tokens.',
+  'budget.title': 'KI-Budget',
+  'budget.spent': '{tokens} geschätzte Tokens in der letzten Minute verwendet',
+  'budget.remaining': '{tokens} geschätzte Tokens jetzt verfügbar',
+  'budget.requests': 'Anfragen in dieser Minute: {used} genutzt · {remaining} verfügbar',
+  'budget.pending': 'Diese Aktion benötigt etwa {tokens} Tokens.',
+  'budget.defaultSource': 'Das Limit ist ein vorsichtiger Standardwert, bis dein Anbieter sein tatsächliches Limit meldet.',
+  'budget.observedSource': 'Dieses Limit wurde von deinem Anbieter gelernt.',
+  'budget.waiting': 'Sicher eingeplant. Startet automatisch in etwa {seconds} Sekunden.',
+  'budget.ready': 'Genügend geschätztes Kontingent ist verfügbar.',
+  'bundle.cacheFresh': 'Gespeichertes Ergebnis wiederverwendet · 0 neue KI-Tokens',
+  'bundle.cacheStale': 'Lebenslauf, Anzeige, Sprache oder Engine haben sich geändert. Vor der weiteren Verwendung neu erstellen.',
+  'bundle.willChunk':
+    'Die Gesamtanfrage umfasst etwa {tokens} Tokens und liegt über dem Limit von {limit}. Klar teilt nur die Berufsstationen, plant jede begrenzte Anfrage ein und lässt nicht abgeschlossene Stationen unverändert.',
+  'bundle.usageTitle': 'KI-Nutzung für dieses Bewerbungspaket',
+  'bundle.usageEstimated': '{tokens} geschätzte reservierte Tokens über gespeicherte KI-Aktionen',
+  'bundle.usageActual': '{tokens} tatsächlich von der Engine gemeldete Tokens',
+  'bundle.usageRequests': '{count} KI-Anfragen',
+  'bundle.usageModel': 'Modell: {model}',
+  'bundle.usageWhole': 'Lebenslaufstrategie: eine evidenzgeprüfte Anfrage',
+  'bundle.usageChunked': 'Lebenslaufstrategie: begrenzte evidenzgeprüfte Rollen-Anfragen',
   'bundle.tooLarge':
     'Lebenslauf und Stellenbeschreibung brauchen in einer KI-Anfrage etwa {tokens} Tokens, dein Tarif erlaubt {limit} auf einmal.',
   'bundle.tooLargeAction':
@@ -1319,6 +1378,9 @@ const de: Record<TranslationKey, string> = {
   'settings.flags.tailoringReview': 'Änderungsprüfung vor dem Download zeigen',
   'settings.flags.customEngine': 'Eigene KI-Engine erlauben',
   'settings.flags.packets': 'Bewerbungspaket pro Job speichern',
+  'settings.flags.deterministicMatching': 'Privates Null-Token-Matching standardmäßig verwenden',
+  'settings.flags.budgetGuard': 'KI-Aktionen innerhalb des rollierenden Minutenbudgets einplanen',
+  'settings.flags.tailoringChunking': 'Nur übergroße Lebensläufe in evidenzgeprüfte Rollenabschnitte teilen',
 }
 
 export const translations: Record<Locale, Record<TranslationKey, string>> = { de, en }

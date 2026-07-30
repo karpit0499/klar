@@ -4,7 +4,7 @@ Klar is a private, browser-based workspace for finding work, understanding job
 fit, preparing grounded applications, and tracking every opportunity from first
 look to final decision.
 
-**Current release: v2.5.3.4**
+**Current release: v2.5.5**
 
 [**Open Klar →**](https://karpit0499.github.io/klar/) ·
 [What changed →](CHANGELOG.md) ·
@@ -18,12 +18,14 @@ _Highlights from Latest Update_
 
 ---
 
-v2.5.3.4 keeps every relevant career-search result instead of truncating the
-visible list at 40. All selected jobs receive private local scores; only the top
-40 enter optional AI enrichment, preserving the cost guard without hiding the
-rest. Local scores now include skills, salary, location, and seniority factors,
-so **Tune what matters** immediately changes card scores and ranking even when
-AI is unavailable or rate-limited.
+v2.5.5 makes private deterministic ranking the default, so a career search
+spends zero AI tokens even when a key is configured. Every relevant job remains
+visible with slider-responsive skills, salary, location, and seniority factors.
+AI is requested only when you explicitly ask for an explanation on one opened
+job—including a result originally ranked below 40. Application actions show an
+honest rolling budget, wait only when waiting can help, and split an
+exceptionally long résumé into evidence-checked role chunks rather than sending
+a request that cannot fit.
 
 ## What Klar does
 
@@ -59,8 +61,11 @@ Both local ranking modes use the same relevance rules:
 - **Semantic** uses local vocabulary-vector similarity. It is private and has no
   AI cost, but it is not a neural embedding model.
 
-Groq matching is optional and enriches only the top 40 locally ranked jobs. That
-AI boundary never limits how many relevant jobs Klar displays.
+AI matching is optional and attention-based: search stays private and
+zero-token, while **Explain this job with AI** can enrich any one opened result
+and caches that explanation. The compatibility switch may automatically enrich
+at most the top 40 locally ranked jobs; that boundary never limits how many
+relevant jobs Klar displays.
 
 ### Search diagnostics you can act on
 
@@ -210,6 +215,12 @@ reservations, and low reasoning effort where supported. Empty or failed
 provider responses are treated as recoverable errors and are never saved as
 real application content or 0/100 matches.
 
+Klar also keeps a local rolling-minute estimate. A request that can never fit is
+blocked with a usable private fallback; a request that fits but lacks current
+headroom is scheduled until the minute clears. Provider-specific usage is shown
+as actual only when the response supplies it—otherwise Klar labels the number
+as an estimate.
+
 ---
 
 ## Run locally
@@ -282,6 +293,10 @@ browser origins must include the production GitHub Pages origin.
 
 ## Release history
 
+- **v2.5.5 — Quota resilience:** unbounded zero-token deterministic career
+  matching by default, one-job AI explanations for any opened result, rolling
+  budget scheduling and visibility, bounded evidence-checked résumé chunks, and
+  content-addressed packet caches.
 - **v2.5.3.4 — Complete ranked results:** every relevant career job stays
   visible, the 40-job guard applies only to AI enrichment, and deterministic
   local factors make the ranking sliders responsive during partial or no-AI

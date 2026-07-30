@@ -1,15 +1,17 @@
 // ============================================================================
-// Matching orchestrator: locally rank every relevant job → enrich the top
-// candidates with the LLM (cached). The cache key is hash(profile+prefs)+jobId
-// so re-running the same search is instant and cheap; only new jobs hit the LLM.
+// Matching orchestrator: locally rank every relevant job, then optionally
+// enrich a bounded AI-priority subset. The cache key is
+// hash(profile+prefs)+jobId so re-running the same enrichment is instant and
+// cheap; only new jobs in that subset hit the LLM.
 // ============================================================================
 import type { MatchResult, NormalizedJob, Preferences, Profile } from '../types'
-import { MATCH } from '../lib/config'
+import { MATCH, type LlmRerankMode } from '../lib/config'
 import { stableHash } from '../lib/hash'
 import { prefilter } from './prefilter'
 import { semanticPrefilter } from './semantic'
 import {
   isFailedMatchPlaceholder,
+  rerankBatch,
   rerankAll,
   type RerankDiagnostics,
 } from './rerank'
@@ -30,6 +32,27 @@ export function matchContextHash(profile: Profile, prefs: Preferences): string {
     lo: prefs.locations, ro: prefs.remoteOnly, mh: prefs.mustHaves, db: prefs.dealbreakers,
   })
   return stableHash(sig)
+}
+
+export function matchCacheKey(profile: Profile, prefs: Preferences, jobId: string): string {
+  return `${matchContextHash(profile, prefs)}:${jobId}`
+}
+
+/** Spend follows attention: enrich exactly one opened job, then cache it. */
+export async function explainMatchWithAi(
+  job: NormalizedJob,
+  profile: Profile,
+  prefs: Preferences,
+  apiKey: string,
+  signal?: AbortSignal,
+): Promise<MatchResult> {
+  const cacheKey = matchCacheKey(profile, prefs, job.id)
+  const [cached] = await getMatchRows([cacheKey])
+  if (cached && !isFailedMatchPlaceholder(cached)) return cached
+  const [fresh] = await rerankBatch(profile, prefs, [job], apiKey, signal)
+  if (!fresh) throw new Error('The AI explanation did not contain this job.')
+  await putMatchRows([{ ...fresh, cacheKey }])
+  return fresh
 }
 
 /** Enrich BA candidates whose description is still empty (bounded concurrency). */
@@ -74,18 +97,20 @@ export async function runMatching(
     signal?: AbortSignal
     /** 'keyword' (default) or 'semantic' cosine-similarity candidate selection (feature 1.4). */
     prefilterMode?: 'keyword' | 'semantic'
-    /** Publish every locally ranked candidate before optional AI work starts. */
+    /** Publish every locally ranked relevant candidate before optional AI work starts. */
     onCandidates?: (candidates: NormalizedJob[]) => void
     /** Publish complete snapshots. Every candidate always has a local or AI match. */
     onMatches?: (matches: MatchResult[]) => void
     /** Publish the reconciled initial, progressive, and terminal matching funnel. */
     onDiagnostics?: (diagnostics: MatchRunDiagnostics) => void
+    /** v2.5.5: deterministic by default; shortlist/top-40 AI remain explicit escapes. */
+    rerankMode?: LlmRerankMode
+    /** Language used by the private deterministic explanation. */
+    locale?: 'en' | 'de'
   } = {},
 ): Promise<MatchResult[]> {
-  // 1. Apply the hard drops and rank every survivor locally. The old flow
-  // passed MATCH.candidateLimit here, which made an AI cost guard also truncate
-  // the visible result set. Keep all relevant jobs; the limit is applied only
-  // to the optional provider-enrichment subset below.
+  // 1. Apply hard drops and rank every survivor locally. MATCH.candidateLimit
+  // controls only automatic AI work; it must never truncate visible results.
   opts.onProgress?.({ phase: 'prefilter', done: 0, total: jobs.length })
   const selected =
     opts.prefilterMode === 'semantic'
@@ -97,19 +122,27 @@ export async function runMatching(
   opts.onProgress?.({ phase: 'enrich', done: 0, total: selected.length })
   await enrichBaDescriptions(selected, opts.signal)
   const candidates = filterCareerRelevantJobs(selected, profile, prefs).jobs
-  const aiCandidates = candidates.slice(0, MATCH.candidateLimit)
-  const notPrioritizedCount = Math.max(0, candidates.length - aiCandidates.length)
   opts.onCandidates?.(candidates)
 
   const localById = new Map(
-    candidates.map((job) => [job.id, buildLocalMatch(job, profile, prefs)]),
+    candidates.map((job) => [job.id, buildLocalMatch(job, profile, prefs, undefined, opts.locale)]),
   )
   const snapshot = (aiById: ReadonlyMap<string, MatchResult>): MatchResult[] =>
     candidates.map((job) => aiById.get(job.id) ?? localById.get(job.id)!)
 
+  const rerankMode = opts.rerankMode ?? MATCH.llmRerank
+  const aiPriority = candidates.slice(0, MATCH.candidateLimit)
+  const aiCandidates =
+    rerankMode === 'off'
+      ? []
+      : rerankMode === 'shortlist'
+        ? aiPriority.slice(0, MATCH.shortlistSize)
+        : aiPriority
+  const notPrioritizedCount = Math.max(0, candidates.length - aiPriority.length)
+
   // Local discovery remains available without an API key. The user is asked
   // for Groq only when an explicitly AI-dependent action is invoked.
-  if (!apiKey) {
+  if (!apiKey || aiCandidates.length === 0) {
     const local = snapshot(new Map())
     opts.onMatches?.(local)
     opts.onDiagnostics?.({
@@ -127,8 +160,7 @@ export async function runMatching(
     return local
   }
 
-  const ctx = matchContextHash(profile, prefs)
-  const key = (jobId: string) => `${ctx}:${jobId}`
+  const key = (jobId: string) => matchCacheKey(profile, prefs, jobId)
 
   // 2. Split cached vs. uncached.
   const cachedRows = await getMatchRows(aiCandidates.map((c) => key(c.id)))

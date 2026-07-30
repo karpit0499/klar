@@ -32,7 +32,7 @@ import {
   estimateTailoringRequest,
   tailorResumeWithAi,
 } from '../llm/tailorResume'
-import { canAfford, loadTpmLimit } from '../llm/budget'
+import { canAfford, loadBudget } from '../llm/budget'
 import { extractJdRequirements } from '../llm/jdTerms'
 import { loadAppFlags, DEFAULT_APP_FLAGS, type AppFlags } from '../lib/appFlags'
 import { printResumeAsPdf } from '../resume/pdf'
@@ -43,7 +43,7 @@ import {
   draftCoverLetter, draftShortMessage, DEFAULT_LETTER_TONE, LETTER_TONES, type LetterTone,
 } from '../llm/coverLetter'
 import {
-  emptyLanguageState, packetReadiness, type PacketRow,
+  emptyLanguageState, packetReadiness, type PacketLanguageState, type PacketRow,
 } from '../packets/types'
 import {
   beginGeneration, endGeneration, openPacket, pushPacketVersion, recordPacketExport, updatePacket,
@@ -53,6 +53,9 @@ import type { TranslationKey } from '../i18n/translations'
 import { ErrorNotice } from './ErrorNotice'
 import { toAppError, type AppErrorData } from '../errors/appError'
 import { triggerBlobDownload } from '../export/download'
+import { BudgetNotice } from './BudgetNotice'
+import { generationCacheKey } from '../packets/cache'
+import { loadEngineSettings } from '../llm/provider'
 
 function downloadText(filename: string, text: string): void {
   triggerBlobDownload(
@@ -67,6 +70,33 @@ function fileStem(job: NormalizedJob): string {
     raw.replace(/[^\p{L}\p{N}]+/gu, '-').replace(/^-+|-+$/g, '').slice(0, 80) ||
     'klar-application'
   )
+}
+
+function mergeUsage(
+  previous: PacketLanguageState['aiUsage'],
+  next: PacketLanguageState['aiUsage'],
+): PacketLanguageState['aiUsage'] {
+  if (!next) return previous
+  if (!previous) return next
+  return {
+    estimatedTokens: previous.estimatedTokens + next.estimatedTokens,
+    actualTokens:
+      previous.actualTokens != null && next.actualTokens != null
+        ? previous.actualTokens + next.actualTokens
+        : undefined,
+    requests: previous.requests + next.requests,
+    model: next.model ?? previous.model,
+  }
+}
+
+function matchContext(match?: MatchResult): unknown {
+  return match
+    ? {
+        matchedSkills: match.matchedSkills,
+        missingSkills: match.missingSkills,
+        rationale: match.rationale,
+      }
+    : null
 }
 
 const TONE_LABEL: Record<LetterTone, TranslationKey> = {
@@ -121,7 +151,17 @@ export function ApplicationBundle({
   const [hasSalaryKey, setHasSalaryKey] = useState(false)
   const [interrupted, setInterrupted] = useState<string | null>(null)
   // v2.4.3 pre-flight: what the AI request would cost, and whether it can run.
-  const [affordable, setAffordable] = useState<{ ok: boolean; billed: number; limit: number } | null>(null)
+  const [affordable, setAffordable] = useState<{
+    ok: boolean
+    billed: number
+    limit: number
+    reason?: 'exceeds_budget' | 'no_headroom_now'
+    retryAfterMs?: number
+    cost: ReturnType<typeof estimateTailoringRequest>['cost']
+  } | null>(null)
+  const [budgetWaitMs, setBudgetWaitMs] = useState(0)
+  const [chunkProgress, setChunkProgress] = useState<{ done: number; total: number; label: string } | null>(null)
+  const [cacheFresh, setCacheFresh] = useState<boolean | null>(null)
 
   // Dialog a11y: focus the panel on open and close on Escape (WCAG 2.1.2).
   useEffect(() => {
@@ -145,10 +185,19 @@ export function ApplicationBundle({
     void (async () => {
       try {
         const request = estimateTailoringRequest(resume, job, resumeLanguage, state?.jdTerms ?? [])
-        const { tpm } = await loadTpmLimit()
-        const verdict = canAfford(request.cost, tpm)
+        const budget = await loadBudget()
+        const verdict = canAfford(request.cost, budget)
         if (!alive) return
-        setAffordable({ ok: verdict.ok, billed: request.cost.billedTokens, limit: tpm })
+        setAffordable({
+          ok: verdict.ok,
+          billed: request.cost.billedTokens,
+          limit: budget.tpm,
+          reason: verdict.ok ? undefined : verdict.reason,
+          retryAfterMs: !verdict.ok && verdict.reason === 'no_headroom_now'
+            ? verdict.retryAfterMs
+            : undefined,
+          cost: request.cost,
+        })
       } catch {
         if (alive) setAffordable(null)
       }
@@ -217,6 +266,73 @@ export function ApplicationBundle({
 
   const state = packet?.languages[resumeLanguage]
   const readiness = packetReadiness(packet, resumeLanguage)
+  useEffect(() => {
+    let alive = true
+    const hasGeneratedArtifact =
+      (state?.baseline != null && state.mode === 'ai') ||
+      Boolean(state?.letter) ||
+      Boolean(state?.shortMessage)
+    if (!state || !hasGeneratedArtifact) {
+      setCacheFresh(null)
+      return () => {
+        alive = false
+      }
+    }
+    void loadEngineSettings().then((engine) => {
+      const current = generationCacheKey({
+        kind: 'resume',
+        source: resume,
+        job,
+        language: resumeLanguage,
+        engine,
+        jdTerms: state.jdTerms,
+      })
+      const resumeCurrent =
+        state.mode !== 'ai' ||
+        !state.baseline ||
+        Boolean(state.resumeCacheKey && state.resumeCacheKey === current)
+      const letterCurrent =
+        !state.letter ||
+        state.letterCacheKey === generationCacheKey({
+          kind: 'letter',
+          source: resume,
+          job,
+          language: resumeLanguage,
+          engine,
+          jdTerms: state.jdTerms,
+          variant: state.letterTone,
+          context: matchContext(match),
+        })
+      const messageCurrent =
+        !state.shortMessage ||
+        state.messageCacheKey === generationCacheKey({
+          kind: 'message',
+          source: resume,
+          job,
+          language: resumeLanguage,
+          engine,
+          jdTerms: state.jdTerms,
+        })
+      if (alive) setCacheFresh(resumeCurrent && letterCurrent && messageCurrent)
+    })
+    return () => {
+      alive = false
+    }
+  }, [
+    job,
+    match,
+    resume,
+    resumeLanguage,
+    state?.baseline,
+    state?.jdTerms,
+    state?.letter,
+    state?.letterCacheKey,
+    state?.letterTone,
+    state?.messageCacheKey,
+    state?.mode,
+    state?.resumeCacheKey,
+    state?.shortMessage,
+  ])
   const changeSummary = useMemo(
     () => state ? deriveTailoringChangeSummary(state.changes, resumeLanguage) : [],
     [state, resumeLanguage],
@@ -228,7 +344,7 @@ export function ApplicationBundle({
   }, [state])
 
   const stem = fileStem(job)
-  const aiBlocked = affordable != null && !affordable.ok
+  const aiBlocked = affordable?.reason === 'exceeds_budget' && !flags.tailoringChunking
 
   async function runTailoring(language: ResumeLanguage, focusMissing = false) {
     // Opening the persistent packet is asynchronous. Never spend tokens before
@@ -237,6 +353,8 @@ export function ApplicationBundle({
     setTailoringError(null)
     if (focusMissing) setImproving(true)
     else setTailoringLanguage(language)
+    setChunkProgress(null)
+    setBudgetWaitMs(0)
     try {
       const key = apiKey ?? (await requireGroq(t('bundle.generateResume')))
       if (!key) return
@@ -246,7 +364,21 @@ export function ApplicationBundle({
         ? await extractJdRequirements(job, key, { force: focusMissing })
         : { terms: [] as string[] }
 
-      const result = await tailorResumeWithAi(resume, job, key, language, { jdTerms: extracted.terms })
+      const engine = await loadEngineSettings()
+      const cacheKey = generationCacheKey({
+        kind: 'resume',
+        source: resume,
+        job,
+        language,
+        engine,
+        jdTerms: extracted.terms,
+      })
+      const result = await tailorResumeWithAi(resume, job, key, language, {
+        jdTerms: extracted.terms,
+        allowChunking: flags.tailoringChunking,
+        onProgress: setChunkProgress,
+        onBudgetWait: setBudgetWaitMs,
+      })
 
       if (state?.baseline) await pushPacketVersion(packet.id, `regenerate-${language}`)
       await mutate((row) => {
@@ -254,6 +386,9 @@ export function ApplicationBundle({
         row.languages[language] = {
           ...previous,
           mode: 'ai',
+          resumeCacheKey: cacheKey,
+          generationStrategy: result.strategy,
+          aiUsage: mergeUsage(previous.aiUsage, result.usage),
           baseline: result.baseline,
           source: result.source,
           changes: result.changes,
@@ -284,6 +419,8 @@ export function ApplicationBundle({
     } finally {
       setTailoringLanguage(null)
       setImproving(false)
+      setChunkProgress(null)
+      setBudgetWaitMs(0)
     }
   }
 
@@ -293,16 +430,42 @@ export function ApplicationBundle({
     try {
       const key = apiKey ?? (await requireGroq(t('bundle.draft')))
       if (!key) return
+      const engine = await loadEngineSettings()
+      const cacheKey = generationCacheKey({
+        kind: 'letter',
+        source: resume,
+        job,
+        language: resumeLanguage,
+        engine,
+        jdTerms: state?.jdTerms,
+        variant: state?.letterTone ?? DEFAULT_LETTER_TONE,
+        context: matchContext(match),
+      })
+      let usage: { estimatedTokens: number; actualTokens?: number; requests: number; model?: string } | undefined
       if (packet) await beginGeneration(packet.id, { stage: 'letter', language: resumeLanguage, startedAt: new Date().toISOString() })
       const text = await draftCoverLetter(resume, job, key, {
         language: resumeLanguage,
         tone: state?.letterTone ?? DEFAULT_LETTER_TONE,
         jdTerms: state?.jdTerms ?? [],
         match,
+        onBudgetWait: setBudgetWaitMs,
+        onUsage: (event) => {
+          usage = {
+            estimatedTokens: event.estimated.billedTokens,
+            actualTokens: event.actualTokens,
+            requests: 1,
+            model: event.model,
+          }
+        },
       })
       await mutate((row) => {
         const previous = row.languages[resumeLanguage] ?? emptyLanguageState()
-        row.languages[resumeLanguage] = { ...previous, letter: text }
+        row.languages[resumeLanguage] = {
+          ...previous,
+          letter: text,
+          letterCacheKey: cacheKey,
+          aiUsage: mergeUsage(previous.aiUsage, usage),
+        }
         delete row.generation
       })
     } catch (error) {
@@ -314,6 +477,7 @@ export function ApplicationBundle({
       if (packet) await endGeneration(packet.id)
     } finally {
       setLetterBusy(false)
+      setBudgetWaitMs(0)
     }
   }
 
@@ -323,14 +487,38 @@ export function ApplicationBundle({
     try {
       const key = apiKey ?? (await requireGroq(t('message.draft')))
       if (!key) return
+      const engine = await loadEngineSettings()
+      const cacheKey = generationCacheKey({
+        kind: 'message',
+        source: resume,
+        job,
+        language: resumeLanguage,
+        engine,
+        jdTerms: state?.jdTerms,
+      })
+      let usage: { estimatedTokens: number; actualTokens?: number; requests: number; model?: string } | undefined
       if (packet) await beginGeneration(packet.id, { stage: 'message', language: resumeLanguage, startedAt: new Date().toISOString() })
       const text = await draftShortMessage(resume, job, key, {
         language: resumeLanguage,
         jdTerms: state?.jdTerms ?? [],
+        onBudgetWait: setBudgetWaitMs,
+        onUsage: (event) => {
+          usage = {
+            estimatedTokens: event.estimated.billedTokens,
+            actualTokens: event.actualTokens,
+            requests: 1,
+            model: event.model,
+          }
+        },
       })
       await mutate((row) => {
         const previous = row.languages[resumeLanguage] ?? emptyLanguageState()
-        row.languages[resumeLanguage] = { ...previous, shortMessage: text }
+        row.languages[resumeLanguage] = {
+          ...previous,
+          shortMessage: text,
+          messageCacheKey: cacheKey,
+          aiUsage: mergeUsage(previous.aiUsage, usage),
+        }
         delete row.generation
       })
     } catch (error) {
@@ -342,6 +530,7 @@ export function ApplicationBundle({
       if (packet) await endGeneration(packet.id)
     } finally {
       setMessageBusy(false)
+      setBudgetWaitMs(0)
     }
   }
 
@@ -576,6 +765,27 @@ export function ApplicationBundle({
             </p>
           )}
 
+          {affordable && (
+            <div className="mt-3">
+              <BudgetNotice pending={affordable.cost} waitingMs={budgetWaitMs || affordable.retryAfterMs} compact />
+            </div>
+          )}
+
+          {affordable?.reason === 'exceeds_budget' && flags.tailoringChunking && (
+            <p className="mt-3 rounded-md border border-border bg-surface-2 p-3 text-sm text-muted" role="status">
+              {t('bundle.willChunk', {
+                tokens: affordable.billed.toLocaleString(),
+                limit: affordable.limit.toLocaleString(),
+              })}
+            </p>
+          )}
+
+          {chunkProgress && (
+            <p className="mt-3 text-sm text-muted" role="status" aria-live="polite">
+              {chunkProgress.label} · {chunkProgress.done}/{chunkProgress.total}
+            </p>
+          )}
+
           {aiBlocked && affordable && (
             <div className="mt-3 rounded-md border border-border bg-surface-2 p-3" role="status">
               <p className="wrap-anywhere text-base text-ink">
@@ -592,6 +802,40 @@ export function ApplicationBundle({
 
           {tailoringError && <div className="mt-3"><ErrorNotice error={tailoringError} /></div>}
         </section>
+
+        {cacheFresh != null && (
+          <p
+            className={`mt-3 rounded-md border border-border p-3 text-sm ${
+              cacheFresh ? 'bg-surface-2 text-muted' : 'bg-surface-2 text-danger'
+            }`}
+            role="status"
+          >
+            {cacheFresh ? t('bundle.cacheFresh') : t('bundle.cacheStale')}
+          </p>
+        )}
+
+        {state?.aiUsage && (
+          <section className="mt-3 rounded-md border border-border bg-surface-2 p-3" aria-labelledby="bundle-ai-usage">
+            <h3 id="bundle-ai-usage" className="text-sm font-semibold text-ink">{t('bundle.usageTitle')}</h3>
+            <div className="mt-1 grid gap-1 text-sm text-muted">
+              <p>{t('bundle.usageEstimated', { tokens: state.aiUsage.estimatedTokens.toLocaleString() })}</p>
+              {state.aiUsage.actualTokens != null && (
+                <p>{t('bundle.usageActual', { tokens: state.aiUsage.actualTokens.toLocaleString() })}</p>
+              )}
+              <p>{t('bundle.usageRequests', { count: state.aiUsage.requests })}</p>
+              {state.aiUsage.model && <p>{t('bundle.usageModel', { model: state.aiUsage.model })}</p>}
+              {state.generationStrategy && (
+                <p>
+                  {t(
+                    state.generationStrategy === 'chunked'
+                      ? 'bundle.usageChunked'
+                      : 'bundle.usageWhole',
+                  )}
+                </p>
+              )}
+            </div>
+          </section>
+        )}
 
         {state?.coverage && (
           <CoveragePanel

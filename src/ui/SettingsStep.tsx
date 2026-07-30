@@ -6,6 +6,7 @@ import { ResumeEditor } from './ResumeEditor'
 import { ResumeHistory } from './ResumeHistory'
 import { SafetyCenter } from './SafetyCenter'
 import { EngineSettingsCard, FeatureFlagsCard } from './EngineSettings'
+import { BudgetNotice } from './BudgetNotice'
 import { ErrorNotice } from './ErrorNotice'
 import { wipeAllData } from '../db/db'
 import { clearGroqKey } from '../settings/keys'
@@ -253,6 +254,9 @@ export function SettingsStep({
 
         {/* v2.5 · WS3 — the configurable OpenAI-compatible engine. */}
         <EngineSettingsCard apiKey={apiKey} />
+        <div className="mt-4">
+          <BudgetNotice />
+        </div>
 
         {/* v2.5 · R10 — per-feature kill switches for the new application-quality work. */}
         <FeatureFlagsCard />

@@ -1,6 +1,7 @@
 import { Card, Badge, Button } from './atoms'
 import { useT } from '../i18n/LocaleProvider'
 import type { MatchResult, NormalizedJob } from '../types'
+import { isLocalMatch } from '../match/fallback'
 
 export function JobCard({
   job,
@@ -37,6 +38,9 @@ export function JobCard({
               <span className="font-display tabular-nums font-semibold">{shown}</span>
               <span className="opacity-70">/100</span>
             </Badge>
+            <div className="mt-1 text-xs text-faint">
+              {isLocalMatch(match) ? t('match.originLocalShort') : t('match.originAiShort')}
+            </div>
           </div>
         )}
       </div>

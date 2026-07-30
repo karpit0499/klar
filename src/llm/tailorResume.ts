@@ -81,6 +81,16 @@ export type AiTailoredResume = {
   unresolved: UnresolvedIssue[]
   /** Convenience: the résumé with the current decisions applied. */
   data: ResumeData
+  /** Whole-document is preferred; chunked is the bounded oversized fallback. */
+  strategy: 'whole' | 'chunked'
+  /** Local estimate, never presented as provider-billed fact. */
+  usage: { estimatedTokens: number; actualTokens?: number; requests: number; model?: string }
+}
+
+export type TailoringProgress = {
+  done: number
+  total: number
+  label: string
 }
 
 function isNonEmptyString(value: unknown): value is string {
@@ -597,6 +607,49 @@ export function tooLargeError(cost: RequestCost, limit: number): AppError {
   })
 }
 
+export type TailoringChunkRequest = {
+  system: string
+  user: string
+  maxTokens: number
+  cost: RequestCost
+}
+
+export function estimateRoleChunkRequest(
+  source: ResumeData,
+  job: NormalizedJob,
+  language: ResumeLanguage,
+  jdTerms: string[],
+  roleIndex: number,
+): TailoringChunkRequest {
+  const role = projectResumeForPrompt(source).experience[roleIndex]
+  if (!role) throw new Error(`Unknown résumé role ${roleIndex}.`)
+  const languageName = language === 'de' ? 'German' : 'English'
+  const system = `You are an evidence-bound résumé editor. Rewrite exactly one supplied experience role in ${languageName}.
+Use only facts, tools, numbers, scope, and cadence present in that role's source bullets.
+Keep the sourceIndex and sourceBulletIndexes exactly as supplied. Never add seniority.
+Return compact JSON only: {"sourceIndex":0,"title":"string","bullets":[{"text":"string","sourceBulletIndexes":[0]}]}.`
+  const user = JSON.stringify({
+    job: projectJobForPrompt(job, {
+      requirements: jdTerms,
+      excerptChars: PROMPT.chunkExcerptChars,
+    }),
+    role,
+  })
+  const maxTokens = Math.max(512, Math.min(1_024, role.bullets.length * 110 + 220))
+  return { system, user, maxTokens, cost: costOf({ system, user, maxTokens }) }
+}
+
+export function estimateTailoringChunkRequests(
+  source: ResumeData,
+  job: NormalizedJob,
+  language: ResumeLanguage,
+  jdTerms: string[] = [],
+): TailoringChunkRequest[] {
+  return source.experience.map((_, roleIndex) =>
+    estimateRoleChunkRequest(source, job, language, jdTerms, roleIndex),
+  )
+}
+
 /** Build cosmetic review notes from accepted, audited changes — never from AI. */
 export function deriveTailoringChangeSummary(
   changes: ChangeRecord[],
@@ -646,7 +699,13 @@ export async function tailorResumeWithAi(
   job: NormalizedJob,
   apiKey: string,
   language: ResumeLanguage,
-  options: { jdTerms?: string[]; signal?: AbortSignal } = {},
+  options: {
+    jdTerms?: string[]
+    signal?: AbortSignal
+    allowChunking?: boolean
+    onProgress?: (progress: TailoringProgress) => void
+    onBudgetWait?: (remainingMs: number) => void
+  } = {},
 ): Promise<AiTailoredResume> {
   const source = normalizeResume(rawSource)
   const extraJdTerms = options.jdTerms ?? []
@@ -660,12 +719,26 @@ export async function tailorResumeWithAi(
   const priced = estimateTailoringRequest(source, job, language, jdTerms)
   const { tpm } = await loadTpmLimit()
   const affordable = canAfford(priced.cost, tpm)
-  if (!affordable.ok) throw tooLargeError(priced.cost, affordable.limit)
+  if (!affordable.ok && affordable.reason === 'exceeds_budget') {
+    if (options.allowChunking !== false && source.experience.length > 0) {
+      return tailorResumeInRoleChunks(
+        source,
+        job,
+        apiKey,
+        language,
+        jdTerms,
+        deterministic,
+        options,
+      )
+    }
+    throw tooLargeError(priced.cost, affordable.limit)
+  }
 
   let corrections: string[] = []
   let audited: AuditedResponse | null = null
   let parsed: ModelTailoringResponse | null = null
   let attempts = 0
+  const usage = { estimatedTokens: 0, actualTokens: 0, actualComplete: true, requests: 0, model: '' }
 
   while (attempts < GENERATION.maxTailoringAttempts) {
     attempts += 1
@@ -677,6 +750,14 @@ export async function tailorResumeWithAi(
       temperature: 0,
       maxTokens: priced.maxTokens,
       signal: options.signal,
+      onBudgetWait: options.onBudgetWait,
+      onUsage: (event) => {
+        usage.estimatedTokens += event.estimated.billedTokens
+        usage.requests += 1
+        usage.model = event.model
+        if (event.actualTokens == null) usage.actualComplete = false
+        else usage.actualTokens += event.actualTokens
+      },
     })
     let candidate: ModelTailoringResponse
     try {
@@ -725,6 +806,131 @@ export async function tailorResumeWithAi(
     attempts,
     unresolved: audited.blockers.map((blocker) => blocker.issue),
     data: applyChanges(baseline, source, changes),
+    strategy: 'whole',
+    usage: {
+      estimatedTokens: usage.estimatedTokens,
+      actualTokens: usage.actualComplete ? usage.actualTokens : undefined,
+      requests: usage.requests,
+      model: usage.model || undefined,
+    },
+  }
+}
+
+async function tailorResumeInRoleChunks(
+  source: ResumeData,
+  job: NormalizedJob,
+  apiKey: string,
+  language: ResumeLanguage,
+  jdTerms: string[],
+  deterministic: ReturnType<typeof tailorResume>,
+  options: {
+    signal?: AbortSignal
+    onProgress?: (progress: TailoringProgress) => void
+    onBudgetWait?: (remainingMs: number) => void
+  },
+): Promise<AiTailoredResume> {
+  const roleResponses: unknown[] = []
+  const unresolved: UnresolvedIssue[] = []
+  const requests = estimateTailoringChunkRequests(source, job, language, jdTerms)
+  const usage = { estimatedTokens: 0, actualTokens: 0, actualComplete: true, requests: 0, model: '' }
+
+  for (let roleIndex = 0; roleIndex < requests.length; roleIndex += 1) {
+    const request = requests[roleIndex]
+    const sourceRole = source.experience[roleIndex]
+    options.onProgress?.({
+      done: roleIndex,
+      total: requests.length,
+      label: sourceRole.title || sourceRole.company || `Role ${roleIndex + 1}`,
+    })
+    try {
+      const raw = await chatComplete({
+        apiKey,
+        system: request.system,
+        user: request.user,
+        json: true,
+        temperature: 0,
+        maxTokens: request.maxTokens,
+        signal: options.signal,
+        onBudgetWait: options.onBudgetWait,
+        onUsage: (event) => {
+          usage.estimatedTokens += event.estimated.billedTokens
+          usage.requests += 1
+          usage.model = event.model
+          if (event.actualTokens == null) usage.actualComplete = false
+          else usage.actualTokens += event.actualTokens
+        },
+      })
+      const parsed = extractJson<unknown>(raw)
+      const row = objectValue(parsed)
+      const role =
+        objectValue(row?.role) ??
+        (Array.isArray(row?.experience) ? objectValue(row.experience[0]) : null) ??
+        row
+      if (!role) throw new Error('The role chunk was not a JSON object.')
+      roleResponses.push(role)
+    } catch (caught) {
+      if (
+        (caught instanceof DOMException && caught.name === 'AbortError') ||
+        (caught && typeof caught === 'object' && 'name' in caught && caught.name === 'AbortError')
+      ) {
+        throw caught
+      }
+      unresolved.push({
+        location: [sourceRole.title, sourceRole.company].filter(Boolean).join(' · '),
+        code: 'reworded',
+        detail: 'AI could not complete this role; Klar kept the original evidence unchanged.',
+      })
+    }
+    options.onProgress?.({
+      done: roleIndex + 1,
+      total: requests.length,
+      label: sourceRole.title || sourceRole.company || `Role ${roleIndex + 1}`,
+    })
+  }
+
+  const merged = normalizeTailoringResponse(
+    {
+      summary: deterministic.data.summary,
+      experience: roleResponses,
+      projects: source.projects.map((project, sourceIndex) => ({
+        sourceIndex,
+        summary: project.summary ?? '',
+      })),
+    },
+    source,
+    deterministic.data.summary,
+  )
+  validateTailoringResponse(merged, source)
+  const audited = auditTailoringResponse(merged, source, job, jdTerms)
+  const changes = proposeChanges(source, audited.proposal, jdTerms)
+  const baseline: ResumeData = {
+    ...deterministic.data,
+    contact: source.contact,
+    summary: source.summary,
+    education: source.education,
+    languages: source.languages,
+    projects: source.projects.map((project) => ({ ...project })),
+    certifications: source.certifications,
+  }
+
+  return {
+    language,
+    coverage: deterministic.coverage,
+    jdTerms,
+    baseline,
+    source,
+    changes,
+    changeSummary: deriveTailoringChangeSummary(changes, language),
+    attempts: usage.requests,
+    unresolved: [...unresolved, ...audited.blockers.map((blocker) => blocker.issue)],
+    data: applyChanges(baseline, source, changes),
+    strategy: 'chunked',
+    usage: {
+      estimatedTokens: usage.estimatedTokens,
+      actualTokens: usage.actualComplete ? usage.actualTokens : undefined,
+      requests: usage.requests,
+      model: usage.model || undefined,
+    },
   }
 }
 

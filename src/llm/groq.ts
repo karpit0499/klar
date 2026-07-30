@@ -13,7 +13,18 @@
 // and reports failures honestly — it has no notion of "acceptable output".
 // ============================================================================
 import { AppError, serializeAppError, toAppError, type AppErrorData } from '../errors/appError'
-import { parseLimitFromError, saveTpmLimit } from './budget'
+import {
+  canAfford,
+  costOf,
+  loadBudget,
+  parseLimitFromError,
+  recordSpend,
+  saveTpmLimit,
+  settleSpend,
+  waitForHeadroom,
+  type RequestCost,
+} from './budget'
+import { loadAppFlags } from '../lib/appFlags'
 import {
   engineDisplayName,
   engineRequestUrl,
@@ -36,6 +47,11 @@ type ProviderErrorDetails = {
 type ChatApiResponse = {
   choices?: { finish_reason?: string; message?: { content?: string | null } }[]
   error?: ProviderErrorDetails
+  usage?: {
+    prompt_tokens?: number
+    completion_tokens?: number
+    total_tokens?: number
+  }
 }
 
 export type ChatOptions = {
@@ -53,6 +69,14 @@ export type ChatOptions = {
   jsonSchema?: StructuredOutputSchema
   maxTokens?: number
   signal?: AbortSignal
+  /** Announce a transient, honest wait before this request is sent. */
+  onBudgetWait?: (remainingMs: number) => void
+  /** Local cost record. Actual usage is optional because not every engine sends it. */
+  onUsage?: (usage: {
+    estimated: RequestCost
+    actualTokens?: number
+    model: string
+  }) => void
 }
 
 /**
@@ -204,12 +228,47 @@ export async function chatComplete(opts: ChatOptions): Promise<string> {
   const engine = await loadEngineSettings()
   const name = engineDisplayName(engine)
   const primaryBody = buildChatRequestBody(engine, opts)
+  const model = resolveModel(engine, opts)
+  const estimated = costOf({
+    system: opts.system,
+    user: opts.user,
+    maxTokens: opts.maxTokens ?? 2048,
+  })
+  const budget = await loadBudget()
+  const affordability = canAfford(estimated, budget)
+  if (!affordability.ok && affordability.reason === 'exceeds_budget') {
+    throw new AppError({
+      category: 'validation',
+      message: 'This AI request is larger than the configured engine can accept in one minute.',
+      dataSafe: true,
+      available:
+        `It needs about ${estimated.billedTokens.toLocaleString()} tokens and the current limit is ` +
+        `${budget.tpm.toLocaleString()}. Waiting will not help; use the available private fallback.`,
+      action: { label: 'Use the private fallback', kind: 'none' },
+      technical: `estimated ${estimated.billedTokens} vs tpm ${budget.tpm}`,
+    })
+  }
+  const flags = await loadAppFlags()
 
   const headers: Record<string, string> = { 'Content-Type': 'application/json' }
   if (opts.apiKey) headers.Authorization = `Bearer ${opts.apiKey}`
 
   const requestUrl = engineRequestUrl(engine, '/chat/completions')
-  let result = await sendChatRequest(requestUrl, headers, primaryBody, opts.signal, name)
+  const send = async (body: Record<string, unknown>) => {
+    if (flags.budgetGuard && typeof document !== 'undefined') {
+      await waitForHeadroom(estimated, budget, {
+        signal: opts.signal,
+        onWait: opts.onBudgetWait,
+      })
+    }
+    const spendId = recordSpend(estimated)
+    const response = await sendChatRequest(requestUrl, headers, body, opts.signal, name)
+    const actualTokens = finiteUsage(response.data.usage?.total_tokens)
+    settleSpend(spendId, actualTokens)
+    opts.onUsage?.({ estimated, actualTokens, model })
+    return response
+  }
+  let result = await send(primaryBody)
   let initialSchemaError: ProviderErrorDetails | undefined
 
   if (
@@ -223,7 +282,7 @@ export async function chatComplete(opts: ChatOptions): Promise<string> {
     // and this second request is never recursively retried.
     initialSchemaError = result.data.error
     const fallbackBody = buildChatRequestBody(engine, opts, 'json_object')
-    result = await sendChatRequest(requestUrl, headers, fallbackBody, opts.signal, name)
+    result = await send(fallbackBody)
   }
 
   if (!result.response.ok) {
@@ -250,6 +309,12 @@ export async function chatComplete(opts: ChatOptions): Promise<string> {
     })
   }
   return content
+}
+
+function finiteUsage(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0
+    ? value
+    : undefined
 }
 
 type ChatHttpResult = {

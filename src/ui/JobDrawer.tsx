@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Button, Badge, Spinner } from './atoms'
 import { ApplicationBundle } from './ApplicationBundle'
-import type { MatchResult, NormalizedJob } from '../types'
+import type { MatchResult, NormalizedJob, Preferences, Profile } from '../types'
 import type { ResumeData } from '../resume/types'
 import { fetchBaDetail } from '../sources/ba'
 import { addToTracker } from '../tracker/store'
@@ -10,6 +10,8 @@ import { draftCoverLetter } from '../llm/coverLetter'
 import { useT } from '../i18n/LocaleProvider'
 import { useScrollLock } from './useScrollLock'
 import type { TranslationKey } from '../i18n/translations'
+import { explainMatchWithAi } from '../match'
+import { isLocalMatch } from '../match/fallback'
 
 // Factor label → translation key. FACTOR_KEYS drives the set; the keys live in
 // the shared `factor.*` namespace so WeightsPanel and this drawer read the same
@@ -49,7 +51,10 @@ export function JobDrawer({
   score,
   resume,
   apiKey,
+  profile,
+  prefs,
   requireGroq,
+  onMatchUpdated,
   saved,
   onClose,
 }: {
@@ -59,7 +64,10 @@ export function JobDrawer({
   score?: number
   resume: ResumeData
   apiKey?: string
+  profile: Profile
+  prefs: Preferences
   requireGroq: (action: string) => Promise<string | null>
+  onMatchUpdated: (match: MatchResult) => void
   saved: boolean
   onClose: () => void
 }) {
@@ -77,6 +85,8 @@ export function JobDrawer({
   const [letterBusy, setLetterBusy] = useState(false)
   const [letterErr, setLetterErr] = useState('')
   const [copied, setCopied] = useState(false)
+  const [explainBusy, setExplainBusy] = useState(false)
+  const [explainError, setExplainError] = useState('')
 
   // Dialog a11y: focus the panel on open and close on Escape (WCAG 2.1.2).
   useEffect(() => {
@@ -128,6 +138,20 @@ export function JobDrawer({
       setTimeout(() => setCopied(false), 1500)
     } catch {
       /* clipboard blocked — the user can still select the text */
+    }
+  }
+
+  async function explainWithAi() {
+    setExplainError('')
+    setExplainBusy(true)
+    try {
+      const key = apiKey ?? await requireGroq(t('match.explainAction'))
+      if (!key) return
+      onMatchUpdated(await explainMatchWithAi({ ...job, description }, profile, prefs, key))
+    } catch (caught) {
+      setExplainError(caught instanceof Error ? caught.message : t('match.explainFailed'))
+    } finally {
+      setExplainBusy(false)
     }
   }
 
@@ -191,6 +215,17 @@ export function JobDrawer({
               </div>
             )}
             <p className="mt-2 wrap-anywhere text-base leading-relaxed text-muted">{match.rationale}</p>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <Badge tone="outline">
+                {isLocalMatch(match) ? t('match.originLocal') : t('match.originAi')}
+              </Badge>
+              {isLocalMatch(match) && (
+                <Button size="sm" variant="ghost" onClick={() => void explainWithAi()} disabled={explainBusy}>
+                  {explainBusy ? <Spinner label={t('match.explaining')} /> : t('match.explainAction')}
+                </Button>
+              )}
+            </div>
+            {explainError && <p className="mt-2 text-sm text-danger" role="alert">{explainError}</p>}
 
             {/* Per-factor breakdown — what drove the score (feature 1.3). */}
             {match.factors && (
