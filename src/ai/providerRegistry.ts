@@ -1,104 +1,62 @@
 import {
   AiProviderError,
+  type AiCapability,
+  type AiLanguage,
   type AiProvider,
-  type GenerationRequest,
-  type GenerationResult,
-  type ProviderCapabilities,
-  type ProviderHealth,
 } from './contracts'
-import { AI_CAPABILITIES } from './capabilities'
-import { desktopBridge, type KlarDesktopBridge } from './runtime'
-import { validateGenerationRequest } from './validation'
+import { missingProviderRequirements, providerSupports } from './capabilities'
 
-const LOCAL_PROVIDER_ID = 'klar-local'
+export class AiProviderRegistry {
+  private readonly providers = new Map<string, AiProvider>()
 
-function mapDesktopError(error: unknown): AiProviderError {
-  if (error instanceof AiProviderError) return error
-  const candidate = error as { code?: unknown; message?: unknown }
-  const message =
-    typeof candidate?.message === 'string'
-      ? candidate.message
-      : 'The local model could not complete this request.'
-  switch (candidate?.code) {
-    case 'cancelled':
-      return new AiProviderError('cancelled', message, { cause: error })
-    case 'timeout':
-      return new AiProviderError('timeout', message, { cause: error })
-    case 'runtime_crashed':
-      return new AiProviderError('runtime_crashed', message, { cause: error })
-    case 'invalid_response':
-      return new AiProviderError('invalid_response', message, { cause: error })
-    default:
-      return new AiProviderError('provider_unavailable', message, { cause: error })
-  }
-}
-
-export class LocalAiProvider implements AiProvider {
-  readonly id = LOCAL_PROVIDER_ID
-  readonly kind = 'local' as const
-
-  constructor(private readonly bridge: KlarDesktopBridge) {}
-
-  describeCapabilities(): ProviderCapabilities {
-    return {
-      providerId: this.id,
-      kind: this.kind,
-      capabilities: new Set(Object.keys(AI_CAPABILITIES) as Array<keyof typeof AI_CAPABILITIES>),
-      languages: new Set(['de', 'en']),
-      adapters: new Set(['base', 'precision', 'writer']),
-      structuredOutput: true,
-      cancellation: true,
+  register(provider: AiProvider): void {
+    if (this.providers.has(provider.id)) {
+      throw new Error(`AI provider already registered: ${provider.id}`)
     }
+    this.providers.set(provider.id, provider)
   }
 
-  async health(): Promise<ProviderHealth> {
-    const status = await this.bridge.runtime.getStatus()
-    if (status.phase === 'ready' && status.modelId) {
-      return {
-        status: 'ready',
-        providerId: this.id,
-        modelId: status.modelId,
-        adapters: status.adapters,
-        warmed: status.warmed,
-      }
-    }
-    if (status.phase === 'starting' || status.phase === 'verifying') {
-      return { status: 'starting', providerId: this.id, reason: status.phase }
-    }
-    return {
-      status: status.phase === 'crashed' ? 'degraded' : 'unavailable',
-      providerId: this.id,
-      reason: status.lastErrorCode ?? status.phase,
-    }
+  unregister(providerId: string): boolean {
+    return this.providers.delete(providerId)
   }
 
-  async generate(
-    rawRequest: GenerationRequest,
-    signal?: AbortSignal,
-  ): Promise<GenerationResult> {
-    const request = validateGenerationRequest(rawRequest)
-    if (signal?.aborted) throw new AiProviderError('cancelled', 'The request was cancelled.')
-
-    const abort = () => {
-      void this.bridge.ai.cancel(request.requestId)
-    }
-    signal?.addEventListener('abort', abort, { once: true })
-    try {
-      return await this.bridge.ai.generate(request)
-    } catch (error) {
-      throw mapDesktopError(error)
-    } finally {
-      signal?.removeEventListener('abort', abort)
-    }
+  get(providerId: string): AiProvider | undefined {
+    return this.providers.get(providerId)
   }
 
-  async cancel(requestId: string): Promise<boolean> {
-    return this.bridge.ai.cancel(requestId)
+  list(): AiProvider[] {
+    return [...this.providers.values()]
   }
-}
 
-export function createDesktopLocalProvider(
-  bridge: KlarDesktopBridge | null = desktopBridge(),
-): LocalAiProvider | null {
-  return bridge ? new LocalAiProvider(bridge) : null
+  eligible(capability: AiCapability, language: AiLanguage): AiProvider[] {
+    return this.list().filter((provider) =>
+      providerSupports(provider.describeCapabilities(), capability, language),
+    )
+  }
+
+  require(
+    providerId: string,
+    capability: AiCapability,
+    language: AiLanguage,
+  ): AiProvider {
+    const provider = this.providers.get(providerId)
+    if (!provider) {
+      throw new AiProviderError(
+        'provider_unavailable',
+        `AI provider is not registered: ${providerId}`,
+      )
+    }
+    const missing = missingProviderRequirements(
+      provider.describeCapabilities(),
+      capability,
+      language,
+    )
+    if (missing.length > 0) {
+      throw new AiProviderError(
+        'capability_unavailable',
+        `${providerId} cannot serve this request (${missing.join(', ')}).`,
+      )
+    }
+    return provider
+  }
 }

@@ -4,6 +4,114 @@ This file records Klar’s product history from the newest release to the origin
 
 ---
 
+## v2.6.0 — Measured intelligence foundation and desktop developer preview
+
+### Ranking and evaluation
+
+- Replaced opaque final-score ownership with a deterministic, versioned ranking
+  snapshot containing extracted requirements, evidence links, eligibility
+  facts, factor scores, penalties, rank, candidate-set hash, input hash, and a
+  bilingual explanation contract.
+- Kept known hard mismatches outside normal ranked results and kept unknown
+  facts distinct from proven mismatches. Requirement extraction is posting-only
+  so a candidate profile cannot make its own requirements appear; unmatched
+  conjuncts remain visible instead of being hidden beside a known skill.
+- Historical tracked-job scores remain labelled with their original model and
+  are never reinterpreted. A visible user action can explicitly replace one
+  with a current-profile ranking-v2 snapshot.
+- Added a frozen v2.5.5 baseline, synthetic evaluation corpus, deterministic
+  metrics, slice/calibration reports, and a genuine blinded-review protocol
+  with exact eight-key constraint coverage and frozen per-job requirement IDs.
+  Graduation requires at least 20% relative NDCG@10 improvement, at least 80%
+  pairwise reviewer agreement, and no more than 2% top-10 hard violations.
+
+### Application quality and résumé research
+
+- Cover letters now have semantic sender, recipient, place, date, subject,
+  greeting, body, closing, and signature fields and export as selectable,
+  single-column English/German DOCX. Missing place, placeholders, prompt
+  fragments, invalid Unicode, or another fatal document check blocks download.
+- Application packet ZIPs contain only the tailored résumé DOCX and semantic
+  cover-letter DOCX. Candidate, company, role, and language appear in safe
+  filenames; internal job IDs and URL queries do not.
+- New packet rows pin row-level storage defaults. Every generated language
+  artifact records its own content/generator contract, and every export records
+  the source-artifact provenance plus the exact exporter used. Pre-v2.6 and
+  mixed rows remain conservatively labelled `historical:unversioned` instead
+  of being globally relabelled when one artifact changes.
+- Recruiter messages record tone, channel, application state, discovery and
+  referral context. A claimed referral cannot be generated without the named
+  person, and deterministic evidence/state checks remain visible.
+- Added a default-off internal résumé design lab with code-generated Current,
+  Data & Analytics, Classic German, and Editorial variants. No supplied sample
+  résumé is redistributed. A possible later default stays blocked until every
+  recruiter, candidate, parse/render, evidence, and provenance prerequisite is
+  explicitly recorded.
+- Added a writing human gate requiring at least two blinded bilingual reviewers,
+  at least 40 outputs, at least 90% sendable recruiter messages overall and in
+  each language, zero unsupported or unclear adjudicated claims, every
+  disagreement resolved, and proven train/eval separation. Prompt-fragment
+  detection is a deterministic export check, not a reviewer judgment.
+
+### Reliability, privacy and reporting
+
+- Career source health now records content-free fetch time, last success,
+  source URL, extraction confidence, and duplicate-family evidence. Flexible
+  source health also exposes its measured latency, schema-failure,
+  circuit-breaker, and operator-kill state.
+- Added an in-app report builder with local privacy preview and redaction for
+  secrets, email addresses, private paths, and URL queries. Ordinary reports
+  open public GitHub Issues; suspected vulnerabilities open GitHub private
+  vulnerability reporting. Nothing is submitted automatically.
+- Added `SECURITY.md` and public Issue forms that prohibit résumés, application
+  documents, API keys, tokens, private paths, and employer-private data.
+- The semantic wordmark returns to Dashboard without discarding a completed
+  search. Hidden search state suspends open drawer side effects so body scroll
+  and focus are not trapped outside the visible page.
+
+### Local-AI and desktop foundation
+
+- Added a provider-neutral AI capability contract plus a sandboxed Electron
+  main/preload boundary. The managed llama.cpp runtime binds only to loopback,
+  uses an ephemeral token, disables its Web UI and downloads, supports one
+  inference slot, and recovers from cancellation and a killed runtime.
+- Pinned Electron 43.2.0, electron-builder 26.15.3, `@electron/fuses` 1.8.0,
+  llama.cpp `b10199`, and Qwen/Qwen3.5-9B revision
+  `c202236235762e1c871ad0ccb60c8ee5ba337b9a`.
+- Added signed manifest/checksum verification, exact compatibility checks,
+  atomic model-package installation, rollback metadata, and all nine reviewed
+  Electron fuse assertions.
+- The desktop panel defaults to the genuinely prepared base-validation package;
+  it does not imply that either held Kaggle adapter artifact already exists.
+- Added unsigned internal macOS ARM64 and Windows x64 CI validation. The exact
+  dist build is smoke-tested and hashed with a platform SHA-256 sidecar; the
+  public-repository workflow deliberately uploads no unsigned binary.
+- Added a Kaggle T4 notebook for two tiny synthetic Precision/Writer LoRA
+  feasibility runs. It pins model/dependency revisions, rejects the currently
+  incompatible P100 path, trains completion tokens only, disables generated
+  thinking content, records provenance, and exports deterministic ZIP metadata.
+
+### Honest release gates
+
+- Real Qwen3.5-9B Q4_K_M base-model smoke and benchmark evidence is development
+  evidence only; two normalization cases failed and adapter comparisons remain
+  unrun.
+- The Kaggle GPU run, genuine ranking/writing reviewers, production model key,
+  macOS notarization, Windows public signing, and public local-intelligence
+  decision remain `HOLD` until completed by the documented owners.
+- The production and full development/build dependency audits are clean at the
+  final pinned-lockfile verification on 8 August 2026. Public distribution is
+  still held by signing, platform, adapter and human-quality gates; both audits
+  must be rerun because advisory data can change.
+
+### Data
+
+- Dexie database schema remains **7**, résumé schema remains **2**, and backup
+  schema remains **6**. Ranking snapshots and packet fields are additive and
+  historical scores are labelled rather than silently reinterpreted.
+
+---
+
 ## v2.5.5 — Quota-resilient private matching
 
 ### Changed

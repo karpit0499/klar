@@ -632,11 +632,11 @@ function extractParagraphText(xml: string): string {
 
 function decodeXml(value: string): string {
   return value
-    .replace(/</g, '<')
-    .replace(/>/g, '>')
-    .replace(/"/g, '"')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
     .replace(/&apos;/g, "'")
-    .replace(/&/g, '&')
+    .replace(/&amp;/g, '&')
 }
 
 function countTags(xml: string, localName: string): number {
