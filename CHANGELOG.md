@@ -4,6 +4,69 @@ This file records Klar’s product history from the newest release to the origin
 
 ---
 
+## v2.6.0.1 — Résumé format and Bundesagentur continuity hotfix
+
+### Production résumé format
+
+- Reconstructed the approved cross-compatible résumé family as production
+  code instead of redistributing the reference DOCX packages. Standalone and
+  application-packet DOCX exports now use A4, Arial, compact identity and link
+  rows, an unlabeled profile, semantic ruled Heading 1 sections, compact
+  role/company and city/date grouping, real coloured bullets, and a combined
+  skills-and-languages section.
+- Updated browser-print PDF to use the same content order and typography as the
+  DOCX exporter. Print now has one A4 page-margin source instead of stacking a
+  body margin on top of `@page` margins.
+- Kept the production palette deterministic and stable. The supplied data,
+  CRM, and industrial colours remain reference tokens; Klar does not infer a
+  person's visual category from résumé keywords. A future palette choice must
+  be explicit and user-controlled.
+- Used the newest held role as the only evidence-backed subtitle available in
+  résumé schema v2. The target job title is never presented as work the
+  candidate has already performed. Fields that require a new schema—such as a
+  reviewed profile headline, education modules, work eligibility, engagement,
+  and project bullet/year metadata—remain out of this hotfix.
+- Preserved certification issuer/date evidence, complete link URLs, natural
+  pagination, real paragraph semantics, and the existing Word package safety
+  checks. Education city is now included in the pre-pack invalid-character
+  guard.
+- Versioned new exports as `klar-resume-docx-v2.6.0.1` and
+  `klar-resume-browser-print-v2.6.0.1`. Existing packet history remains
+  untouched and accurately identifies its earlier exporter.
+
+### Bundesagentur connector
+
+- Migrated BA list search from `/pc/v4/jobs`, which now returns HTTP 403, to
+  `/pc/v6/jobs`, which is the route currently used by BA's public job-search
+  frontend.
+- Migrated the complete v6 response mapping: `ergebnisliste`,
+  `referenznummer`, `stellenangebotsTitel`, `firma`, `hauptberuf`,
+  `veroeffentlichungszeitraum.von`, and the first `stellenlokationen` address
+  and coordinates. This prevents a path-only change from appearing successful
+  while silently returning zero jobs.
+- Added `angebotsart=1` so career searches request employment postings instead
+  of mixing in self-employment offers. The working base64 v4 detail lookup is
+  deliberately unchanged.
+- Added a connector contract regression covering query, city, radius,
+  pagination, employment type, v6 mapping, zero-safe list handling, URL
+  fallback, and the v4 detail route. The Cloudflare Worker needs no code or
+  configuration change for this migration.
+
+### Release and cache integrity
+
+- Advanced the user-visible release to `2.6.0.1`, represented by the npm-valid
+  package version `2.6.0-1`, following Klar's established four-part-hotfix
+  convention.
+- Advanced the service-worker shell to `klar-shell-v10` so installed web
+  clients receive the corrected connector and exporters.
+- Updated desktop signing examples for the npm-valid `2.6.0-1` artifact names
+  and the shared Worker URL example for BA's v6 list route.
+- Added format-token, A4 geometry, Word compatibility, semantic HTML, unsafe
+  education-city, and BA v6 regression coverage. The complete web, Worker, and
+  desktop quality gate remains required before release.
+
+---
+
 ## v2.6.0 — Measured intelligence foundation and desktop developer preview
 
 ### Ranking and evaluation

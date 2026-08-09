@@ -70,8 +70,8 @@ for (const preset of RESUME_LAB_PRESETS) {
   const grounded = await parseResumeLabDocument(resume, 'en', preset.id)
   const fidelity = grounded.checks.find((check) => check.id === 'evidence-fidelity')
   if (preset.id === 'current') {
-    assert.equal(fidelity?.ok, false, 'the production baseline honestly reports its known omissions')
-    assert.match(fidelity?.detail ?? '', /^3 source evidence string\(s\) missing$/)
+    assert.equal(fidelity?.ok, false, 'the production baseline honestly reports its known omission')
+    assert.match(fidelity?.detail ?? '', /^1 source evidence string\(s\) missing$/)
   } else {
     assert.equal(fidelity?.ok, true, `${preset.id}: every source evidence string remains extractable`)
   }
@@ -88,7 +88,9 @@ const currentControlPreview = parsePackedResumeDocx(currentControlBytes)
 assert.equal(currentControlPreview.text, productionPreview.text)
 assert.deepEqual(currentControlPreview.sections, productionPreview.sections)
 assert.equal(currentControlPreview.paragraphCount, productionPreview.paragraphCount)
-assert.doesNotMatch(currentControlPreview.text, /Portfolio|Example Institute|06\/2025/)
+assert.doesNotMatch(currentControlPreview.text, /Portfolio/)
+assert.match(currentControlPreview.text, /Example Institute/)
+assert.match(currentControlPreview.text, /06\/2025/)
 
 db.close()
 await db.delete()

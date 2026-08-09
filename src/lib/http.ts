@@ -59,7 +59,7 @@ export async function getJson<T>(
 /**
  * Build a URL that targets YOUR Worker's proxy route.
  * `route` is 'ba' or 'adzuna'; `pathAndQuery` is everything after the route,
- * e.g. workerUrl('ba', '/pc/v4/jobs?was=data&wo=Berlin').
+ * e.g. workerUrl('ba', '/pc/v6/jobs?was=data&wo=Berlin').
  * Throws early with a clear message if the Worker URL isn't configured.
  */
 export function workerUrl(route: 'ba' | 'adzuna', pathAndQuery: string): string {

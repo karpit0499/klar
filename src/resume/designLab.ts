@@ -477,7 +477,7 @@ function extractRoleAssociations(
       previousText &&
       /(?:0[1-9]|1[0-2])\/\d{4}|\b(?:Present|heute)\b/i.test(paragraph.text)
     ) {
-      const parts = previousText.split(/\s+—\s+/)
+      const parts = previousText.split(/\s+(?:—|\|)\s+/)
       result.push({
         roleLine: previousText,
         dateLine: paragraph.text,

@@ -109,13 +109,13 @@ When the fee becomes affordable or an eligible organization receives a waiver:
    codesign -dv --verbose=4 "release/desktop/mac-arm64/Klar.app" 2>&1
    spctl --assess --type execute --verbose=4 "release/desktop/mac-arm64/Klar.app"
    xcrun stapler validate "release/desktop/mac-arm64/Klar.app"
-   shasum -a 256 "release/desktop/Klar-2.6.0-mac-arm64.dmg" "release/desktop/Klar-2.6.0-mac-arm64.zip"
+   shasum -a 256 "release/desktop/Klar-2.6.0-1-mac-arm64.dmg" "release/desktop/Klar-2.6.0-1-mac-arm64.zip"
    ```
 
    The x64 unpacked app is `release/desktop/mac/Klar.app`; run the same four
    checks against it. Its public artifacts are
-   `release/desktop/Klar-2.6.0-mac-x64.dmg` and
-   `release/desktop/Klar-2.6.0-mac-x64.zip`.
+   `release/desktop/Klar-2.6.0-1-mac-x64.dmg` and
+   `release/desktop/Klar-2.6.0-1-mac-x64.zip`.
 
 10. In the `codesign -dv` output, require the expected `Authority=Developer ID
    Application: ...` and `TeamIdentifier=...`. Require `spctl` acceptance and a
@@ -155,7 +155,7 @@ Do not incur that cost while the project budget is zero.
 For any future signed EXE, require both checks on a clean Windows machine:
 
 ```powershell
-$artifact = ".\release\desktop\Klar-2.6.0-win-x64.exe"
+$artifact = ".\release\desktop\Klar-2.6.0-1-win-x64.exe"
 $signature = Get-AuthenticodeSignature $artifact
 $signature | Format-List Status, StatusMessage, SignerCertificate
 if ($signature.Status -ne "Valid") { throw "Authenticode signature is not valid." }

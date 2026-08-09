@@ -1,8 +1,8 @@
 {
   "name": "klar",
   "private": true,
-  "version": "2.6.0",
-  "klarRelease": "2.6.0",
+  "version": "2.6.0-1",
+  "klarRelease": "2.6.0.1",
   "description": "Privacy-first job search, ranking, and application toolkit.",
   "author": "Klar contributors",
   "license": "UNLICENSED",

@@ -86,7 +86,7 @@ assert.match(
 )
 assert.doesNotMatch(productionBuilderConfig, /Klar Developer Preview/)
 assert.match(signingGuide, /release\/desktop\/mac-arm64\/Klar\.app/)
-assert.match(signingGuide, /release\\desktop\\Klar-2\.6\.0-win-x64\.exe/)
+assert.match(signingGuide, /release\\desktop\\Klar-2\.6\.0-1-win-x64\.exe/)
 assert.doesNotMatch(signingGuide, /mac-arm64\/Klar Developer Preview\.app/)
 assert.doesNotMatch(signingGuide, /Klar Developer Preview\.exe/)
 
@@ -229,6 +229,7 @@ assert.deepEqual(body.response_format, {
 assert.deepEqual(body.lora, [{ id: 0, scale: 1 }])
 assert.equal(PINNED_LLAMA_CPP_BUILD, 'b10199')
 assert.equal(appVersionSatisfies('2.6.0', '>=2.6.0 <2.7.0'), true)
+assert.equal(appVersionSatisfies('2.6.0-1', '>=2.6.0 <2.7.0'), true)
 assert.equal(appVersionSatisfies('2.7.0', '>=2.6.0 <2.7.0'), false)
 
 const runtimeArgs = buildManagedRuntimeArgs({
