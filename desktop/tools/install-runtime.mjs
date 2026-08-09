@@ -108,7 +108,27 @@ export async function replaceRuntimeDirectory(destinationRoot, populate) {
   }
   await populate()
 }
-
+// llama.cpp does not use one archive layout for every platform. The macOS
+// tarballs unpack into a `llama-<tag>/` directory; the Windows zips place
+// their binaries at a different depth. Locate the directory that actually
+// holds the verified executable instead of assuming a single shape. The
+// archive checksum is already verified before this runs, so searching the
+// extracted tree adds no new trust surface.
+async function findRuntimeRoot(extractionRoot, executable) {
+  const queue = [extractionRoot]
+  while (queue.length > 0) {
+    const current = queue.shift()
+    const entries = (await readdir(current, { withFileTypes: true }))
+      .sort((left, right) => left.name.localeCompare(right.name))
+    if (entries.some((entry) => entry.isFile() && entry.name === executable)) {
+      return current
+    }
+    for (const entry of entries) {
+      if (entry.isDirectory()) queue.push(path.join(current, entry.name))
+    }
+  }
+  throw new Error(`The verified archive did not contain ${executable}.`)
+}
 async function main() {
   const platform = process.argv[2]
   const artifact = ARTIFACTS[platform]
@@ -147,7 +167,7 @@ async function main() {
       throw new Error(`Runtime extraction failed with status ${extraction.status}.`)
     }
 
-    const sourceRoot = path.join(extractionRoot, `llama-${LLAMA_CPP_TAG}`)
+    const sourceRoot = await findRuntimeRoot(extractionRoot, artifact.executable)
     const entries = await readdir(sourceRoot, { withFileTypes: true })
     const selected = entries.filter((entry) =>
       entry.name === artifact.executable ||
