@@ -330,12 +330,11 @@ assert.doesNotMatch(preloadSource, /exposeInMainWorld\([^]*ipcRenderer\s*[),]/)
 assert.doesNotMatch(preloadSource, /readFile|writeFile|spawn|exec|shell/)
 assert.doesNotMatch(preloadSource, /^\s*import\s/m)
 
-assert.equal(
-  ensureWithin('/managed/root', '/managed/root/model/file.gguf'),
-  '/managed/root/model/file.gguf',
-)
+const managedRoot = path.resolve('/managed/root')
+const managedModelFile = path.resolve('/managed/root/model/file.gguf')
+assert.equal(ensureWithin(managedRoot, managedModelFile), managedModelFile)
 assert.throws(
-  () => ensureWithin('/managed/root', '/managed/escape.gguf'),
+  () => ensureWithin(managedRoot, path.resolve('/managed/escape.gguf')),
   /escaped/,
 )
 assert.throws(
