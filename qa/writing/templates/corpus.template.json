@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "corpusId": "REPLACE_WITH_LOCKED_CORPUS_ID",
+  "evidenceKind": "human_release",
+  "split": "final_held_out",
+  "frozenAt": "",
+  "generatorIdentityWithheldFromReviewers": false,
+  "variantMappingStoredSeparately": false,
+  "datasetSeparation": {
+    "evaluationExcludedFromTraining": false,
+    "evaluationExcludedFromPromptExamples": false,
+    "trainingDataUsedForThisRelease": false,
+    "trainingContentSha256": [],
+    "exactHashOverlapCount": 0,
+    "nearDuplicateCheck": {
+      "completed": false,
+      "method": "",
+      "threshold": "",
+      "checkedAt": "",
+      "unresolvedPairs": []
+    }
+  },
+  "samples": []
+}

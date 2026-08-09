@@ -15,7 +15,16 @@ import { getVaultStatus, readSensitiveContent, updateSensitiveContent } from '..
 import { GENERATION } from '../lib/config'
 import type { NormalizedJob } from '../types'
 import {
-  newPacket, packetId, type PacketExport, type PacketGeneration, type PacketKind, type PacketRow,
+  CURRENT_PACKET_FORMAT_VERSIONS,
+  LEGACY_ARTIFACT_PROVENANCE,
+  LEGACY_PACKET_FORMAT_VERSIONS,
+  newPacket,
+  normalizePacketFormatVersions,
+  packetId,
+  type PacketExport,
+  type PacketGeneration,
+  type PacketKind,
+  type PacketRow,
 } from './types'
 
 const packetMutationQueues = new Map<string, Promise<PacketRow | null>>()
@@ -23,25 +32,33 @@ const packetMutationQueues = new Map<string, Promise<PacketRow | null>>()
 export async function listPackets(): Promise<PacketRow[]> {
   const status = await getVaultStatus()
   if (status === 'unlocked') {
-    return [...((await readSensitiveContent())?.packets ?? [])].sort((a, b) =>
+    return [...((await readSensitiveContent())?.packets ?? [])]
+      .map(normalizePacketFormatVersions)
+      .sort((a, b) =>
       b.updatedAt.localeCompare(a.updatedAt),
     )
   }
   if (status === 'locked') await readSensitiveContent()
-  return db.packets.orderBy('updatedAt').reverse().toArray()
+  return (await db.packets.orderBy('updatedAt').reverse().toArray())
+    .map(normalizePacketFormatVersions)
 }
 
 export async function loadPacket(id: string): Promise<PacketRow | null> {
   const status = await getVaultStatus()
   if (status === 'unlocked') {
-    return (await readSensitiveContent())?.packets.find((row) => row.id === id) ?? null
+    const row = (await readSensitiveContent())?.packets.find((item) => item.id === id)
+    return row ? normalizePacketFormatVersions(row) : null
   }
   if (status === 'locked') await readSensitiveContent()
-  return (await db.packets.get(id)) ?? null
+  const row = await db.packets.get(id)
+  return row ? normalizePacketFormatVersions(row) : null
 }
 
 export async function savePacket(row: PacketRow): Promise<PacketRow> {
-  const next: PacketRow = { ...row, updatedAt: new Date().toISOString() }
+  const next: PacketRow = {
+    ...normalizePacketFormatVersions(row),
+    updatedAt: new Date().toISOString(),
+  }
   const status = await getVaultStatus()
   if (status === 'unlocked') {
     await updateSensitiveContent((content) => {
@@ -102,9 +119,49 @@ export async function deletePacket(id: string): Promise<void> {
   else await db.packets.delete(id)
 }
 
-export async function recordPacketExport(id: string, entry: PacketExport): Promise<void> {
+export async function recordPacketExport(
+  id: string,
+  entry: Omit<PacketExport, 'formatVersions' | 'exporterContract' | 'sourceArtifactProvenance'>,
+): Promise<void> {
   await updatePacket(id, (packet) => {
-    packet.exportHistory = [entry, ...packet.exportHistory].slice(0, 20)
+    const formatVersions = { ...packet.formatVersions }
+    const languageState = entry.language ? packet.languages[entry.language] : undefined
+    const sourceArtifactProvenance: PacketExport['sourceArtifactProvenance'] = {}
+    let exporterContract: string
+    if (entry.artifact === 'resume') {
+      exporterContract = entry.format === 'pdf'
+        ? 'klar-resume-browser-print-v2.6.0'
+        : CURRENT_PACKET_FORMAT_VERSIONS.resumeExporter
+      if (entry.format === 'docx') {
+        formatVersions.resumeExporter = CURRENT_PACKET_FORMAT_VERSIONS.resumeExporter
+      }
+      sourceArtifactProvenance.resume = structuredClone(
+        languageState?.artifactProvenance?.resume ?? LEGACY_ARTIFACT_PROVENANCE,
+      )
+    } else if (entry.artifact === 'cover_letter') {
+      exporterContract = CURRENT_PACKET_FORMAT_VERSIONS.coverLetterExporter
+      formatVersions.coverLetterExporter = CURRENT_PACKET_FORMAT_VERSIONS.coverLetterExporter
+      sourceArtifactProvenance.coverLetter = structuredClone(
+        languageState?.artifactProvenance?.coverLetter ?? LEGACY_ARTIFACT_PROVENANCE,
+      )
+    } else {
+      exporterContract = CURRENT_PACKET_FORMAT_VERSIONS.archiveExporter
+      formatVersions.resumeExporter = CURRENT_PACKET_FORMAT_VERSIONS.resumeExporter
+      formatVersions.coverLetterExporter = CURRENT_PACKET_FORMAT_VERSIONS.coverLetterExporter
+      formatVersions.archiveExporter = CURRENT_PACKET_FORMAT_VERSIONS.archiveExporter
+      sourceArtifactProvenance.resume = structuredClone(
+        languageState?.artifactProvenance?.resume ?? LEGACY_ARTIFACT_PROVENANCE,
+      )
+      sourceArtifactProvenance.coverLetter = structuredClone(
+        languageState?.artifactProvenance?.coverLetter ?? LEGACY_ARTIFACT_PROVENANCE,
+      )
+    }
+    packet.exportHistory = [{
+      ...entry,
+      exporterContract,
+      sourceArtifactProvenance,
+      formatVersions,
+    }, ...packet.exportHistory].slice(0, 20)
   })
 }
 
@@ -119,6 +176,7 @@ export async function pushPacketVersion(id: string, label: string): Promise<void
           notes: packet.notes,
           languages: structuredClone(packet.languages),
           flexible: packet.flexible ? structuredClone(packet.flexible) : undefined,
+          formatVersions: structuredClone(packet.formatVersions),
         },
       },
       ...packet.versions,
@@ -133,6 +191,9 @@ export async function restorePacketVersion(id: string, at: string): Promise<Pack
     packet.notes = version.snapshot.notes
     packet.languages = structuredClone(version.snapshot.languages)
     packet.flexible = version.snapshot.flexible ? structuredClone(version.snapshot.flexible) : undefined
+    packet.formatVersions = structuredClone(
+      version.snapshot.formatVersions ?? LEGACY_PACKET_FORMAT_VERSIONS,
+    )
   })
 }
 

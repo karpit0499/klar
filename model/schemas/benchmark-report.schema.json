@@ -1,0 +1,388 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://klar.example/schemas/benchmark-report.schema.json",
+  "title": "Klar local-model benchmark report",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "benchmarkVersion",
+    "fixtureVersion",
+    "generatedAt",
+    "sourceCommit",
+    "sourceTreeDirty",
+    "configuration",
+    "hardware",
+    "artifacts",
+    "cases",
+    "resilience",
+    "summary"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "benchmarkVersion": { "const": "klar-local-benchmark-v1" },
+    "fixtureVersion": { "const": "klar-synthetic-bilingual-v1" },
+    "generatedAt": { "type": "string", "format": "date-time" },
+    "sourceCommit": {
+      "oneOf": [
+        { "type": "string", "pattern": "^[a-f0-9]{40}$" },
+        { "type": "null" }
+      ]
+    },
+    "sourceTreeDirty": {
+      "oneOf": [
+        { "type": "boolean" },
+        { "type": "null" }
+      ]
+    },
+    "configuration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "localMode",
+        "localEndpointConfigured",
+        "localModelAlias",
+        "adaptersConfigured",
+        "groqCredentialsPresent",
+        "groqModel",
+        "includeOutputs",
+        "hashArtifacts"
+      ],
+      "properties": {
+        "localMode": {
+          "enum": ["owned", "external", "unavailable"]
+        },
+        "localEndpointConfigured": { "type": "boolean" },
+        "localModelAlias": { "type": "string", "minLength": 1 },
+        "localWarmupMs": { "type": "number", "minimum": 0 },
+        "adaptersConfigured": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["precision", "writer"],
+          "properties": {
+            "precision": { "type": "boolean" },
+            "writer": { "type": "boolean" }
+          }
+        },
+        "groqCredentialsPresent": { "type": "boolean" },
+        "groqModel": { "type": "string", "minLength": 1 },
+        "includeOutputs": { "type": "boolean" },
+        "hashArtifacts": { "type": "boolean" }
+      }
+    },
+    "hardware": { "$ref": "#/$defs/hardware" },
+    "artifacts": { "$ref": "#/$defs/artifacts" },
+    "cases": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/case" }
+    },
+    "resilience": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cancellation", "crashRecovery"],
+      "properties": {
+        "cancellation": { "$ref": "#/$defs/resilienceProbe" },
+        "crashRecovery": { "$ref": "#/$defs/resilienceProbe" }
+      }
+    },
+    "summary": { "$ref": "#/$defs/summary" }
+  },
+  "$defs": {
+    "status": {
+      "enum": ["pass", "fail", "hold", "not_run"]
+    },
+    "hardware": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "platform",
+        "architecture",
+        "cpuModel",
+        "logicalCpuCount",
+        "totalMemoryBytes",
+        "memoryTier"
+      ],
+      "properties": {
+        "platform": { "type": "string", "minLength": 1 },
+        "architecture": { "type": "string", "minLength": 1 },
+        "cpuModel": { "type": "string", "minLength": 1 },
+        "logicalCpuCount": { "type": "integer", "minimum": 1 },
+        "totalMemoryBytes": { "type": "integer", "minimum": 0 },
+        "memoryTier": {
+          "enum": ["unsupported", "minimum", "recommended"]
+        }
+      }
+    },
+    "artifactEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["role", "configured", "status"],
+      "properties": {
+        "role": {
+          "enum": [
+            "runtime",
+            "base_model",
+            "precision_adapter",
+            "writer_adapter"
+          ]
+        },
+        "configured": { "type": "boolean" },
+        "status": {
+          "enum": ["measured", "missing", "not_configured", "error"]
+        },
+        "fileName": { "type": "string", "minLength": 1 },
+        "bytes": { "type": "integer", "minimum": 0 },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "reason": { "type": "string", "minLength": 1 }
+      }
+    },
+    "artifacts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["entries", "status"],
+      "properties": {
+        "entries": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/artifactEntry" }
+        },
+        "modelPackageBytes": { "type": "integer", "minimum": 0 },
+        "runtimeBytes": { "type": "integer", "minimum": 0 },
+        "status": {
+          "enum": ["measured", "partial", "unavailable"]
+        }
+      }
+    },
+    "generationMeasurement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["totalMs", "finishReason"],
+      "properties": {
+        "firstTokenMs": { "type": "number", "minimum": 0 },
+        "totalMs": { "type": "number", "minimum": 0 },
+        "inputTokens": { "type": "number", "minimum": 0 },
+        "outputTokens": { "type": "number", "minimum": 0 },
+        "totalTokens": { "type": "number", "minimum": 0 },
+        "finishReason": { "type": "string", "minLength": 1 }
+      }
+    },
+    "rss": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "samples"],
+      "properties": {
+        "status": {
+          "enum": ["measured", "unsupported", "error"]
+        },
+        "pid": { "type": "integer", "minimum": 1 },
+        "peakBytes": { "type": "integer", "minimum": 0 },
+        "samples": { "type": "integer", "minimum": 0 },
+        "reason": { "type": "string", "minLength": 1 }
+      }
+    },
+    "thermal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["capturedAt", "status", "source", "pressure"],
+      "properties": {
+        "capturedAt": { "type": "string", "format": "date-time" },
+        "status": {
+          "enum": ["measured", "unsupported", "error"]
+        },
+        "source": { "enum": ["pmset", "unsupported"] },
+        "pressure": {
+          "enum": ["nominal", "pressured", "unknown"]
+        },
+        "cpuSpeedLimitPercent": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "schedulerLimitPercent": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "availableCpuCount": { "type": "integer", "minimum": 0 },
+        "reason": { "type": "string", "minLength": 1 }
+      }
+    },
+    "validation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "validStructuredOutput",
+        "evidenceGrounded",
+        "issues"
+      ],
+      "properties": {
+        "validStructuredOutput": { "type": "boolean" },
+        "evidenceGrounded": { "type": "boolean" },
+        "issues": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "parsed": { "type": "object" }
+      }
+    },
+    "case": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "caseId",
+        "fixtureId",
+        "task",
+        "language",
+        "provider",
+        "adapter",
+        "requiredForLocalExperiment",
+        "status"
+      ],
+      "properties": {
+        "caseId": { "type": "string", "minLength": 1 },
+        "fixtureId": { "type": "string", "minLength": 1 },
+        "task": {
+          "enum": [
+            "extraction",
+            "evidence_linking",
+            "normalization",
+            "resume_expression",
+            "cover_letter",
+            "recruiter_message"
+          ]
+        },
+        "language": { "enum": ["en", "de"] },
+        "provider": {
+          "enum": [
+            "local-base",
+            "local-precision",
+            "local-writer",
+            "groq",
+            "deterministic"
+          ]
+        },
+        "adapter": {
+          "enum": ["base", "precision", "writer", "none"]
+        },
+        "requiredForLocalExperiment": { "type": "boolean" },
+        "status": { "$ref": "#/$defs/status" },
+        "reasonCode": { "type": "string", "minLength": 1 },
+        "reason": { "type": "string", "minLength": 1 },
+        "startedAt": { "type": "string", "format": "date-time" },
+        "measurement": { "$ref": "#/$defs/generationMeasurement" },
+        "memory": { "$ref": "#/$defs/rss" },
+        "thermalBefore": { "$ref": "#/$defs/thermal" },
+        "thermalAfter": { "$ref": "#/$defs/thermal" },
+        "output": { "type": "string" },
+        "outputSha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "outputCharacters": { "type": "integer", "minimum": 0 },
+        "validation": { "$ref": "#/$defs/validation" }
+      }
+    },
+    "resilienceProbe": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["requiredForLocalExperiment", "status"],
+      "properties": {
+        "requiredForLocalExperiment": { "type": "boolean" },
+        "status": { "$ref": "#/$defs/status" },
+        "reasonCode": { "type": "string", "minLength": 1 },
+        "reason": { "type": "string", "minLength": 1 },
+        "measurement": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "totalMs": { "type": "number", "minimum": 0 },
+            "firstTokenMs": { "type": "number", "minimum": 0 },
+            "stoppedHealthCheckPassed": { "type": "boolean" },
+            "restartedHealthCheckPassed": { "type": "boolean" }
+          }
+        }
+      }
+    },
+    "statusCounts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["pass", "fail", "hold", "not_run"],
+      "properties": {
+        "pass": { "type": "integer", "minimum": 0 },
+        "fail": { "type": "integer", "minimum": 0 },
+        "hold": { "type": "integer", "minimum": 0 },
+        "not_run": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "nullableMetric": {
+      "oneOf": [
+        { "type": "number", "minimum": 0 },
+        { "type": "null" }
+      ]
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "overallStatus",
+        "required",
+        "optional",
+        "localModelMetrics",
+        "releaseBlockers",
+        "warnings"
+      ],
+      "properties": {
+        "overallStatus": { "enum": ["pass", "fail", "hold"] },
+        "required": { "$ref": "#/$defs/statusCounts" },
+        "optional": { "$ref": "#/$defs/statusCounts" },
+        "localModelMetrics": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "scope",
+            "executedCaseCount",
+            "structuredOutputPassRate",
+            "evidenceGroundingPassRate",
+            "measuredFirstTokenP50Ms",
+            "measuredFirstTokenP95Ms",
+            "measuredTotalLatencyP50Ms",
+            "measuredTotalLatencyP95Ms",
+            "peakRssBytes"
+          ],
+          "properties": {
+            "scope": { "const": "executed_local_model_cases" },
+            "executedCaseCount": { "type": "integer", "minimum": 0 },
+            "structuredOutputPassRate": {
+              "oneOf": [
+                { "type": "number", "minimum": 0, "maximum": 1 },
+                { "type": "null" }
+              ]
+            },
+            "evidenceGroundingPassRate": {
+              "oneOf": [
+                { "type": "number", "minimum": 0, "maximum": 1 },
+                { "type": "null" }
+              ]
+            },
+            "measuredFirstTokenP50Ms": { "$ref": "#/$defs/nullableMetric" },
+            "measuredFirstTokenP95Ms": { "$ref": "#/$defs/nullableMetric" },
+            "measuredTotalLatencyP50Ms": { "$ref": "#/$defs/nullableMetric" },
+            "measuredTotalLatencyP95Ms": { "$ref": "#/$defs/nullableMetric" },
+            "peakRssBytes": { "$ref": "#/$defs/nullableMetric" }
+          }
+        },
+        "releaseBlockers": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "warnings": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    }
+  }
+}

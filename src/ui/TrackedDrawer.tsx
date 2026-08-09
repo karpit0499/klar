@@ -3,14 +3,21 @@
 // edit status and notes. State lives in IndexedDB via the tracker store.
 import { useState } from 'react'
 import { Button, Badge, Field, TextInput } from './atoms'
-import type { TrackStatus, TrackedJob } from '../types'
+import type { Preferences, Profile, TrackStatus, TrackedJob } from '../types'
 import {
-  setStatus, setNotes, addReminder, removeReminder, addContact, removeTracked,
+  setStatus,
+  setNotes,
+  addReminder,
+  removeReminder,
+  addContact,
+  removeTracked,
+  rescoreTrackedJob,
 } from '../tracker/store'
 import { stalenessInfo } from '../tracker/staleness'
-import { useT } from '../i18n/LocaleProvider'
+import { useLocale } from '../i18n/LocaleProvider'
 import type { TranslationKey } from '../i18n/translations'
 import { useScrollLock } from './useScrollLock'
+import { normalizeHistoricalRanking } from '../match/rankingV2'
 
 const STATUSES: TrackStatus[] = [
   'new', 'interested', 'applied', 'interviewing', 'offer', 'rejected', 'archived',
@@ -30,13 +37,17 @@ const STATUS_KEY: Record<TrackStatus, TranslationKey> = {
 export function TrackedDrawer({
   row,
   score,
+  profile,
+  prefs,
   onClose,
 }: {
   row: TrackedJob
   score?: number
+  profile?: Profile
+  prefs: Preferences
   onClose: () => void
 }) {
-  const t = useT()
+  const { locale, t } = useLocale()
   useScrollLock()
 
   const [notes, setNotesLocal] = useState(row.notes)
@@ -44,8 +55,26 @@ export function TrackedDrawer({
   const [remText, setRemText] = useState('')
   const [contactName, setContactName] = useState('')
   const [contactEmail, setContactEmail] = useState('')
+  const [rescoreBusy, setRescoreBusy] = useState(false)
+  const [rescoreError, setRescoreError] = useState('')
 
   const stale = stalenessInfo(row)
+  const ranking = row.match ? normalizeHistoricalRanking(row.match) : null
+
+  async function rescore() {
+    if (!profile || rescoreBusy) return
+    setRescoreBusy(true)
+    setRescoreError('')
+    try {
+      await rescoreTrackedJob(row.jobId, profile, prefs, locale)
+    } catch (error) {
+      setRescoreError(error instanceof Error ? error.message : (
+        locale === 'de' ? 'Die Neubewertung ist fehlgeschlagen.' : 'Rescoring failed.'
+      ))
+    } finally {
+      setRescoreBusy(false)
+    }
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end overscroll-contain bg-black/40" onClick={onClose}>
@@ -72,6 +101,45 @@ export function TrackedDrawer({
         {stale.likelyStale && (
           <p className="mt-2 text-xs text-faint">{t('tracked.staleNote')}</p>
         )}
+
+        <section className="mt-4 rounded-lg border border-border bg-surface-2 p-3">
+          <p className="text-sm font-medium text-ink">
+            {locale === 'de' ? 'Bewertungsstand' : 'Ranking snapshot'}
+          </p>
+          <p className="mt-1 text-xs text-faint">
+            {ranking
+              ? `${ranking.rankingVersion} · ${ranking.historical
+                ? (locale === 'de' ? 'historisch, unverändert' : 'historical, unchanged')
+                : (locale === 'de' ? 'reproduzierbar gespeichert' : 'reproducibly stored')}`
+              : (locale === 'de' ? 'Noch keine gespeicherte Bewertung.' : 'No saved ranking yet.')}
+          </p>
+          {ranking?.historical && (
+            <p className="mt-1 text-xs text-muted">
+              {locale === 'de'
+                ? 'Klar deutet den alten Wert nicht neu. Nur die Aktion unten ersetzt ihn ausdrücklich mit dem aktuellen Profil und Ranking v2.'
+                : 'Klar does not reinterpret the old score. Only the action below explicitly replaces it using the current profile and ranking v2.'}
+            </p>
+          )}
+          <Button
+            className="mt-2"
+            size="sm"
+            variant="ghost"
+            disabled={!profile || rescoreBusy}
+            onClick={() => void rescore()}
+          >
+            {rescoreBusy
+              ? (locale === 'de' ? 'Wird neu bewertet…' : 'Rescoring…')
+              : (locale === 'de' ? 'Mit aktuellem Profil neu bewerten' : 'Rescore with current profile')}
+          </Button>
+          {!profile && (
+            <p className="mt-1 text-xs text-faint">
+              {locale === 'de'
+                ? 'Für eine Neubewertung ist ein aktueller Lebenslauf erforderlich.'
+                : 'A current résumé is required before rescoring.'}
+            </p>
+          )}
+          {rescoreError && <p className="mt-1 text-xs text-danger" role="alert">{rescoreError}</p>}
+        </section>
 
         <div className="mt-4">
           <Field label={t('tracked.status')}>

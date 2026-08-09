@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "evidenceKind": "human_release",
+  "corpusId": "REPLACE_WITH_LOCKED_CORPUS_ID",
+  "reviewerId": "REPLACE_WITH_REVIEWER_B_ID",
+  "isHuman": false,
+  "completedAt": "",
+  "languageCompetence": {
+    "en": "professional",
+    "de": "professional"
+  },
+  "independence": {
+    "blindToModelScoresAndOrder": false,
+    "blindToOtherReviewer": false,
+    "noAiGeneratedFinalLabels": false,
+    "conflictOfInterestDeclared": false
+  },
+  "scenarios": []
+}

@@ -1,0 +1,11 @@
+# Klar's in-app privacy preview opens the generic composer with the exact
+# reviewed title/body. Ordinary contributors therefore need blank issues
+# enabled; the structured forms below remain available as guided alternatives.
+blank_issues_enabled: true
+contact_links:
+  - name: Report a vulnerability privately
+    url: https://github.com/karpit0499/klar/security/advisories/new
+    about: Use this private route for security or personal-data exposure reports.
+  - name: Security and privacy guidance
+    url: https://github.com/karpit0499/klar/blob/main/SECURITY.md
+    about: Read what must never be placed in a public Issue.

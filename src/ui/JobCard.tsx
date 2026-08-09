@@ -1,5 +1,5 @@
 import { Card, Badge, Button } from './atoms'
-import { useT } from '../i18n/LocaleProvider'
+import { useLocale } from '../i18n/LocaleProvider'
 import type { MatchResult, NormalizedJob } from '../types'
 import { isLocalMatch } from '../match/fallback'
 
@@ -20,7 +20,8 @@ export function JobCard({
   saved: boolean
 }) {
   const shown = score ?? match?.fitScore
-  const t = useT()
+  const { locale, t } = useLocale()
+  const de = locale === 'de'
   return (
     <Card className="p-4">
       <div className="flex items-start justify-between gap-3">
@@ -46,6 +47,15 @@ export function JobCard({
       </div>
 
       {match?.rationale && <p className="mt-2 line-clamp-2 wrap-anywhere text-base text-muted">{match.rationale}</p>}
+
+      <p className="mt-2 text-xs text-faint">
+        {de ? 'Quellensicherheit' : 'Source confidence'}: {job.sourceConfidence ?? 'unknown'}
+        {' · '}
+        {de ? 'Abruf' : 'Fetched'}: {formatObserved(job.fetched_at, de)}
+        {job.also_on?.length && job.duplicateFamily
+          ? ` · ${de ? 'Duplikatfamilie' : 'Duplicate family'}: ${job.duplicateFamily.slice(0, 8)}`
+          : ''}
+      </p>
 
       <div className="mt-3 flex flex-wrap items-center gap-1.5">
         <Badge tone="neutral">{job.source}</Badge>
@@ -80,4 +90,10 @@ export function JobCard({
       </div>
     </Card>
   )
+}
+
+function formatObserved(value: string, de: boolean): string {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return '—'
+  return new Intl.DateTimeFormat(de ? 'de-DE' : 'en-GB', { dateStyle: 'medium' }).format(date)
 }

@@ -49,10 +49,6 @@ const en = {
   'search.run': 'Search & match',
   'search.gathering': 'Gathering…',
   'search.matching': 'Matching…',
-  'search.prefilter': 'Pre-filter:',
-  'search.mode.keyword': 'keyword',
-  'search.mode.semantic': 'semantic',
-  'search.mode.hint': '(semantic = local vocabulary similarity; no AI cost)',
   'search.hideGerman': 'Hide roles requiring German above my level',
   'search.hideNoVisa': 'Hide roles without visa sponsorship',
   'search.scoring': 'Scoring {done}/{total} candidates…',
@@ -428,7 +424,7 @@ const en = {
   'bundle.coverage': 'Résumé ↔ posting coverage',
   'bundle.gap': 'gap: {skill}',
   'bundle.tailoredResume': 'Tailored résumé · {lang}',
-  'bundle.tailoredHint': 'Aggressively rewritten for this job from your source facts — nothing invented.',
+  'bundle.tailoredHint': 'Rewritten from your source evidence. Review every change; blocked wording cannot be accepted or exported.',
   'bundle.languagePrompt': 'Choose résumé language',
   'bundle.english': 'English',
   'bundle.german': 'German',
@@ -446,7 +442,6 @@ const en = {
   'bundle.benchmarkUnavailable':
     'No benchmark is available for this role and location right now. Check the Klar Worker configuration or try again later.',
   'bundle.draft': 'Draft',
-  'bundle.downloadTxt': 'Download .txt',
   'bundle.downloadPacket': 'Download packet (.zip)',
   'bundle.packetNote': 'One mobile-safe download containing the tailored résumé.',
   'bundle.packetNoteWithLetter': 'One mobile-safe download containing the résumé and cover letter.',
@@ -686,11 +681,11 @@ const en = {
   'settings.engine.problem.scheme': 'Only http:// and https:// endpoints are supported.',
   'settings.engine.problem.model': 'Enter a model id.',
   'settings.engine.localNote':
-    'Local runtimes (Ollama, LM Studio) expose the same API. They also need CORS allowed — for Ollama, set OLLAMA_ORIGINS. Full local support arrives in v2.6.',
+    'Local runtimes (Ollama, LM Studio) expose the same API. Browser use also needs CORS allowed — for Ollama, set OLLAMA_ORIGINS. Klar v2.6 adds a managed internal desktop preview; optional public local intelligence remains gated for v3.0.',
 
   // Settings › v2.5 features
-  'settings.flags.title': 'v2.5 features',
-  'settings.flags.intro': 'Turn one part of the new application-quality work off without losing the rest.',
+  'settings.flags.title': 'Release features',
+  'settings.flags.intro': 'Turn one guarded part of Klar off without losing the rest.',
   'settings.flags.jdExtractor': 'Read extra requirements from each posting',
   'settings.flags.tailoringReview': 'Show the change review before download',
   'settings.flags.customEngine': 'Allow a custom AI engine',
@@ -698,6 +693,7 @@ const en = {
   'settings.flags.deterministicMatching': 'Use private zero-token matching by default',
   'settings.flags.budgetGuard': 'Schedule AI actions within the rolling minute budget',
   'settings.flags.tailoringChunking': 'Split only oversized résumés into evidence-checked role chunks',
+  'settings.flags.resumeDesignLab': 'Show the internal résumé design evaluation lab',
 } as const
 
 export type TranslationKey = keyof typeof en
@@ -738,10 +734,6 @@ const de: Record<TranslationKey, string> = {
   'search.run': 'Suchen & matchen',
   'search.gathering': 'Sammle…',
   'search.matching': 'Matche…',
-  'search.prefilter': 'Vorfilter:',
-  'search.mode.keyword': 'Stichwort',
-  'search.mode.semantic': 'semantisch',
-  'search.mode.hint': '(semantisch = lokaler Wortschatzabgleich; keine KI-Kosten)',
   'search.hideGerman': 'Rollen ausblenden, die mehr Deutsch verlangen als mein Niveau',
   'search.hideNoVisa': 'Rollen ohne Visa-Sponsoring ausblenden',
   'search.scoring': 'Bewerte {done}/{total} Kandidaten…',
@@ -1120,7 +1112,7 @@ const de: Record<TranslationKey, string> = {
   'bundle.gap': 'Lücke: {skill}',
   'bundle.tailoredResume': 'Angepasster Lebenslauf · {lang}',
   'bundle.tailoredHint':
-    'Für diesen Job umfassend aus deinen Quelldaten neu formuliert — nichts erfunden.',
+    'Aus deinen Quelldaten neu formuliert. Prüfe jede Änderung; blockierte Formulierungen können nicht angenommen oder exportiert werden.',
   'bundle.languagePrompt': 'Sprache des Lebenslaufs wählen',
   'bundle.english': 'Englisch',
   'bundle.german': 'Deutsch',
@@ -1138,7 +1130,6 @@ const de: Record<TranslationKey, string> = {
   'bundle.benchmarkUnavailable':
     'Für diese Rolle und diesen Standort ist gerade kein Benchmark verfügbar. Prüfe die Klar-Worker-Konfiguration oder versuche es später erneut.',
   'bundle.draft': 'Entwerfen',
-  'bundle.downloadTxt': '.txt herunterladen',
   'bundle.downloadPacket': 'Paket herunterladen (.zip)',
   'bundle.packetNote': 'Ein mobil-sicherer Download mit dem angepassten Lebenslauf.',
   'bundle.packetNoteWithLetter': 'Ein mobil-sicherer Download mit Lebenslauf und Anschreiben.',
@@ -1370,10 +1361,10 @@ const de: Record<TranslationKey, string> = {
   'settings.engine.problem.scheme': 'Es werden nur http:// und https://-Endpunkte unterstützt.',
   'settings.engine.problem.model': 'Bitte eine Modell-ID eingeben.',
   'settings.engine.localNote':
-    'Lokale Laufzeiten (Ollama, LM Studio) bieten dieselbe API. Sie brauchen zusätzlich erlaubtes CORS — bei Ollama über OLLAMA_ORIGINS. Volle lokale Unterstützung kommt mit v2.6.',
+    'Lokale Laufzeiten (Ollama, LM Studio) bieten dieselbe API. Für die Browser-Nutzung muss zusätzlich CORS erlaubt sein — bei Ollama über OLLAMA_ORIGINS. Klar v2.6 ergänzt eine verwaltete interne Desktop-Vorschau; optionale öffentliche lokale Intelligenz bleibt bis v3.0 gesperrt.',
 
-  'settings.flags.title': 'v2.5-Funktionen',
-  'settings.flags.intro': 'Einzelne Teile der neuen Bewerbungsqualität abschalten, ohne den Rest zu verlieren.',
+  'settings.flags.title': 'Release-Funktionen',
+  'settings.flags.intro': 'Einzelne geschützte Teile von Klar abschalten, ohne den Rest zu verlieren.',
   'settings.flags.jdExtractor': 'Zusätzliche Anforderungen aus jeder Anzeige lesen',
   'settings.flags.tailoringReview': 'Änderungsprüfung vor dem Download zeigen',
   'settings.flags.customEngine': 'Eigene KI-Engine erlauben',
@@ -1381,6 +1372,7 @@ const de: Record<TranslationKey, string> = {
   'settings.flags.deterministicMatching': 'Privates Null-Token-Matching standardmäßig verwenden',
   'settings.flags.budgetGuard': 'KI-Aktionen innerhalb des rollierenden Minutenbudgets einplanen',
   'settings.flags.tailoringChunking': 'Nur übergroße Lebensläufe in evidenzgeprüfte Rollenabschnitte teilen',
+  'settings.flags.resumeDesignLab': 'Internes Labor zur Lebenslaufgestaltung anzeigen',
 }
 
 export const translations: Record<Locale, Record<TranslationKey, string>> = { de, en }

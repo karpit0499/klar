@@ -16,6 +16,7 @@ import { loadHealth, observe, shouldSkip } from './resilience'
 import { readFreshCache, writeFlexibleCache } from './cache'
 import { flexibleQueryKey, toFlexibleQuery } from './query'
 import { runSearchSession, type SearchSessionSnapshot } from './searchSession'
+import { recordOperationalEvent } from '../observability/events'
 
 export type FlexibleSearchController = {
   snapshot: SearchSessionSnapshot | null
@@ -91,6 +92,31 @@ export function useFlexibleSearch(
       // Persist health per source and cache the validated result set.
       const published = final.pages.flat()
       await writeFlexibleCache(queryKey, published).catch(() => undefined)
+      const events: Promise<unknown>[] = []
+      for (const source of final.sources) {
+        if (source.status === 'error' || source.status === 'timeout') {
+          events.push(recordOperationalEvent({
+            name: 'blocked_page',
+            outcome: 'error',
+            sourceFamily: source.connectorId,
+          }))
+        }
+      }
+      if (published.some((job) => job.validThrough && new Date(job.validThrough).getTime() < Date.now())) {
+        events.push(recordOperationalEvent({
+          name: 'stale_listing',
+          outcome: 'error',
+          sourceFamily: 'flexible',
+        }))
+      }
+      if (published.some((job) => (job.also_on?.length ?? 0) > 0)) {
+        events.push(recordOperationalEvent({
+          name: 'duplicate_merge',
+          outcome: 'ok',
+          sourceFamily: 'flexible',
+        }))
+      }
+      await Promise.all(events.map((event) => event.catch(() => undefined)))
       if (!usingFixtures) {
         await Promise.all(
           final.sources

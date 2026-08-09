@@ -1,13 +1,19 @@
 import { useEffect, useRef, useState } from 'react'
 import { Button, Badge, Spinner } from './atoms'
 import { ApplicationBundle } from './ApplicationBundle'
-import type { MatchResult, NormalizedJob, Preferences, Profile } from '../types'
+import type {
+  MatchResult,
+  NormalizedJob,
+  Preferences,
+  Profile,
+  RankingEligibilityKey,
+} from '../types'
 import type { ResumeData } from '../resume/types'
 import { fetchBaDetail } from '../sources/ba'
 import { addToTracker } from '../tracker/store'
 import { FACTOR_KEYS } from '../match/weights'
 import { draftCoverLetter } from '../llm/coverLetter'
-import { useT } from '../i18n/LocaleProvider'
+import { useLocale } from '../i18n/LocaleProvider'
 import { useScrollLock } from './useScrollLock'
 import type { TranslationKey } from '../i18n/translations'
 import { explainMatchWithAi } from '../match'
@@ -45,6 +51,191 @@ function FactorBar({ label, value }: { label: string; value: number }) {
   )
 }
 
+const ELIGIBILITY_LABEL: Record<
+  'en' | 'de',
+  Record<RankingEligibilityKey, string>
+> = {
+  en: {
+    work_authorization: 'Work authorization',
+    location: 'Location boundary',
+    language: 'Required language',
+    employment_type: 'Employment type',
+    working_hours: 'Working hours',
+    start_date: 'Start date',
+    certification: 'Required certification',
+    dealbreaker: 'Dealbreaker',
+  },
+  de: {
+    work_authorization: 'Arbeitserlaubnis',
+    location: 'Ortsgrenze',
+    language: 'Erforderliche Sprache',
+    employment_type: 'Beschäftigungsart',
+    working_hours: 'Arbeitszeit',
+    start_date: 'Startdatum',
+    certification: 'Erforderlicher Nachweis',
+    dealbreaker: 'Ausschlusskriterium',
+  },
+}
+
+function RankingEvidencePanel({
+  match,
+  locale,
+}: {
+  match: MatchResult
+  locale: 'en' | 'de'
+}) {
+  const ranking = match.ranking
+  if (!ranking) return null
+  const de = locale === 'de'
+  const { features } = ranking
+  const strong = features.requirements.filter((requirement) =>
+    requirement.status === 'met' || requirement.status === 'partial')
+  const missing = features.requirements.filter((requirement) =>
+    requirement.priority === 'required' && requirement.status === 'missing')
+  const uncertain = features.eligibility.filter((fact) => fact.status === 'unknown')
+  const mismatches = features.eligibility.filter((fact) => fact.status === 'known_mismatch')
+  const preferenceSignals = [
+    [de ? 'Gehalt' : 'Salary', features.preferenceSignals.salary],
+    [de ? 'Ort' : 'Location', features.preferenceSignals.location],
+    [de ? 'Arbeitsmodell' : 'Work mode', features.preferenceSignals.workMode],
+    [de ? 'Vertrag' : 'Contract', features.preferenceSignals.contract],
+  ] as const
+  const postingSignals = [
+    [de ? 'Quelle' : 'Source', features.postingSignals.source],
+    [de ? 'Vollständigkeit' : 'Completeness', features.postingSignals.completeness],
+    [de ? 'Aktualität' : 'Freshness', features.postingSignals.freshness],
+    [de ? 'Duplikat-Sicherheit' : 'Duplicate confidence', features.postingSignals.duplicateConfidence],
+  ] as const
+
+  return (
+    <details className="mt-3 rounded-lg border border-border bg-surface p-3" open>
+      <summary className="cursor-pointer font-medium text-ink">
+        {de ? 'Begründung der Rangfolge' : 'Why this job ranked here'}
+      </summary>
+      <p className="mt-2 text-xs text-faint">
+        {ranking.rank != null ? `${de ? 'Rang' : 'Rank'} ${ranking.rank} · ` : ''}
+        {ranking.rankingVersion} · {ranking.historical
+          ? (de ? 'historischer Stand' : 'historical snapshot')
+          : (de ? 'reproduzierbarer Stand' : 'reproducible snapshot')}
+      </p>
+
+      <dl className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <RankingMetric
+          label={de ? 'Kernpassung' : 'Core fit'}
+          value={features.scores.coreFit}
+        />
+        <RankingMetric
+          label={de ? 'Präferenz-Effekt' : 'Preference effect'}
+          value={features.scores.preferenceAdjustment}
+          signed
+        />
+        <RankingMetric
+          label={de ? 'Anzeigenvertrauen' : 'Posting confidence'}
+          value={features.scores.postingConfidence}
+        />
+        <RankingMetric
+          label={de ? 'Endwert' : 'Final score'}
+          value={features.scores.final}
+        />
+      </dl>
+
+      <RankingList
+        title={de ? 'Starke oder teilweise belegte Signale' : 'Strong or partly evidenced signals'}
+        empty={de ? 'Keine belegte Muss- oder Wunsch-Anforderung erkannt.' : 'No evidenced required or preferred requirement was detected.'}
+        items={strong.map((requirement) => {
+          const evidence = requirement.evidence.map((item) => item.value).join(', ')
+          const state = requirement.status === 'partial'
+            ? (de ? 'teilweise' : 'partial')
+            : (de ? 'belegt' : 'evidenced')
+          return `${requirement.text} — ${state}${evidence ? `: ${evidence}` : ''}`
+        })}
+      />
+      <RankingList
+        title={de ? 'Fehlende Muss-Anforderungen' : 'Missing must-haves'}
+        empty={de ? 'Keine bekannte fehlende Muss-Anforderung.' : 'No known missing must-have.'}
+        items={missing.map((requirement) => requirement.text)}
+        danger={missing.length > 0}
+      />
+      <RankingList
+        title={de ? 'Unbekannte Angaben' : 'Uncertain facts'}
+        empty={de ? 'Keine unbekannte harte Angabe erkannt.' : 'No uncertain hard fact was detected.'}
+        items={uncertain.map((fact) => ELIGIBILITY_LABEL[locale][fact.key])}
+      />
+      {mismatches.length > 0 && (
+        <RankingList
+          title={de ? 'Bekannte harte Konflikte' : 'Known hard mismatches'}
+          empty=""
+          items={mismatches.map((fact) =>
+            `${ELIGIBILITY_LABEL[locale][fact.key]}${fact.sourceText ? ` — ${fact.sourceText}` : ''}`)}
+          danger
+        />
+      )}
+      <RankingList
+        title={de ? 'Begrenzter Präferenz-Effekt' : 'Bounded preference effect'}
+        empty=""
+        items={preferenceSignals.map(([label, value]) => `${label}: ${value}/100`)}
+      />
+      <RankingList
+        title={de ? 'Qualität der Anzeige' : 'Posting quality'}
+        empty=""
+        items={[
+          ...postingSignals.map(([label, value]) => `${label}: ${value}/100`),
+          `${de ? 'Getrennter Abzug' : 'Separate penalty'}: ${features.scores.postingPenalty}`,
+        ]}
+      />
+      <p className="mt-3 rounded-md border border-border bg-surface-2 p-2 text-xs leading-relaxed text-muted">
+        {de
+          ? 'Dieser Wert ist eine lokale, reproduzierbare Sortierhilfe und keine Einstellungswahrscheinlichkeit.'
+          : 'This score is a local, reproducible ranking aid—not a probability of being hired.'}
+      </p>
+    </details>
+  )
+}
+
+function RankingMetric({
+  label,
+  value,
+  signed = false,
+}: {
+  label: string
+  value: number
+  signed?: boolean
+}) {
+  return (
+    <div className="rounded-md border border-border bg-surface-2 p-2">
+      <dt className="text-xs text-faint">{label}</dt>
+      <dd className="mt-1 font-display text-lg font-semibold tabular-nums text-ink">
+        {signed && value > 0 ? '+' : ''}{value}
+      </dd>
+    </div>
+  )
+}
+
+function RankingList({
+  title,
+  items,
+  empty,
+  danger = false,
+}: {
+  title: string
+  items: string[]
+  empty: string
+  danger?: boolean
+}) {
+  return (
+    <section className="mt-3">
+      <h4 className="text-xs font-semibold uppercase tracking-wide text-faint">{title}</h4>
+      {items.length ? (
+        <ul className={`mt-1 list-disc space-y-1 pl-5 text-sm ${danger ? 'text-danger' : 'text-muted'}`}>
+          {items.map((item, index) => <li key={`${index}:${item}`}>{item}</li>)}
+        </ul>
+      ) : (
+        <p className="mt-1 text-sm text-muted">{empty}</p>
+      )}
+    </section>
+  )
+}
+
 export function JobDrawer({
   job,
   match,
@@ -71,7 +262,7 @@ export function JobDrawer({
   saved: boolean
   onClose: () => void
 }) {
-  const t = useT()
+  const { locale, t } = useLocale()
   useScrollLock()
 
   const [description, setDescription] = useState(job.description)
@@ -227,14 +418,15 @@ export function JobDrawer({
             </div>
             {explainError && <p className="mt-2 text-sm text-danger" role="alert">{explainError}</p>}
 
-            {/* Per-factor breakdown — what drove the score (feature 1.3). */}
-            {match.factors && (
+            {match.ranking ? (
+              <RankingEvidencePanel match={match} locale={locale} />
+            ) : match.factors ? (
               <div className="mt-3 space-y-1.5">
                 {FACTOR_KEYS.map((k) => (
                   <FactorBar key={k} label={t(FACTOR_LABEL_KEY[k])} value={match.factors![k]} />
                 ))}
               </div>
-            )}
+            ) : null}
 
             {match.missingSkills.length > 0 && (
               <p className="mt-2 text-muted">

@@ -185,6 +185,7 @@ const FLAG_LABEL: Record<keyof AppFlags, TranslationKey> = {
   deterministicMatching: 'settings.flags.deterministicMatching',
   budgetGuard: 'settings.flags.budgetGuard',
   tailoringChunking: 'settings.flags.tailoringChunking',
+  resumeDesignLab: 'settings.flags.resumeDesignLab',
 }
 
 const FLAG_ORDER: (keyof AppFlags)[] = [
@@ -195,18 +196,24 @@ const FLAG_ORDER: (keyof AppFlags)[] = [
   'deterministicMatching',
   'budgetGuard',
   'tailoringChunking',
+  'resumeDesignLab',
 ]
 
-export function FeatureFlagsCard() {
+export function FeatureFlagsCard({ onChange }: { onChange?: (flags: AppFlags) => void }) {
   const t = useT()
   const [flags, setFlags] = useState<AppFlags>(DEFAULT_APP_FLAGS)
 
   useEffect(() => {
-    void loadAppFlags().then(setFlags)
-  }, [])
+    void loadAppFlags().then((loaded) => {
+      setFlags(loaded)
+      onChange?.(loaded)
+    })
+  }, [onChange])
 
   async function toggle(key: keyof AppFlags, value: boolean) {
-    setFlags(await saveAppFlags({ [key]: value }))
+    const next = await saveAppFlags({ [key]: value })
+    setFlags(next)
+    onChange?.(next)
   }
 
   return (

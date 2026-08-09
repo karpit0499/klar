@@ -1,0 +1,52 @@
+{
+  "schemaVersion": 1,
+  "artifactId": "qwen3.5-9b-q4km-base-validation",
+  "version": "0.1.0",
+  "kind": "klar-local-model",
+  "baseModel": {
+    "name": "Qwen/Qwen3.5-9B",
+    "revision": "c202236235762e1c871ad0ccb60c8ee5ba337b9a",
+    "license": "Apache-2.0",
+    "source": "https://huggingface.co/Qwen/Qwen3.5-9B"
+  },
+  "quantization": "Q4_K_M",
+  "runtime": {
+    "engine": "llama.cpp",
+    "version": "b10199",
+    "contextTokens": 8192
+  },
+  "hardware": {
+    "minimumMemoryBytes": 12884901888,
+    "recommendedMemoryBytes": 25769803776,
+    "expectedPackageBytes": 6169341984
+  },
+  "compatibility": {
+    "app": ">=2.6.0 <2.7.0",
+    "runtime": "b10199",
+    "promptSchemas": ["klar-generation-v1"],
+    "adapters": [],
+    "platforms": ["darwin-arm64", "darwin-x64", "win32-x64"]
+  },
+  "artifacts": [
+    {
+      "role": "model",
+      "path": "model/qwen3.5-9b-q4_k_m.gguf",
+      "mediaType": "application/vnd.gguf"
+    }
+  ],
+  "provenance": {
+    "createdAt": "2026-07-31T00:00:00.000Z",
+    "builder": "Klar v2.6 local feasibility validation",
+    "sourceCommit": "REPLACE_WITH_KLAR_COMMIT",
+    "recipe": "model/tools/prepare-base-validation-package.mjs",
+    "sourceArtifact": {
+      "repository": "bartowski/Qwen_Qwen3.5-9B-GGUF",
+      "revision": "2dcd842c59ea5eb119267064550a7a4c592b16c3",
+      "filename": "Qwen_Qwen3.5-9B-Q4_K_M.gguf",
+      "source": "https://huggingface.co/bartowski/Qwen_Qwen3.5-9B-GGUF/blob/2dcd842c59ea5eb119267064550a7a4c592b16c3/Qwen_Qwen3.5-9B-Q4_K_M.gguf",
+      "bytes": 6169341984,
+      "sha256": "d784ce9eda1a5a7b51e8f705a9e6310844bf4f173654d115823c775fdea56d43"
+    }
+  },
+  "rollbackArtifactId": null
+}

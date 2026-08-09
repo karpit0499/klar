@@ -1,0 +1,59 @@
+name: Bug or usability problem
+description: Report an ordinary Klar problem publicly after removing personal data.
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This report is public. Never paste a résumé, cover letter, application,
+        API key, password, token, private file path, or unredacted diagnostic.
+        Use private vulnerability reporting for security or data exposure.
+  - type: checkboxes
+    id: routing
+    attributes:
+      label: Safe public routing
+      options:
+        - label: This is not a suspected security vulnerability or personal-data exposure.
+          required: true
+        - label: I replaced real personal and employer-private information with synthetic examples.
+          required: true
+  - type: input
+    id: version
+    attributes:
+      label: Klar version
+      placeholder: 2.6.0
+    validations:
+      required: true
+  - type: textarea
+    id: observed
+    attributes:
+      label: What happened?
+      description: Use only synthetic or fully redacted examples.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Minimal steps to reproduce
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+    validations:
+      required: true
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Surface
+      options:
+        - Hosted web app
+        - Installed browser app
+        - macOS developer preview
+        - Windows developer preview
+        - Local development
+    validations:
+      required: true

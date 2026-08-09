@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "evidenceKind": "human_release",
+  "corpusId": "REPLACE_WITH_LOCKED_CORPUS_ID",
+  "reviewerId": "reviewer_REPLACE12HEX",
+  "isHuman": false,
+  "completedAt": "",
+  "languageCompetence": {
+    "en": "professional",
+    "de": "professional"
+  },
+  "independence": {
+    "identityStoredSeparately": false,
+    "blindToGeneratorAndVariantMapping": false,
+    "blindToOtherReviewer": false,
+    "noMachineGeneratedFinalRatings": false,
+    "conflictOfInterestDeclared": false
+  },
+  "reviews": []
+}

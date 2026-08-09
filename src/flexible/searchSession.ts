@@ -16,7 +16,7 @@
 import type { NormalizedJob } from '../types'
 import type { AppErrorData } from '../errors/appError'
 import { serializeAppError, toAppError } from '../errors/appError'
-import { normalizeKey } from '../lib/hash'
+import { normalizeKey, stableHash } from '../lib/hash'
 import {
   SEARCH_FIRST_PUBLISH_MIN,
   SEARCH_HARD_DEADLINE_MS,
@@ -42,6 +42,7 @@ export type SourceState = {
   note?: string
   error?: AppErrorData
   latencyMs?: number
+  fetchedAt?: string
 }
 
 export type SearchSessionSnapshot = {
@@ -108,6 +109,9 @@ export function mergeOpportunity(existing: NormalizedJob, incoming: NormalizedJo
     tags: [...new Set([...primary.tags, ...secondary.tags])],
     also_on: also_on.length ? also_on : undefined,
     fieldProvenance: Object.keys(fieldProvenance).length ? fieldProvenance : undefined,
+    duplicateFamily: primary.duplicateFamily ?? secondary.duplicateFamily ?? stableHash(
+      `duplicate-family:${normalizeKey(primary.title)}|${normalizeKey(primary.company)}|${normalizeKey(primary.location.city ?? '')}`,
+    ),
   }
 }
 
@@ -193,6 +197,7 @@ export class SearchSessionModel {
       state.filteredOut = droppedHere
       state.note = result.note
       state.latencyMs = latencyMs
+      state.fetchedAt = new Date().toISOString()
       if (result.error) state.error = result.error
     }
   }
@@ -201,6 +206,7 @@ export class SearchSessionModel {
     const state = this.sources.get(id)
     if (!state) return
     state.status = opts.timedOut ? 'timeout' : 'error'
+    state.fetchedAt = new Date().toISOString()
     state.error = serializeAppError(
       toAppError(error, { category: 'source', message: `${state.employerFamily} could not complete this search.` }),
     )

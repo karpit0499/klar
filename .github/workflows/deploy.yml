@@ -26,6 +26,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: node --check public/sw.js
+      - run: node --check public/theme-bootstrap.js
+      - run: node model/experiments/build-kaggle-notebook.mjs --check
       - run: npm run typecheck
       - run: npm run worker:types:check
       - run: npm run worker:check
@@ -34,6 +36,7 @@ jobs:
       - run: npm run build
         env:
           VITE_WORKER_URL: ${{ vars.VITE_WORKER_URL }}
+      - run: npm run bundle:check
       - run: npm run worker:dry-run
       - if: github.event_name != 'pull_request'
         uses: actions/upload-pages-artifact@v5

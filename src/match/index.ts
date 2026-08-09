@@ -1,16 +1,15 @@
 // ============================================================================
 // Matching orchestrator: locally rank every relevant job, then optionally
-// enrich a bounded AI-priority subset. The cache key is
-// hash(profile+prefs)+jobId so re-running the same enrichment is instant and
-// cheap; only new jobs in that subset hit the LLM.
+// enrich a bounded AI-priority subset. The cache key includes the canonical
+// posting content, so a source may update a stable job ID without reusing an
+// explanation for the previous posting.
 // ============================================================================
 import type { MatchResult, NormalizedJob, Preferences, Profile } from '../types'
 import { MATCH, type LlmRerankMode } from '../lib/config'
 import { stableHash } from '../lib/hash'
-import { prefilter } from './prefilter'
-import { semanticPrefilter } from './semantic'
 import {
   isFailedMatchPlaceholder,
+  rerankJobPromptInput,
   rerankBatch,
   rerankAll,
   type RerankDiagnostics,
@@ -19,23 +18,43 @@ import { fetchBaDetail } from '../sources/ba'
 import type { MatchRow } from '../db/db'
 import { deleteMatchRows, getMatchRows, putMatchRows } from '../storage/careerData'
 import { CAREER_RELEVANCE_VERSION, filterCareerRelevantJobs } from './relevance'
-import { buildLocalMatch, isLocalMatch } from './fallback'
+import {
+  buildLocalMatch,
+  isLocalMatch,
+  mergeAiExplanationWithLocal,
+} from './fallback'
+import { rankCandidateSetV2, RANKING_MODEL_VERSION } from './rankingV2'
 import type { ErrorCategory } from '../errors/appError'
 
 /** A stable fingerprint of the profile+prefs that influence scoring. */
 export function matchContextHash(profile: Profile, prefs: Preferences): string {
   const sig = JSON.stringify({
     rv: CAREER_RELEVANCE_VERSION,
+    ranking: RANKING_MODEL_VERSION,
     su: profile.summary, t: profile.titles, s: profile.skills.map((s) => s.name),
-    d: profile.domains, y: profile.totalYears,
+    d: profile.domains, y: profile.totalYears, la: profile.languages,
+    ce: profile.certifications, ed: profile.education,
     tt: prefs.targetTitles, f: prefs.fields, se: prefs.seniority, sa: prefs.salary,
-    lo: prefs.locations, ro: prefs.remoteOnly, mh: prefs.mustHaves, db: prefs.dealbreakers,
+    lo: prefs.locations, ro: prefs.remoteOnly, hy: prefs.hybridOk,
+    wa: prefs.workAuth, pl: prefs.languages, ct: prefs.contractType,
+    mh: prefs.mustHaves, db: prefs.dealbreakers, w: prefs.weights,
   })
   return stableHash(sig)
 }
 
-export function matchCacheKey(profile: Profile, prefs: Preferences, jobId: string): string {
-  return `${matchContextHash(profile, prefs)}:${jobId}`
+export function matchJobContentHash(job: NormalizedJob): string {
+  // Mirror the provider prompt exactly. Acquisition timestamps, source merge
+  // metadata, and text beyond the prompt cap cannot change the explanation and
+  // must not turn a refresh into another paid request.
+  return stableHash(JSON.stringify(rerankJobPromptInput(job)))
+}
+
+export function matchCacheKey(
+  profile: Profile,
+  prefs: Preferences,
+  job: NormalizedJob,
+): string {
+  return `${matchContextHash(profile, prefs)}:${job.id}:${matchJobContentHash(job)}`
 }
 
 /** Spend follows attention: enrich exactly one opened job, then cache it. */
@@ -46,7 +65,7 @@ export async function explainMatchWithAi(
   apiKey: string,
   signal?: AbortSignal,
 ): Promise<MatchResult> {
-  const cacheKey = matchCacheKey(profile, prefs, job.id)
+  const cacheKey = matchCacheKey(profile, prefs, job)
   const [cached] = await getMatchRows([cacheKey])
   if (cached && !isFailedMatchPlaceholder(cached)) return cached
   const [fresh] = await rerankBatch(profile, prefs, [job], apiKey, signal)
@@ -95,7 +114,7 @@ export async function runMatching(
   opts: {
     onProgress?: (p: MatchProgress) => void
     signal?: AbortSignal
-    /** 'keyword' (default) or 'semantic' cosine-similarity candidate selection (feature 1.4). */
+    /** @deprecated v2.6 accepts the historical value but ranking-v2 owns the one deterministic path. */
     prefilterMode?: 'keyword' | 'semantic'
     /** Publish every locally ranked relevant candidate before optional AI work starts. */
     onCandidates?: (candidates: NormalizedJob[]) => void
@@ -112,23 +131,39 @@ export async function runMatching(
   // 1. Apply hard drops and rank every survivor locally. MATCH.candidateLimit
   // controls only automatic AI work; it must never truncate visible results.
   opts.onProgress?.({ phase: 'prefilter', done: 0, total: jobs.length })
-  const selected =
-    opts.prefilterMode === 'semantic'
-      ? await semanticPrefilter(jobs, profile, prefs, jobs.length)
-      : prefilter(jobs, profile, prefs, jobs.length)
+  const selected = filterCareerRelevantJobs(jobs, profile, prefs).jobs
 
   // Enrich before the final relevance check. SearchStep normally did this
   // already, but keeping the invariant here protects every direct caller.
   opts.onProgress?.({ phase: 'enrich', done: 0, total: selected.length })
   await enrichBaDescriptions(selected, opts.signal)
-  const candidates = filterCareerRelevantJobs(selected, profile, prefs).jobs
+  const rankedCandidates = rankCandidateSetV2(
+    filterCareerRelevantJobs(selected, profile, prefs).jobs,
+    profile,
+    prefs,
+  )
+  const candidates = rankedCandidates.map((entry) => entry.job)
   opts.onCandidates?.(candidates)
 
   const localById = new Map(
-    candidates.map((job) => [job.id, buildLocalMatch(job, profile, prefs, undefined, opts.locale)]),
+    rankedCandidates.map((entry) => [
+      entry.job.id,
+      buildLocalMatch(
+        entry.job,
+        profile,
+        prefs,
+        entry.snapshot.evaluatedAt,
+        opts.locale,
+        entry.snapshot,
+      ),
+    ]),
   )
   const snapshot = (aiById: ReadonlyMap<string, MatchResult>): MatchResult[] =>
-    candidates.map((job) => aiById.get(job.id) ?? localById.get(job.id)!)
+    candidates.map((job) => {
+      const local = localById.get(job.id)!
+      const ai = aiById.get(job.id)
+      return ai ? mergeAiExplanationWithLocal(local, ai) : local
+    })
 
   const rerankMode = opts.rerankMode ?? MATCH.llmRerank
   const aiPriority = candidates.slice(0, MATCH.candidateLimit)
@@ -160,10 +195,13 @@ export async function runMatching(
     return local
   }
 
-  const key = (jobId: string) => matchCacheKey(profile, prefs, jobId)
+  const key = (job: NormalizedJob) => matchCacheKey(profile, prefs, job)
+  const cacheKeyByJobId = new Map(
+    aiCandidates.map((job) => [job.id, key(job)]),
+  )
 
   // 2. Split cached vs. uncached.
-  const cachedRows = await getMatchRows(aiCandidates.map((c) => key(c.id)))
+  const cachedRows = await getMatchRows(aiCandidates.map(key))
   const cached: MatchResult[] = []
   const todo: NormalizedJob[] = []
   const staleKeys: string[] = []
@@ -172,7 +210,7 @@ export async function runMatching(
     if (row && !isFailedMatchPlaceholder(row)) cached.push(row)
     else {
       todo.push(c)
-      if (row) staleKeys.push(key(c.id))
+      if (row) staleKeys.push(key(c))
     }
   })
   if (staleKeys.length) await deleteMatchRows(staleKeys)
@@ -226,7 +264,10 @@ export async function runMatching(
   // 4. Persist only provider scores. Local fallbacks are deterministic and can
   // always be rebuilt; caching them would make a later AI retry look complete.
   if (fresh.length) {
-    const rows: MatchRow[] = fresh.map((m) => ({ ...m, cacheKey: key(m.jobId) }))
+    const rows: MatchRow[] = fresh.map((match) => ({
+      ...match,
+      cacheKey: cacheKeyByJobId.get(match.jobId)!,
+    }))
     await putMatchRows(rows)
   }
 

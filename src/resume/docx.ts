@@ -16,6 +16,11 @@ import {
 import type { ResumeData, ResumeLanguage } from './types'
 import { SECTION_HEADINGS, formatDateRange } from './types'
 import { triggerBlobDownload } from '../export/download'
+import {
+  assertDocxSafeText,
+  hasDocxUnsafeText,
+  wordSafeStyles,
+} from '../export/wordCompatibility'
 
 const BODY_FONT = 'Calibri'
 const BODY_SIZE = 22 // 11pt (half-points)
@@ -122,9 +127,7 @@ export function resumeDocxDocument(data: ResumeData, lang: ResumeLanguage): Docu
   return new Document({
     creator: 'Klar',
     title: `${data.contact.name} — CV`,
-    styles: {
-      default: { document: { run: { font: BODY_FONT, size: BODY_SIZE } } },
-    },
+    styles: wordSafeStyles({ font: BODY_FONT, size: BODY_SIZE }),
     numbering: {
       config: [{
         reference: 'klar-bullets',
@@ -151,8 +154,66 @@ export function resumeDocxDocument(data: ResumeData, lang: ResumeLanguage): Docu
   })
 }
 
+/**
+ * Every string that reaches a `w:t` element in this document. The cover-letter
+ * exporter runs the same check; without it a single control character carried
+ * in from PDF text extraction produces a package Word refuses to open, and the
+ * packet ZIP would ship it beside a letter that opens correctly.
+ */
+function resumeTextValues(data: ResumeData): (string | undefined)[] {
+  return [
+    data.contact.name,
+    data.contact.location,
+    data.contact.email,
+    data.contact.phone,
+    ...data.contact.links.map((link) => link.url),
+    ...data.contact.links.map((link) => link.label),
+    data.summary,
+    ...data.experience.flatMap((role) => [
+      role.title,
+      role.company,
+      role.city,
+      role.start,
+      role.end,
+      ...role.bullets.map((bullet) => bullet.text),
+    ]),
+    ...data.education.flatMap((entry) => [
+      entry.degree,
+      entry.field,
+      entry.institution,
+      entry.start,
+      entry.end,
+    ]),
+    ...data.skills.flatMap((group) => [
+      group.group,
+      ...group.items.map((item) => item.name),
+    ]),
+    ...data.languages.map((entry) => entry.lang),
+    ...data.languages.map((entry) => entry.level),
+    ...data.projects.flatMap((project) => [
+      project.name,
+      project.summary,
+      project.link,
+      ...(project.tech ?? []),
+    ]),
+    ...data.certifications.flatMap((entry) => [
+      entry.name,
+      entry.issuer,
+      entry.issued,
+    ]),
+  ]
+}
+
+/** True when this résumé would produce a DOCX Word cannot open. */
+export function resumeHasDocxUnsafeText(data: ResumeData): boolean {
+  return resumeTextValues(data).some(
+    (value) => typeof value === 'string' && hasDocxUnsafeText(value),
+  )
+}
+
 /** Browser: pack the résumé to a .docx Blob. */
 export async function resumeToDocxBlob(data: ResumeData, lang: ResumeLanguage): Promise<Blob> {
+  assertDocxSafeText('This résumé', resumeTextValues(data))
   return Packer.toBlob(resumeDocxDocument(data, lang))
 }
 

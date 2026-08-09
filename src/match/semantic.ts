@@ -6,13 +6,14 @@
 //
 // The core ranking (scoreBySimilarity) is pure and takes an embedder, so it's
 // unit-testable without a database. semanticPrefilter adds the Dexie cache and
-// the same hard drops (dealbreakers / remote-only) the keyword pre-filter uses.
+// the same ranking-v2 known-mismatch contract the keyword pre-filter uses.
 // ============================================================================
 import type { NormalizedJob, Preferences, Profile } from '../types'
 import { cosineSim, defaultEmbedder, type TextEmbedder } from './embeddings'
 import type { VectorRow } from '../db/db'
 import { getVectors, putVectors } from '../storage/careerData'
 import { judgeCareerRelevance } from './relevance'
+import { evaluateJobV2 } from './rankingV2'
 
 /** The text we embed for a job (title carries the strongest signal). */
 export function jobText(job: NormalizedJob): string {
@@ -72,15 +73,10 @@ export function scoreBySimilarity(
     .sort((a, b) => b.score - a.score)
 }
 
-/** Hard drops shared with the keyword pre-filter (dealbreakers + remote-only). */
+/** Only proven ranking-v2 hard mismatches may be dropped before semantic rank. */
 function survivesHardDrops(job: NormalizedJob, profile: Profile, prefs: Preferences): boolean {
-  if (prefs.remoteOnly && !job.location.remote) return false
   if (!judgeCareerRelevance(job, profile, prefs).keep) return false
-  if (prefs.dealbreakers.length) {
-    const hay = `${job.title} ${job.company} ${job.description}`.toLowerCase()
-    if (prefs.dealbreakers.some((d) => d.trim() && hay.includes(d.toLowerCase()))) return false
-  }
-  return true
+  return !evaluateJobV2(job, profile, prefs, { asOf: job.fetched_at }).excludedByKnownMismatch
 }
 
 /**

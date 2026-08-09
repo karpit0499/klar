@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://klar.invalid/schemas/model-signature.v1.json",
+  "title": "Klar local model package signature",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "artifactId",
+    "algorithm",
+    "keyId",
+    "payloadSha256",
+    "signature"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "artifactId": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,95}$"
+    },
+    "algorithm": { "const": "ed25519" },
+    "keyId": {
+      "type": "string",
+      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._-]{2,127}$"
+    },
+    "payloadSha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "signature": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9+/]{86}==$"
+    }
+  }
+}

@@ -5,7 +5,7 @@
 //      record and stashing the other links in `also_on`.
 // ============================================================================
 import type { NormalizedJob } from '../types'
-import { normalizeKey } from '../lib/hash'
+import { normalizeKey, stableHash } from '../lib/hash'
 
 /** How much useful info a record carries — higher wins when merging. */
 function richness(j: NormalizedJob): number {
@@ -39,7 +39,10 @@ export function dedupeJobs(jobs: NormalizedJob[]): NormalizedJob[] {
     if (!existing) byFuzzy.set(key, j)
     else byFuzzy.set(key, mergeInto(existing, j))
   }
-  return Array.from(byFuzzy.values())
+  return Array.from(byFuzzy.entries(), ([key, job]) => ({
+    ...job,
+    duplicateFamily: stableHash(`duplicate-family:${key}`),
+  }))
 }
 
 /** Merge `b` into `a`, returning the winner (richest) with combined links. */

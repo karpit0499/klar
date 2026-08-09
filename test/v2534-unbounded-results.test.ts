@@ -1,9 +1,15 @@
 import 'fake-indexeddb/auto'
 import { strict as assert } from 'node:assert'
+import { readFileSync } from 'node:fs'
 import { db } from '../src/db/db'
 import { invalidateEngineCache } from '../src/llm/provider'
 import { buildLocalMatch, isLocalMatch } from '../src/match/fallback'
-import { explainMatchWithAi, runMatching, type MatchRunDiagnostics } from '../src/match'
+import {
+  explainMatchWithAi,
+  matchJobContentHash,
+  runMatching,
+  type MatchRunDiagnostics,
+} from '../src/match'
 import { compositeScore } from '../src/match/weights'
 import { makeJob } from '../src/sources/normalize'
 import type { NormalizedJob, Preferences, Profile, ScoreWeights } from '../src/types'
@@ -38,11 +44,13 @@ const AI_PRIORITY_COUNT = 40
 const LOCAL_OVERFLOW_COUNT = RELEVANT_JOB_COUNT - AI_PRIORITY_COUNT
 
 try {
-  // Both local ranking modes must retain every relevant job, even without AI.
+  // Historical mode values remain accepted, but both now route through the
+  // same ranking-v2 path and retain every relevant job without AI.
+  const compatibilityOrders: string[][] = []
   for (const prefilterMode of ['keyword', 'semantic'] as const) {
     await resetDb()
     let diagnostics: MatchRunDiagnostics | undefined
-    const matches = await runMatching(jobsFor(`${prefilterMode}-local`, RELEVANT_JOB_COUNT), profile, prefs, undefined, {
+    const matches = await runMatching(jobsFor('single-path-local', RELEVANT_JOB_COUNT), profile, prefs, undefined, {
       prefilterMode,
       onDiagnostics: (value) => {
         diagnostics = value
@@ -56,7 +64,21 @@ try {
     assert.equal(diagnostics?.notPrioritizedCount, LOCAL_OVERFLOW_COUNT)
     assert.equal(diagnostics?.aiRequestedCount, 0)
     assert.equal(diagnostics?.localFallbackCount, RELEVANT_JOB_COUNT)
+    compatibilityOrders.push(matches.map((match) => match.jobId))
   }
+  assert.deepEqual(
+    compatibilityOrders[0],
+    compatibilityOrders[1],
+    'historical prefilter settings map to one deterministic ranking-v2 order',
+  )
+  const searchStepSource = readFileSync('src/ui/SearchStep.tsx', 'utf8')
+  assert.doesNotMatch(searchStepSource, /search\.prefilter|name="mode"|prefilterMode:\s*mode/)
+  const orchestratorSource = readFileSync('src/match/index.ts', 'utf8')
+  assert.doesNotMatch(orchestratorSource, /import \{ semanticPrefilter \}/)
+  assert.match(
+    orchestratorSource,
+    /const selected = filterCareerRelevantJobs\(jobs, profile, prefs\)\.jobs/,
+  )
 
   // AI remains cost-bounded: only the top 40 are enriched, but all 137 stay in
   // the returned snapshot and the overflow retains responsive local scores.
@@ -152,6 +174,34 @@ try {
     assert.equal(cached.fitScore, fresh.fitScore)
     assert.equal(cached.rationale, fresh.rationale)
     assert.equal(calls, 1, 'the beyond-40 one-job explanation is cached')
+
+    const refetchedPosting = {
+      ...overflowJob,
+      fetched_at: '2026-08-01T12:00:00.000Z',
+      posted_at: '2026-07-29T00:00:00.000Z',
+      url: `${overflowJob.url}?source=refresh`,
+      tags: ['refetched'],
+      sourceConfidence: 'structured' as const,
+      also_on: [{ source: 'adzuna' as const, source_id: 'merged-1', url: 'https://example.test/merged-1' }],
+    }
+    assert.equal(
+      matchJobContentHash(refetchedPosting),
+      matchJobContentHash(overflowJob),
+      'non-prompt acquisition and source metadata do not churn the explanation cache',
+    )
+    await explainMatchWithAi(refetchedPosting, profile, prefs, 'test-key')
+    assert.equal(calls, 1, 'refetching unchanged prompt content reuses the saved explanation')
+
+    const changedPosting = {
+      ...refetchedPosting,
+      description: `${overflowJob.description}\nThe revised posting now requires Apache Spark.`,
+    }
+    await explainMatchWithAi(changedPosting, profile, prefs, 'test-key')
+    assert.equal(
+      calls,
+      2,
+      'the same stable job ID with changed canonical posting content must not reuse stale AI prose',
+    )
   }
 
   // The controls must change local scores and can reverse two jobs whose factor

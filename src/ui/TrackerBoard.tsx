@@ -19,10 +19,10 @@ import { useTracked, setStatus } from '../tracker/store'
 import { stalenessInfo } from '../tracker/staleness'
 import { applicationsNeedingNudge, dueReminders } from '../tracker/nudges'
 import { trackedToRows, downloadCsv, downloadXlsx, printRowsAsPdf } from '../export/exporters'
-import type { ScoreWeights, TrackStatus, TrackedJob } from '../types'
+import type { Preferences, Profile, TrackStatus, TrackedJob } from '../types'
 import { useT } from '../i18n/LocaleProvider'
 import type { TranslationKey } from '../i18n/translations'
-import { compositeScore, DEFAULT_WEIGHTS } from '../match/weights'
+import { normalizeHistoricalRanking } from '../match/rankingV2'
 
 // Board columns carry a label KEY; the visible label is translated at render.
 const COLUMNS: { id: TrackStatus; labelKey: TranslationKey }[] = [
@@ -44,17 +44,24 @@ const STATUS_KEY: Record<TrackStatus, TranslationKey> = {
   archived: 'status.archived',
 }
 
-function trackerScore(row: TrackedJob, weights: ScoreWeights): number | undefined {
-  return row.match ? compositeScore(row.match, weights) : undefined
+// A stored result keeps the number it was saved with. Live scoring weights must
+// never reach a historical row, because the displayed value would then be a new
+// interpretation presented as the original one.
+function trackerScore(row: TrackedJob): number | undefined {
+  if (!row.match) return undefined
+  return normalizeHistoricalRanking(row.match).features.scores.final
+}
+
+function trackerScoreIsHistorical(row: TrackedJob): boolean {
+  if (!row.match) return false
+  return normalizeHistoricalRanking(row.match).historical === true
 }
 
 function DraggableCard({
   row,
-  weights,
   onOpen,
 }: {
   row: TrackedJob
-  weights: ScoreWeights
   onOpen: () => void
 }) {
   const t = useT()
@@ -71,8 +78,10 @@ function DraggableCard({
       <p className="truncate text-sm font-medium text-ink">{row.job.title}</p>
       <p className="truncate text-xs text-faint">{row.job.company}</p>
       <div className="mt-2 flex flex-wrap items-center gap-1.5">
-        {trackerScore(row, weights) != null ? (
-          <Badge tone="accent">{trackerScore(row, weights)}</Badge>
+        {trackerScore(row) != null ? (
+          <Badge tone={trackerScoreIsHistorical(row) ? 'neutral' : 'accent'}>
+            {trackerScore(row)}
+          </Badge>
         ) : null}
         {stale.likelyStale && <Badge tone="danger">{t('tracker.mayBeExpired')}</Badge>}
         {row.reminders.length > 0 && <Badge tone="neutral">⏰ {row.reminders.length}</Badge>}
@@ -85,13 +94,11 @@ function Column({
   id,
   label,
   rows,
-  weights,
   onOpen,
 }: {
   id: TrackStatus
   label: string
   rows: TrackedJob[]
-  weights: ScoreWeights
   onOpen: (row: TrackedJob) => void
 }) {
   const { setNodeRef, isOver } = useDroppable({ id })
@@ -106,7 +113,7 @@ function Column({
       </div>
       <div className="flex flex-col gap-2">
         {rows.map((r) => (
-          <DraggableCard key={r.jobId} row={r} weights={weights} onOpen={() => onOpen(r)} />
+          <DraggableCard key={r.jobId} row={r} onOpen={() => onOpen(r)} />
         ))}
       </div>
     </div>
@@ -115,11 +122,9 @@ function Column({
 
 function SavedList({
   rows,
-  weights,
   onOpen,
 }: {
   rows: TrackedJob[]
-  weights: ScoreWeights
   onOpen: (row: TrackedJob) => void
 }) {
   const t = useT()
@@ -149,7 +154,7 @@ function SavedList({
                   <div className="text-xs text-faint">{r.job.company}</div>
                 </td>
                 <td className="px-3 py-2">{t(STATUS_KEY[r.status])}</td>
-                <td className="px-3 py-2">{trackerScore(r, weights) ?? '—'}</td>
+                <td className="px-3 py-2">{trackerScore(r) ?? '—'}</td>
                 <td className="px-3 py-2">
                   {stale.likelyStale ? <span className="text-danger">{t('tracker.mayBeExpired')}</span> : stale.label}
                 </td>
@@ -173,7 +178,13 @@ function SavedList({
   )
 }
 
-export function TrackerBoard({ weights = DEFAULT_WEIGHTS }: { weights?: ScoreWeights }) {
+export function TrackerBoard({
+  profile,
+  prefs,
+}: {
+  profile?: Profile
+  prefs: Preferences
+}) {
   const t = useT()
   const tracked = useTracked()
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
@@ -285,7 +296,6 @@ export function TrackerBoard({ weights = DEFAULT_WEIGHTS }: { weights?: ScoreWei
                 id={col.id}
                 label={t(col.labelKey)}
                 rows={tracked.filter((item) => item.status === col.id)}
-                weights={weights}
                 onOpen={(r) => setOpenId(r.jobId)}
               />
             ))}
@@ -299,13 +309,15 @@ export function TrackerBoard({ weights = DEFAULT_WEIGHTS }: { weights?: ScoreWei
           </DragOverlay>
         </DndContext>
       ) : (
-        <SavedList rows={tracked} weights={weights} onOpen={(r) => setOpenId(r.jobId)} />
+        <SavedList rows={tracked} onOpen={(r) => setOpenId(r.jobId)} />
       )}
 
       {openRow && (
         <TrackedDrawer
           row={openRow}
-          score={trackerScore(openRow, weights)}
+          score={trackerScore(openRow)}
+          profile={profile}
+          prefs={prefs}
           onClose={() => setOpenId(null)}
         />
       )}

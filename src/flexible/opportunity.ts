@@ -23,6 +23,7 @@ import type {
   WorkplaceType,
 } from '../types'
 import { buildId } from '../sources/normalize'
+import { normalizeKey, stableHash } from '../lib/hash'
 
 export type ProvenanceMethod = FieldProvenance['method']
 export type SourceConfidence = NonNullable<NormalizedJob['sourceConfidence']>
@@ -138,6 +139,9 @@ export function makeOpportunity(input: OpportunityInput): NormalizedJob {
     programName: input.programName,
     cityAvailability: input.cityAvailability,
     sourceConfidence: methods.length ? overallConfidence(methods) : (kind === 'open_entry' ? 'published' : 'unknown'),
+    duplicateFamily: stableHash(
+      `duplicate-family:${normalizeKey(input.title)}|${normalizeKey(input.company)}|${normalizeKey(input.location.city ?? '')}`,
+    ),
     fieldProvenance: Object.keys(fieldProvenance).length ? fieldProvenance : undefined,
     fetched_at: now,
   }

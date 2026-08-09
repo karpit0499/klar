@@ -72,13 +72,19 @@ export type FlexibleCacheRow = {
 /** Per-connector circuit-breaker + kill-switch state (v2.4, roadmap §6.2). */
 export type ConnectorHealthRow = {
   connectorId: string
+  /** v2.6 lets career sources reuse the same content-free health ledger. */
+  scope?: 'career' | 'flexible'
   consecutiveFailures: number
   successes: number
   failures: number
   schemaFailures: number
+  lastFetchedAt?: string
+  lastFailureAt?: string
   lastSuccessAt?: string
   lastVerifiedAt?: string
   lastLatencyMs?: number
+  sourceUrl?: string
+  extractionConfidence?: 'published' | 'structured' | 'inferred' | 'unknown'
   /** When the circuit opened; searches skip the connector until cooldownUntil. */
   openedAt?: string
   cooldownUntil?: string
@@ -266,9 +272,9 @@ export class KlarDB extends Dexie {
     })
     // v7 — v2.5 Application Quality: persistent application packets. This is a
     // PURELY ADDITIVE store: no existing row is read, written or transformed, so
-    // the upgrade cannot fail on user data. (The résumé schemaVersion 2 → 3
-    // change that WS4b needs is a separate, coordinated v6→v7-style migration
-    // scheduled for v2.6 — do not fold it in here.)
+    // the upgrade cannot fail on user data. A future résumé schema change must
+    // remain a separate, coordinated migration; v2.6 deliberately keeps résumé
+    // schemaVersion 2 and does not fold a content migration into this store.
     this.version(7).stores({
       settings: 'key',
       profiles: 'id, createdAt',
