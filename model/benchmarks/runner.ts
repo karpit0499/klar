@@ -173,25 +173,44 @@ function deterministicNormalization(
   }
 }
 
+/**
+ * llama.cpp treats an EMPTY `lora` array as "use the server's default adapter
+ * scales". `--lora` records every adapter at scale 1.0, and
+ * `--lora-init-without-apply` only skips the initial apply - it does not zero
+ * those scales. So `lora: []` silently runs with every loaded adapter at full
+ * strength. Always send an explicit scale for every loaded adapter id.
+ * Verified against llama.cpp b10199, launch_slot_with_task in
+ * tools/server/server-context.cpp.
+ */
+function adapterScales(
+  local: LocalConnection,
+  active?: number,
+): Array<{ id: number; scale: number }> {
+  return [local.precisionAdapterIndex, local.writerAdapterIndex]
+    .filter((id): id is number => id !== undefined)
+    .map((id) => ({ id, scale: id === active ? 1 : 0 }))
+}
+
 function localProvider(
   config: BenchmarkRunConfig,
   plan: ProviderPlan,
 ): StreamingProviderConfig | null {
   if (!config.local) return null
+  const local = config.local
   let lora: Array<{ id: number; scale: number }> | undefined
   if (plan.adapter === 'precision') {
-    if (config.local.precisionAdapterIndex === undefined) return null
-    lora = [{ id: config.local.precisionAdapterIndex, scale: 1 }]
+    if (local.precisionAdapterIndex === undefined) return null
+    lora = adapterScales(local, local.precisionAdapterIndex)
   }
   if (plan.adapter === 'writer') {
-    if (config.local.writerAdapterIndex === undefined) return null
-    lora = [{ id: config.local.writerAdapterIndex, scale: 1 }]
+    if (local.writerAdapterIndex === undefined) return null
+    lora = adapterScales(local, local.writerAdapterIndex)
   }
-  if (plan.adapter === 'base') lora = []
+  if (plan.adapter === 'base') lora = adapterScales(local)
   return {
-    endpoint: config.local.endpoint,
-    apiKey: config.local.apiKey,
-    model: config.local.modelAlias,
+    endpoint: local.endpoint,
+    apiKey: local.apiKey,
+    model: local.modelAlias,
     schemaDialect: 'llama-json-object',
     lora,
     fetcher: config.fetcher,
@@ -410,7 +429,7 @@ async function cancellationProbe(
         apiKey: config.local.apiKey,
         model: config.local.modelAlias,
         schemaDialect: 'llama-json-object',
-        lora: [],
+        lora: adapterScales(config.local),
         fetcher: config.fetcher,
       },
       fixture,

@@ -1,0 +1,78 @@
+appId: io.github.karpit0499.klar
+productName: Klar Developer Preview
+artifactName: ${productName}-${version}-${os}-${arch}.${ext}
+
+asar: true
+afterPack: desktop/after-pack.mjs
+
+# electron-builder flips these after afterPack and immediately before signing.
+# Keep every fuse understood by its pinned @electron/fuses 1.8.0 integration
+# explicit. The packaged smoke test also checks Electron 43's ninth (Wasm)
+# fuse so an Electron upgrade cannot silently add an unreviewed switch.
+electronFuses:
+  runAsNode: false
+  enableCookieEncryption: true
+  enableNodeOptionsEnvironmentVariable: false
+  enableNodeCliInspectArguments: false
+  enableEmbeddedAsarIntegrityValidation: true
+  onlyLoadAppFromAsar: true
+  loadBrowserProcessSpecificV8Snapshot: false
+  # Klar v2.6 still loads its renderer from file://. Keep this compatibility
+  # fuse until a later release moves the renderer to a custom app protocol.
+  grantFileProtocolExtraPrivileges: true
+  # Required for unsigned Apple Silicon preview packages. A later real
+  # Developer ID signature replaces this ad-hoc signature.
+  resetAdHocDarwinSignature: true
+
+directories:
+  output: release/desktop
+  buildResources: desktop/resources
+
+files:
+  - dist/**/*
+  - desktop/**/*
+  - package.json
+  # Runtime binaries, build-only tooling and packaging inputs never belong in an
+  # asar that is integrity-validated and loaded with onlyLoadAppFromAsar.
+  - "!desktop/vendor/**/*"
+  - "!desktop/tools/**/*"
+  - "!desktop/*.md"
+  - "!desktop/electron-builder*.yml"
+  - "!desktop/entitlements.mac.plist"
+  - "!desktop/after-pack.mjs"
+
+extraResources:
+  - from: desktop/resources/trust
+    to: trust
+    filter:
+      - model-signing-public.pem
+
+mac:
+  category: public.app-category.productivity
+  icon: public/icon-512.png
+  extraResources:
+    - from: desktop/vendor/darwin-${arch}
+      to: runtime/darwin-${arch}
+      filter:
+        - llama-server
+        - "*.dylib"
+        - LICENSE
+        - PROVENANCE.json
+  # Targets come from the invoking npm script or from the configuration that
+  # extends this file. electron-builder concatenates inherited target arrays
+  # instead of replacing them, so a shared default would silently duplicate
+  # every production target and collide on one artifact name.
+  identity: null
+
+win:
+  icon: public/icon-512.png
+  extraResources:
+    - from: desktop/vendor/win32-${arch}
+      to: runtime/win32-${arch}
+      filter:
+        - llama-server.exe
+        - "*.dll"
+        - LICENSE
+        - PROVENANCE.json
+
+publish: null
