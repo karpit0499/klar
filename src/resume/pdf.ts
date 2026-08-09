@@ -17,7 +17,7 @@ import {
 function esc(value: unknown): string {
   return String(value ?? '').replace(
     /[&<>]/g,
-    (character) => ({ '&': '&', '<': '<', '>': '>' }[character]!),
+    (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[character]!),
   )
 }
 
@@ -25,7 +25,7 @@ function entryLine(primary: string, secondary = ''): string {
   if (!primary) return `<p class="entry-heading"><strong>${esc(secondary)}</strong></p>`
   return (
     `<p class="entry-heading"><strong>${esc(primary)}</strong>` +
-    `${secondary ? ` <span> |  ${esc(secondary)}</span>` : ''}</p>`
+    `${secondary ? ` <span>&nbsp;|&nbsp; ${esc(secondary)}</span>` : ''}</p>`
   )
 }
 
@@ -46,13 +46,13 @@ export function resumeToHtml(data: ResumeData, lang: ResumeLanguage): string {
     data.contact.email,
   ].filter(Boolean).map(esc)
   if (primaryContact.length) {
-    parts.push(`<p class="contact">${primaryContact.join('  |  ')}</p>`)
+    parts.push(`<p class="contact">${primaryContact.join(' &nbsp;|&nbsp; ')}</p>`)
   }
   const links = data.contact.links
     .map((link) => displayResumeUrl(link.url))
     .filter(Boolean)
     .map(esc)
-  if (links.length) parts.push(`<p class="links">${links.join('  |  ')}</p>`)
+  if (links.length) parts.push(`<p class="links">${links.join(' &nbsp;|&nbsp; ')}</p>`)
   parts.push('</header>')
 
   if (data.summary) parts.push(`<p class="summary">${esc(data.summary)}</p>`)
@@ -70,7 +70,7 @@ export function resumeToHtml(data: ResumeData, lang: ResumeLanguage): string {
       )
       const metadata = [role.city, range].filter(Boolean).map(esc)
       if (metadata.length) {
-        parts.push(`<p class="meta">${metadata.join('  |  ')}</p>`)
+        parts.push(`<p class="meta">${metadata.join(' &nbsp;|&nbsp; ')}</p>`)
       }
       if (role.bullets.length) {
         parts.push(`<ul>${role.bullets.map((item) => `<li>${esc(item.text)}</li>`).join('')}</ul>`)
@@ -90,7 +90,7 @@ export function resumeToHtml(data: ResumeData, lang: ResumeLanguage): string {
         project.link ? displayResumeUrl(project.link) : '',
       ].filter(Boolean).map(esc)
       if (metadata.length) {
-        parts.push(`<p class="meta">${metadata.join('  |  ')}</p>`)
+        parts.push(`<p class="meta">${metadata.join(' &nbsp;|&nbsp; ')}</p>`)
       }
       parts.push('</article>')
     }
