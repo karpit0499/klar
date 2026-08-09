@@ -5,7 +5,16 @@ worker/node_modules/
 # --- Build output ---
 dist/
 build/
+release/
 *.local
+
+# Downloaded, checksum-verified desktop runtimes are build inputs, not source.
+desktop/vendor/*/*
+!desktop/vendor/*/README.md
+desktop/resources/trust/model-signing-public.pem
+# Generated benchmark responses can contain model output and machine evidence.
+model/benchmarks/reports/*.json
+!model/benchmarks/reports/README.md
 
 # --- Secrets & environment (NEVER commit these) ---
 .env

@@ -1,14 +1,13 @@
 // The core screen: gather live jobs → AI match → ranked, explainable, filterable
-// results. Wires in aggregated gaps (1.1), correctable weights (1.3), semantic
-// mode (1.4), German-market hard filters (2.1/2.2), and results export (3.1).
-import { useEffect, useMemo, useState } from 'react'
+// results. Wires in aggregated gaps (1.1), correctable weights (1.3),
+// German-market hard filters (2.1/2.2), and results export (3.1).
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Button, Card, Spinner, Badge, Field, TextInput } from './atoms'
 import { JobCard } from './JobCard'
 import { JobDrawer } from './JobDrawer'
 import { useLocale } from '../i18n/LocaleProvider'
 import type { TranslationKey } from '../i18n/translations'
 import { GapSummary } from './GapSummary'
-import { WeightsPanel } from './WeightsPanel'
 import { gatherJobs } from '../sources'
 import {
   enrichBaDescriptions,
@@ -17,14 +16,13 @@ import {
   type MatchRunDiagnostics,
 } from '../match'
 import { addToTracker, useTracked } from '../tracker/store'
-import { compositeScore, DEFAULT_WEIGHTS } from '../match/weights'
 import { partitionByHardFilters } from '../match/germanMarket'
 import { aggregateGaps } from '../match/gaps'
 import { getActiveRegion, REGIONS } from '../regions'
 import { loadAdzunaKey } from '../settings/adzunaKey'
 import { jobsToRows, downloadCsv, downloadXlsx, printRowsAsPdf } from '../export/exporters'
 import type {
-  MatchResult, NormalizedJob, Preferences, Profile, Region, ScoreWeights, SearchQuery, SourceId,
+  MatchResult, NormalizedJob, Preferences, Profile, Region, SearchQuery, SourceId,
 } from '../types'
 import type { ResumeData } from '../resume/types'
 import type { SourceStatus } from '../sources/types'
@@ -43,7 +41,6 @@ import { SearchDiagnosticsPanel } from './SearchDiagnosticsPanel'
 import { ErrorNotice } from './ErrorNotice'
 import { toAppError, type AppErrorData } from '../errors/appError'
 import { EMPLOYMENT_ORDER, type EmploymentCategory } from '../match/employment'
-import { updatePreferenceWeights } from '../storage/careerData'
 import { filterCareerRelevantJobs } from '../match/relevance'
 import {
   createSavedSearch,
@@ -53,8 +50,10 @@ import {
   useSavedSearches,
 } from '../search/savedSearches'
 import { DEFAULT_APP_FLAGS, loadAppFlags, type AppFlags } from '../lib/appFlags'
+import { mergeAiExplanationWithLocal } from '../match/fallback'
 
 export function SearchStep({
+  active,
   resume,
   profile,
   prefs,
@@ -62,6 +61,8 @@ export function SearchStep({
   requireGroq,
   switcher,
 }: {
+  /** Hidden search state stays mounted, but modal side effects must not. */
+  active: boolean
   resume: ResumeData
   profile: Profile
   prefs: Preferences
@@ -76,6 +77,7 @@ export function SearchStep({
   const [matches, setMatches] = useState<Record<string, MatchResult>>({})
   const [status, setStatus] = useState<SourceStatus[]>([])
   const [phase, setPhase] = useState<'idle' | 'gathering' | 'matching' | 'done'>('idle')
+  const runInProgress = useRef(false)
   const [progress, setProgress] = useState<MatchProgress | null>(null)
   const [matchDiagnostics, setMatchDiagnostics] = useState<MatchRunDiagnostics | null>(null)
   const tracked = useTracked()
@@ -95,14 +97,9 @@ export function SearchStep({
   const [newJobIds, setNewJobIds] = useState<Set<string>>(new Set())
   const savedSearches = useSavedSearches()
 
-  // Feature 1.3 — user-correctable weights.
-  const [weights, setWeights] = useState<ScoreWeights>(prefs.weights ?? DEFAULT_WEIGHTS)
   // Feature 2.1 / 2.2 — hard filters (default from preferences).
   const [hideGerman, setHideGerman] = useState(Boolean(prefs.hideGermanAboveLevel))
   const [hideNoVisa, setHideNoVisa] = useState(Boolean(prefs.hideNoVisaSponsorship))
-  // Feature 1.4 — candidate-selection mode.
-  const [mode, setMode] = useState<'keyword' | 'semantic'>('keyword')
-
   useEffect(() => {
     void getActiveRegion().then(setRegion)
     void loadAppFlags().then(setFlags)
@@ -168,6 +165,8 @@ export function SearchStep({
   }
 
   async function run() {
+    if (runInProgress.current) return
+    runInProgress.current = true
     setError(null)
     setProgress(null)
     setMatchDiagnostics(null)
@@ -257,7 +256,6 @@ export function SearchStep({
       setPhase('matching')
       const results = await runMatching(relevant.jobs, profile, prefs, apiKey, {
         onProgress: setProgress,
-        prefilterMode: mode,
         onCandidates: setJobs,
         onMatches: (snapshot) => {
           const map: Record<string, MatchResult> = {}
@@ -280,6 +278,8 @@ export function SearchStep({
         action: { label: 'Review diagnostics and retry', kind: 'retry' },
       }))
       setPhase('idle')
+    } finally {
+      runInProgress.current = false
     }
   }
 
@@ -287,22 +287,8 @@ export function SearchStep({
     await addToTracker(job, matches[job.id])
   }
 
-  function updateWeights(nextWeights: ScoreWeights) {
-    setWeights(nextWeights)
-    // Persist the correction so Tracker uses the same composite formula and a
-    // returning visit does not silently revert to a different score.
-    void updatePreferenceWeights(nextWeights).catch((caught) => {
-      setError(toAppError(caught, {
-        category: 'storage',
-        message: 'Klar could not save these score weights.',
-        dataSafe: true,
-        available: 'The current result list remains available with the selected weights.',
-        action: { label: 'Try the adjustment again', kind: 'retry' },
-      }))
-    })
-  }
-
-  // Derived view: score with current weights, apply hard filters, sort, roll up gaps.
+  // Ranking v2 owns the order. Soft preferences are already bounded inside the
+  // versioned snapshot and cannot be reweighted after the fact to hide weak fit.
   const view = useMemo(() => {
     const scored = jobs.filter((j) => matches[j.id])
     const { shown, hidden } = partitionByHardFilters(scored, prefs, {
@@ -310,13 +296,28 @@ export function SearchStep({
       hideNoVisaSponsorship: hideNoVisa,
     })
     const withScore = shown
-      .map((job) => ({ job, match: matches[job.id]!, score: compositeScore(matches[job.id]!, weights) }))
-      .sort((a, b) => b.score - a.score)
+      .map((job) => {
+        const match = matches[job.id]!
+        return {
+          job,
+          match,
+          score: match.ranking?.features.scores.final ?? match.fitScore,
+        }
+      })
+      .sort((a, b) => {
+        const leftRank = a.match.ranking?.rank
+        const rightRank = b.match.ranking?.rank
+        if (leftRank != null && rightRank != null) return leftRank - rightRank
+        if (leftRank != null) return -1
+        if (rightRank != null) return 1
+        return b.score - a.score || a.job.id.localeCompare(b.job.id)
+      })
     const gap = aggregateGaps(withScore.map((x) => x.match), 20)
     return { withScore, hidden, gap }
-  }, [jobs, matches, weights, hideGerman, hideNoVisa, prefs])
+  }, [jobs, matches, hideGerman, hideNoVisa, prefs])
 
   const finished = phase === 'done'
+  const searchBusy = phase === 'gathering' || phase === 'matching'
   const resultDisplay = buildResultDisplayState(view.withScore, view.hidden.length)
   const hasMatches = resultDisplay.hasAny
   const hasShownMatches = resultDisplay.hasShown
@@ -377,7 +378,7 @@ export function SearchStep({
               {region ? ` · ${t(regionLabelKey(region.code))}` : ''}
             </p>
           </div>
-          <Button onClick={run} disabled={phase === 'gathering' || phase === 'matching'}>
+          <Button onClick={run} disabled={searchBusy}>
             {phase === 'gathering' ? (
               <Spinner label={t('search.gathering')} />
             ) : phase === 'matching' ? (
@@ -393,18 +394,6 @@ export function SearchStep({
             {t('match.privateBanner')}
           </p>
         )}
-
-        {/* Candidate-selection mode (feature 1.4). */}
-        <div className="mt-3 flex flex-wrap items-center gap-4 text-sm">
-          <span className="text-muted">{t('search.prefilter')}</span>
-          {(['keyword', 'semantic'] as const).map((m) => (
-            <label key={m} className="flex items-center gap-1.5">
-              <input type="radio" name="mode" checked={mode === m} onChange={() => setMode(m)} />
-              <span>{m === 'keyword' ? t('search.mode.keyword') : t('search.mode.semantic')}</span>
-            </label>
-          ))}
-          <span className="text-xs text-faint">{t('search.mode.hint')}</span>
-        </div>
 
         {/* Hard filters (features 2.1 & 2.2). */}
         <div className="mt-2 flex flex-wrap items-center gap-4 text-sm">
@@ -499,13 +488,18 @@ export function SearchStep({
           </div>
         )}
 
-        {diagnostics && <SearchDiagnosticsPanel diagnostics={diagnostics} />}
+        {diagnostics && (
+          <SearchDiagnosticsPanel
+            diagnostics={diagnostics}
+            onRefresh={() => void run()}
+            refreshDisabled={searchBusy}
+          />
+        )}
       </Card>
 
       {hasShownMatches && (
-        <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div className="mt-4">
           <GapSummary data={view.gap} />
-          <WeightsPanel weights={weights} onChange={updateWeights} />
         </div>
       )}
 
@@ -563,18 +557,26 @@ export function SearchStep({
         </p>
       )}
 
-      {open && (
+      {active && open && (
         <JobDrawer
           job={open}
           match={matches[open.id]}
-          score={matches[open.id] ? compositeScore(matches[open.id], weights) : undefined}
+          score={matches[open.id]?.ranking?.features.scores.final ?? matches[open.id]?.fitScore}
           resume={resume}
           apiKey={apiKey}
           profile={profile}
           prefs={prefs}
           requireGroq={requireGroq}
           onMatchUpdated={(next) => {
-            setMatches((current) => ({ ...current, [next.jobId]: next }))
+            setMatches((current) => {
+              const existing = current[next.jobId]
+              return {
+                ...current,
+                [next.jobId]: existing?.ranking
+                  ? mergeAiExplanationWithLocal(existing, next)
+                  : next,
+              }
+            })
           }}
           saved={savedIds.has(open.id)}
           onClose={() => setOpen(null)}

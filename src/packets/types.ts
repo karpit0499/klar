@@ -18,14 +18,163 @@ import type { ResumeData, ResumeLanguage } from '../resume/types'
 import type { ChangeRecord } from '../resume/changeSet'
 import type { UnresolvedIssue } from '../llm/evidenceStatus'
 import type { LetterTone } from '../llm/coverLetter'
+import type {
+  RecruiterApplicationState,
+  RecruiterMessageChannel,
+  RecruiterMessageStyle,
+  WritingCheck,
+} from '../llm/coverLetter'
+import type { CoverLetterDetails } from '../application/coverLetterDocx'
 import { summarizeChanges } from '../resume/changeSet'
 
 export type PacketKind = 'career' | 'flexible'
 
+export type PacketFormatVersions = {
+  packetSchema: string
+  contentSchema: string
+  writingPromptSchema: string
+  resumeExporter: string
+  coverLetterExporter: string
+  archiveExporter: string
+}
+
+/** Row-level v2.6 storage and exporter defaults. Mixed-language artifact
+ * provenance lives on each PacketLanguageState and each export record; a
+ * legacy row is never globally relabelled just because one artifact changes.
+ */
+export const CURRENT_PACKET_FORMAT_VERSIONS: PacketFormatVersions = Object.freeze({
+  packetSchema: 'klar-packet-v1',
+  contentSchema: 'klar-application-content-v1',
+  writingPromptSchema: 'klar-writing-v2.6.0',
+  resumeExporter: 'klar-resume-docx-v2.6.0',
+  coverLetterExporter: 'klar-cover-letter-docx-v1',
+  archiveExporter: 'klar-application-packet-zip-v1',
+})
+
+export const LEGACY_PACKET_FORMAT_VERSIONS: PacketFormatVersions = Object.freeze({
+  packetSchema: 'historical:unversioned',
+  contentSchema: 'historical:unversioned',
+  writingPromptSchema: 'historical:unversioned',
+  resumeExporter: 'historical:unversioned',
+  coverLetterExporter: 'historical:unversioned',
+  archiveExporter: 'historical:unversioned',
+})
+
+export const ARTIFACT_GENERATOR_CONTRACTS = Object.freeze({
+  aiResume: 'klar-ai-resume-v2.6.0',
+  deterministicResume: 'klar-deterministic-resume-v2.6.0',
+  coverLetter: 'klar-writing-cover-letter-v2.6.0',
+  reviewedCoverLetter: 'klar-reviewed-cover-letter-body-v2.6.0',
+  recruiterMessage: 'klar-writing-recruiter-message-v2.6.0',
+  reviewedRecruiterMessage: 'klar-reviewed-recruiter-message-v2.6.0',
+})
+
+export type PacketArtifactProvenance = {
+  packetSchema: string
+  contentSchema: string
+  generatorContract: string
+}
+
+export function currentArtifactProvenance(
+  generatorContract: string,
+): PacketArtifactProvenance {
+  return {
+    packetSchema: CURRENT_PACKET_FORMAT_VERSIONS.packetSchema,
+    contentSchema: CURRENT_PACKET_FORMAT_VERSIONS.contentSchema,
+    generatorContract,
+  }
+}
+
+export const LEGACY_ARTIFACT_PROVENANCE: PacketArtifactProvenance = Object.freeze({
+  packetSchema: 'historical:unversioned',
+  contentSchema: 'historical:unversioned',
+  generatorContract: 'historical:unversioned',
+})
+
+/**
+ * A semantic cover-letter exporter may consume only body text created under
+ * the current body-only prompt or explicitly reviewed against that contract.
+ * Merely loading or editing a historical value never upgrades its provenance.
+ */
+export function isCurrentCoverLetterProvenance(
+  provenance: PacketArtifactProvenance | undefined,
+): provenance is PacketArtifactProvenance {
+  if (!provenance) return false
+  const generatorCurrent =
+    provenance.generatorContract === ARTIFACT_GENERATOR_CONTRACTS.coverLetter ||
+    provenance.generatorContract === ARTIFACT_GENERATOR_CONTRACTS.reviewedCoverLetter
+  return (
+    provenance.packetSchema === CURRENT_PACKET_FORMAT_VERSIONS.packetSchema &&
+    provenance.contentSchema === CURRENT_PACKET_FORMAT_VERSIONS.contentSchema &&
+    generatorCurrent
+  )
+}
+
+export function requireCurrentCoverLetterProvenance(
+  provenance: PacketArtifactProvenance | undefined,
+): asserts provenance is PacketArtifactProvenance {
+  if (!isCurrentCoverLetterProvenance(provenance)) {
+    throw new TypeError(
+      'Current v2.6 cover-letter provenance is required. Review the saved body-only text or regenerate the letter before export.',
+    )
+  }
+}
+
+/**
+ * Editing a current AI body makes the saved text human-reviewed. Historical
+ * provenance deliberately stays historical until the separate confirmation
+ * action succeeds, so typing alone can never unlock semantic export.
+ */
+export function coverLetterProvenanceAfterManualEdit(
+  provenance: PacketArtifactProvenance | undefined,
+): PacketArtifactProvenance | undefined {
+  if (!isCurrentCoverLetterProvenance(provenance)) return provenance
+  return currentArtifactProvenance(ARTIFACT_GENERATOR_CONTRACTS.reviewedCoverLetter)
+}
+
+export function isCurrentRecruiterMessageProvenance(
+  provenance: PacketArtifactProvenance | undefined,
+): provenance is PacketArtifactProvenance {
+  if (!provenance) return false
+  const generatorCurrent =
+    provenance.generatorContract === ARTIFACT_GENERATOR_CONTRACTS.recruiterMessage ||
+    provenance.generatorContract ===
+      ARTIFACT_GENERATOR_CONTRACTS.reviewedRecruiterMessage
+  return (
+    provenance.packetSchema === CURRENT_PACKET_FORMAT_VERSIONS.packetSchema &&
+    provenance.contentSchema === CURRENT_PACKET_FORMAT_VERSIONS.contentSchema &&
+    generatorCurrent
+  )
+}
+
+/**
+ * Manual edits to a current generated recruiter message create an explicit
+ * human-reviewed artifact. Historical provenance remains historical, and the
+ * message remains workspace-only rather than being silently added to exports.
+ */
+export function recruiterMessageProvenanceAfterManualEdit(
+  provenance: PacketArtifactProvenance | undefined,
+): PacketArtifactProvenance | undefined {
+  if (!isCurrentRecruiterMessageProvenance(provenance)) return provenance
+  return currentArtifactProvenance(
+    ARTIFACT_GENERATOR_CONTRACTS.reviewedRecruiterMessage,
+  )
+}
+
 export type PacketExport = {
   at: string
   format: 'docx' | 'pdf' | 'txt' | 'zip' | 'card'
+  artifact: 'resume' | 'cover_letter' | 'packet'
   filename?: string
+  /** Exact code path that produced this individual downloaded artifact. */
+  exporterContract: string
+  language?: ResumeLanguage
+  /** Exact saved-content contracts consumed by this export, per artifact. */
+  sourceArtifactProvenance: {
+    resume?: PacketArtifactProvenance
+    coverLetter?: PacketArtifactProvenance
+  }
+  formatVersions: PacketFormatVersions
 }
 
 export type PacketCoverage = {
@@ -64,7 +213,21 @@ export type PacketLanguageState = {
   attempts?: number
   letter?: string
   letterTone: LetterTone
+  letterDetails?: CoverLetterDetails
   shortMessage?: string
+  messageStyle?: RecruiterMessageStyle
+  messageApplicationState?: RecruiterApplicationState
+  messageChannel?: RecruiterMessageChannel
+  recruiterName?: string
+  messageDiscoveryContext?: string
+  messageReferralName?: string
+  messageChecks?: WritingCheck[]
+  /** Per-language provenance survives mixed historical/current packets. */
+  artifactProvenance?: {
+    resume?: PacketArtifactProvenance
+    coverLetter?: PacketArtifactProvenance
+    recruiterMessage?: PacketArtifactProvenance
+  }
   reviewedAt?: string
   generatedAt?: string
 }
@@ -83,6 +246,7 @@ export type PacketVersion = {
     notes: string
     languages: Partial<Record<ResumeLanguage, PacketLanguageState>>
     flexible?: PacketFlexibleState
+    formatVersions?: PacketFormatVersions
   }
 }
 
@@ -104,6 +268,7 @@ export type PacketRow = {
   exportHistory: PacketExport[]
   versions: PacketVersion[]
   generation?: PacketGeneration
+  formatVersions: PacketFormatVersions
   createdAt: string
   updatedAt: string
 }
@@ -113,7 +278,16 @@ export function packetId(kind: PacketKind, jobId: string): string {
 }
 
 export function emptyLanguageState(tone: LetterTone = 'balanced'): PacketLanguageState {
-  return { changes: [], changeSummary: [], jdTerms: [], unresolved: [], letterTone: tone }
+  return {
+    changes: [],
+    changeSummary: [],
+    jdTerms: [],
+    unresolved: [],
+    letterTone: tone,
+    messageStyle: 'conversational',
+    messageApplicationState: 'not_applied',
+    messageChannel: 'linkedin',
+  }
 }
 
 export function newPacket(kind: PacketKind, job: NormalizedJob): PacketRow {
@@ -127,8 +301,26 @@ export function newPacket(kind: PacketKind, job: NormalizedJob): PacketRow {
     languages: {},
     exportHistory: [],
     versions: [],
+    formatVersions: { ...CURRENT_PACKET_FORMAT_VERSIONS },
     createdAt: now,
     updatedAt: now,
+  }
+}
+
+/** Label pre-v2.6 rows without rewriting their historical artifacts. */
+export function normalizePacketFormatVersions(row: PacketRow): PacketRow {
+  const formatVersions = row.formatVersions ?? LEGACY_PACKET_FORMAT_VERSIONS
+  const exportHistory = (row.exportHistory ?? []).map((entry) => ({
+    ...entry,
+    artifact: entry.artifact ?? 'packet',
+    exporterContract: entry.exporterContract ?? 'historical:unversioned',
+    sourceArtifactProvenance: entry.sourceArtifactProvenance ?? {},
+    formatVersions: entry.formatVersions ?? { ...LEGACY_PACKET_FORMAT_VERSIONS },
+  }))
+  return {
+    ...row,
+    formatVersions: { ...formatVersions },
+    exportHistory,
   }
 }
 

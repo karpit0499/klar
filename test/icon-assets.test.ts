@@ -5,9 +5,9 @@ const root = new URL('../', import.meta.url)
 const read = (path: string) => readFileSync(new URL(path, root), 'utf8')
 
 const index = read('index.html')
-assert.match(index, /href="\/icon-light\.svg"[^>]+media="\(prefers-color-scheme: light\)"/)
-assert.match(index, /href="\/icon-dark\.svg"[^>]+media="\(prefers-color-scheme: dark\)"/)
-assert.match(index, /rel="apple-touch-icon" href="\/apple-touch-icon\.png" sizes="180x180"/)
+assert.match(index, /href="%BASE_URL%icon-light\.svg"[^>]+media="\(prefers-color-scheme: light\)"/)
+assert.match(index, /href="%BASE_URL%icon-dark\.svg"[^>]+media="\(prefers-color-scheme: dark\)"/)
+assert.match(index, /rel="apple-touch-icon" href="%BASE_URL%apple-touch-icon\.png" sizes="180x180"/)
 
 const light = read('public/icon-light.svg')
 assert.match(light, /fill="#f5f5f3"/)

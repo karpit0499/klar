@@ -224,6 +224,7 @@ function ChangeItem({
           <Button
             size="sm"
             variant="ghost"
+            disabled={blocked}
             onClick={() => {
               setDraft(change.edited ?? change.after)
               setEditing(true)

@@ -1,0 +1,31 @@
+# Normalize every text file to LF in the repository and in every working tree.
+# GitHub's Windows runners default to core.autocrlf=true, which rewrites
+# checked-out files to CRLF. That breaks byte-exact checks such as the Kaggle
+# notebook serialization guard in model/experiments/build-kaggle-notebook.mjs,
+# which compares against JSON.stringify(notebook, null, 1) + "\n".
+* text=auto eol=lf
+
+# Notebooks are compared byte-for-byte. Pin them explicitly.
+*.ipynb text eol=lf
+
+# Binary assets must never be line-ending converted.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.pdf binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.otf binary
+*.zip binary
+*.gz binary
+*.tar binary
+*.exe binary
+*.dll binary
+*.dylib binary
+*.node binary
+*.gguf binary
+*.docx binary

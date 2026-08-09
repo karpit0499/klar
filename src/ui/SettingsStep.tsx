@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Button, Card, Field, TextInput } from './atoms'
 import { PreferenceControls } from './PreferenceControls'
 import { ResumeReupload } from './ResumeReupload'
@@ -8,6 +8,9 @@ import { SafetyCenter } from './SafetyCenter'
 import { EngineSettingsCard, FeatureFlagsCard } from './EngineSettings'
 import { BudgetNotice } from './BudgetNotice'
 import { ErrorNotice } from './ErrorNotice'
+import { IssueReportCard } from './IssueReportCard'
+import { ResumeDesignLab } from './ResumeDesignLab'
+import { DesktopCapabilityPanel } from './DesktopCapabilityPanel'
 import { wipeAllData } from '../db/db'
 import { clearGroqKey } from '../settings/keys'
 import { clearAdzunaKey, loadAdzunaKey, saveAdzunaKey } from '../settings/adzunaKey'
@@ -19,6 +22,7 @@ import { testAdzunaConnection } from '../settings/adzunaConnection'
 import { toAppError, type AppErrorData } from '../errors/appError'
 import { lockVault } from '../crypto/vault'
 import { APP_VERSION } from '../lib/version'
+import { DEFAULT_APP_FLAGS, loadAppFlags } from '../lib/appFlags'
 
 export function SettingsStep({
   onReset,
@@ -57,6 +61,11 @@ export function SettingsStep({
   const [adzunaError, setAdzunaError] = useState<AppErrorData | null>(null)
   const [resumeDraft, setResumeDraft] = useState<ResumeData | null>(() => resume ? structuredClone(resume) : null)
   const [resumeSaved, setResumeSaved] = useState('')
+  const [resumeLabEnabled, setResumeLabEnabled] =
+    useState(DEFAULT_APP_FLAGS.resumeDesignLab)
+  const updateFlags = useCallback((flags: typeof DEFAULT_APP_FLAGS) => {
+    setResumeLabEnabled(flags.resumeDesignLab)
+  }, [])
 
   useEffect(() => {
     void getActiveRegion().then((region) => setRegionCode(region.code))
@@ -76,6 +85,10 @@ export function SettingsStep({
   }, [])
 
   useEffect(() => { setResumeDraft(resume ? structuredClone(resume) : null) }, [resume])
+
+  useEffect(() => {
+    void loadAppFlags().then(updateFlags)
+  }, [updateFlags])
 
   async function changeRegion(code: string) {
     setRegionCode(code)
@@ -150,6 +163,10 @@ export function SettingsStep({
         </Card>
 
         <SafetyCenter apiKey={apiKey} />
+
+        <IssueReportCard />
+
+        <DesktopCapabilityPanel />
 
         {(onEditFlexible || onAddResume) && (
           <Card className="mt-4 p-4 sm:p-6">
@@ -259,7 +276,9 @@ export function SettingsStep({
         </div>
 
         {/* v2.5 · R10 — per-feature kill switches for the new application-quality work. */}
-        <FeatureFlagsCard />
+        <FeatureFlagsCard onChange={updateFlags} />
+
+        {resume && <ResumeDesignLab resume={resume} enabled={resumeLabEnabled} />}
 
         <Card className="mt-4 p-4 sm:p-6">
           <h2 className="text-xl font-semibold text-ink">{t('settings.regionTitle')}</h2>

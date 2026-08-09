@@ -229,6 +229,15 @@ const analystJob = jd(
 
   const blocked = changes.find((change) => change.finding.status === 'blocked')!
   ok(blocked.decision === 'rejected', 'changeSet: a blocked change defaults to rejected')
+  ok(
+    setDecision(changes, blocked.id, 'accepted').find((change) => change.id === blocked.id)?.decision === 'rejected',
+    'changeSet: domain logic refuses accepting a blocked change',
+  )
+  ok(
+    setEditedText(changes, blocked.id, 'Manually edited but still unverified.')
+      .find((change) => change.id === blocked.id)?.edited === undefined,
+    'changeSet: editing cannot bypass a blocked evidence finding',
+  )
 
   const removed = changes.find((change) => change.target.kind === 'bullet-removed')
   ok(Boolean(removed), 'changeSet: a dropped source bullet is itself a reversible change')

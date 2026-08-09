@@ -1,0 +1,77 @@
+name: Validate unsigned desktop previews without publishing
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/desktop-preview.yml"
+      - "desktop/**"
+      - "model/**"
+      - "public/**"
+      - "qa/desktop/**"
+      - "src/**"
+      - "test/**"
+      - "index.html"
+      - "package.json"
+      - "package-lock.json"
+      - "tsconfig*.json"
+      - "vite.config.ts"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: desktop-preview-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  package:
+    name: ${{ matrix.label }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: macOS arm64
+            runner: macos-15
+            runtime: darwin-arm64
+            dist: desktop:dist:mac-arm64
+          - label: Windows x64
+            runner: windows-2025
+            runtime: win32-x64
+            dist: desktop:dist:win-x64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run qa
+      - run: npm run audit:production
+      - run: node desktop/tools/install-runtime.mjs ${{ matrix.runtime }}
+      - run: node desktop/tools/create-ci-trust-key.mjs
+        env:
+          CI: "true"
+      - run: npm run ${{ matrix.dist }}
+      # Smoke and fuse-check the unpacked application produced by the same
+      # electron-builder invocation as the exact archive hashed below.
+      - run: npm run desktop:smoke
+      - name: Hash final macOS artifact
+        if: runner.os == 'macOS'
+        run: |
+          cd release/desktop
+          shasum -a 256 ./*.zip > SHA256SUMS-macos-arm64.txt
+      - name: Hash final Windows artifact
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $files = Get-ChildItem -Path release/desktop -Filter *.exe | Sort-Object Name
+          if ($files.Count -eq 0) { throw "No Windows preview artifact was produced." }
+          $lines = foreach ($file in $files) {
+            $hash = (Get-FileHash -Path $file.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+            "$hash  $($file.Name)"
+          }
+          $lines | Set-Content -Path release/desktop/SHA256SUMS-windows-x64.txt -Encoding utf8NoBOM

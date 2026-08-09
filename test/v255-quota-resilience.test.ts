@@ -18,7 +18,8 @@ import {
   estimateTailoringRequest,
   tailorResumeWithAi,
 } from '../src/llm/tailorResume.ts'
-import { generationCacheKey } from '../src/packets/cache.ts'
+import { GENERATION_CACHE_CONTRACT, generationCacheKey } from '../src/packets/cache.ts'
+import { stableHash } from '../src/lib/hash.ts'
 import { runMatching, type MatchRunDiagnostics } from '../src/match/index.ts'
 import { buildLocalMatch, isLocalMatch } from '../src/match/fallback.ts'
 import { makeJob } from '../src/sources/normalize.ts'
@@ -264,7 +265,7 @@ const prefs: Preferences = {
     title: 'Senior QA Engineer',
     company: 'Klar Eval GmbH',
     location: { country: 'DE', city: 'Berlin', remote: false },
-    description: 'Playwright TypeScript quality assurance.',
+    description: 'Playwright TypeScript quality assurance. This position must be performed fully on-site in Berlin.',
     url: 'https://example.test/hourly-senior',
     salary: { min: 40, max: 40, currency: 'EUR', period: 'hour' },
   })
@@ -289,7 +290,23 @@ const prefs: Preferences = {
     requiresKey: true,
     fastMatching: false,
   }
-  const base = generationCacheKey({ kind: 'resume', source: resume, job: posting(800, 'cache'), language: 'en', engine })
+  const cacheJob = posting(800, 'cache')
+  const base = generationCacheKey({ kind: 'resume', source: resume, job: cacheJob, language: 'en', engine })
+  const legacyKey = stableHash(JSON.stringify({
+    version: 'v2.5.5',
+    kind: 'resume',
+    source: resume,
+    jobId: cacheJob.id,
+    jobText: `${cacheJob.title}\0${cacheJob.company}\0${cacheJob.description}`,
+    language: 'en',
+    model: engine.model,
+    baseUrl: engine.baseUrl,
+    terms: [],
+    variant: '',
+    context: null,
+  }))
+  assert.equal(GENERATION_CACHE_CONTRACT, 'klar-generation-cache-v2.6.0')
+  assert.notEqual(base, legacyKey, 'v2.5.5 generated prose is invalidated after the v2.6 prompt-contract change')
   const german = generationCacheKey({ kind: 'resume', source: resume, job: posting(800, 'cache'), language: 'de', engine })
   const changedResume = generationCacheKey({ kind: 'resume', source: resumeWithRoles(4, 3), job: posting(800, 'cache'), language: 'en', engine })
   const changedModel = generationCacheKey({
@@ -338,10 +355,14 @@ const prefs: Preferences = {
 
 // Static invariants protect the cumulative v2.5.3.4 handoff.
 assert.match(source('src/lib/config.ts'), /llmRerank: 'off'/)
-assert.match(source('src/match/index.ts'), /prefilter\(jobs, profile, prefs, jobs\.length\)/)
+assert.match(
+  source('src/match/index.ts'),
+  /const selected = filterCareerRelevantJobs\(jobs, profile, prefs\)\.jobs/,
+)
+assert.match(source('src/match/index.ts'), /rankCandidateSetV2\(/)
 assert.doesNotMatch(
   source('src/match/index.ts'),
-  /prefilter\(jobs, profile, prefs, MATCH\.candidateLimit\)/,
+  /(?:prefilter|semanticPrefilter)\(jobs, profile, prefs, MATCH\.candidateLimit\)/,
 )
 assert.match(
   source('src/match/index.ts'),
@@ -355,9 +376,9 @@ assert.match(source('src/llm/groq.ts'), /waitForHeadroom/)
 assert.match(source('src/db/db.ts'), /this\.version\(7\)/)
 assert.doesNotMatch(source('src/db/db.ts'), /this\.version\(8\)/)
 const manifest = JSON.parse(source('package.json')) as { version: string; klarRelease: string }
-assert.equal(manifest.version, '2.5.5')
-assert.equal(manifest.klarRelease, '2.5.5')
-assert.match(source('public/sw.js'), /klar-shell-v8/)
+assert.equal(manifest.version, '2.6.0')
+assert.equal(manifest.klarRelease, '2.6.0')
+assert.match(source('public/sw.js'), /klar-shell-v9/)
 assert.doesNotMatch(source('public/sw.js'), /client\.navigate/)
 assert.match(source('CHANGELOG.md'), /^## v2\.5\.5 — Quota-resilient private matching/m)
 

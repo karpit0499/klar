@@ -337,12 +337,18 @@ export function setDecision(
   id: string,
   decision: ChangeDecision,
 ): ChangeRecord[] {
-  return changes.map((change) => (change.id === id ? { ...change, decision } : change))
+  return changes.map((change) => {
+    if (change.id !== id) return change
+    if (change.finding.status === 'blocked' && decision === 'accepted') return change
+    return { ...change, decision }
+  })
 }
 
 export function setEditedText(changes: ChangeRecord[], id: string, text: string): ChangeRecord[] {
   return changes.map((change) =>
-    change.id === id ? { ...change, edited: text, decision: 'accepted' as const } : change,
+    change.id === id && change.finding.status !== 'blocked'
+      ? { ...change, edited: text, decision: 'accepted' as const }
+      : change,
   )
 }
 

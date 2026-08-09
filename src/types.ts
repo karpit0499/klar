@@ -120,6 +120,8 @@ export type NormalizedJob = {
   raw?: unknown              // original payload, for debugging
   /** When merged during dedup, all the sources this job was seen on. */
   also_on?: { source: SourceId; source_id?: string; url: string }[]
+  /** Stable, content-free identity for records merged as the same vacancy. */
+  duplicateFamily?: string
   /** Forward-compatible Flexible Work fields. All are optional in v2.3. */
   kind?: 'vacancy' | 'open_entry'
   canonicalEmployer?: string
@@ -189,6 +191,114 @@ export type ScoreWeights = {
   seniority: number
 }
 
+/** Ranking-v2 eligibility facts keep known mismatches separate from unknowns. */
+export type RankingEligibilityStatus =
+  | 'match'
+  | 'known_mismatch'
+  | 'unknown'
+  | 'not_applicable'
+
+export type RankingEligibilityKey =
+  | 'work_authorization'
+  | 'location'
+  | 'language'
+  | 'employment_type'
+  | 'working_hours'
+  | 'start_date'
+  | 'certification'
+  | 'dealbreaker'
+
+export type RankingEligibilityFact = {
+  key: RankingEligibilityKey
+  status: RankingEligibilityStatus
+  reason: string
+  /** Exact posting fragment that caused the decision, when one exists. */
+  sourceText?: string
+}
+
+export type RankingEvidence = {
+  source:
+    | 'profile.skill'
+    | 'profile.title'
+    | 'profile.domain'
+    | 'profile.language'
+    | 'profile.certification'
+    | 'profile.experience'
+    | 'profile.summary'
+  value: string
+  strength: 'exact' | 'adjacent'
+}
+
+export type RankingRequirement = {
+  id: string
+  text: string
+  normalized: string
+  priority: 'required' | 'preferred'
+  kind: 'skill' | 'experience' | 'language' | 'certification' | 'education' | 'other'
+  status: 'met' | 'partial' | 'missing' | 'unknown'
+  evidence: RankingEvidence[]
+}
+
+export type RankingFeatureSnapshot = {
+  schemaVersion: 1
+  eligibility: RankingEligibilityFact[]
+  requirements: RankingRequirement[]
+  scores: {
+    roleFunction: number
+    seniority: number
+    requiredCoverage: number
+    preferredCoverage: number
+    domainTransferability: number
+    evidenceDepth: number
+    coreFit: number
+    preferenceFit: number
+    preferenceAdjustment: number
+    postingConfidence: number
+    postingPenalty: number
+    final: number
+  }
+  preferenceSignals: {
+    salary: number
+    location: number
+    workMode: number
+    contract: number
+  }
+  postingSignals: {
+    source: number
+    completeness: number
+    freshness: number
+    duplicateConfidence: number
+  }
+}
+
+export type RankingExplanationSnapshot = {
+  schemaVersion: 1
+  strongSignals: string[]
+  missingMustHaves: string[]
+  uncertainFacts: string[]
+  preferenceEffects: string[]
+  postingConfidenceEffects: string[]
+  disclaimer: string
+}
+
+/**
+ * Persisted deterministic ranking record. Historical records are normalized
+ * without reinterpreting their old score or fabricating unavailable features.
+ */
+export type RankingSnapshot = {
+  schemaVersion: 1
+  rankingVersion: string
+  requirementVersion: string
+  explanationVersion: string
+  inputHash: string
+  candidateSetHash?: string
+  evaluatedAt: string
+  rank?: number
+  historical: boolean
+  features: RankingFeatureSnapshot
+  explanation: RankingExplanationSnapshot
+}
+
 /** LLM scoring result for one job against the profile+prefs. */
 export type MatchResult = {
   jobId: string
@@ -207,6 +317,8 @@ export type MatchResult = {
   confidence?: number
   scoredAt: string
   modelVersion: string
+  /** v2.6: reproducible local ranking inputs, features, and explanation. */
+  ranking?: RankingSnapshot
 }
 
 /** A job the user has saved into the tracker. */

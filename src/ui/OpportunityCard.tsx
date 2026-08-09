@@ -96,6 +96,15 @@ export function OpportunityCard({
       )}
 
       {inferred && <p className="mt-2 text-xs text-faint">{t('flexible.card.inferred')}</p>}
+      <p className="mt-2 text-xs text-faint">
+        {de ? 'Quelle' : 'Source'}: {job.sourceConfidence ?? 'unknown'}
+        {' · '}
+        {de ? 'Abruf' : 'Fetched'}: {formatObserved(job.fetched_at, de)}
+        {job.lastVerifiedAt ? ` · ${de ? 'Geprüft' : 'Verified'}: ${formatObserved(job.lastVerifiedAt, de)}` : ''}
+        {job.also_on?.length && job.duplicateFamily
+          ? ` · ${de ? 'Duplikatfamilie' : 'Duplicate family'}: ${job.duplicateFamily.slice(0, 8)}`
+          : ''}
+      </p>
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <a href={job.url} target="_blank" rel="noreferrer" className="inline-flex">
@@ -120,4 +129,12 @@ export function OpportunityCard({
 
 function formatEuro(amount: number): string {
   return Number.isInteger(amount) ? String(amount) : amount.toFixed(2).replace('.', ',')
+}
+
+function formatObserved(value: string, de: boolean): string {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return '—'
+  return new Intl.DateTimeFormat(de ? 'de-DE' : 'en-GB', {
+    dateStyle: 'medium',
+  }).format(date)
 }

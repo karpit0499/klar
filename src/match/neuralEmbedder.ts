@@ -20,6 +20,8 @@
 import type { NormalizedJob, Preferences, Profile } from '../types'
 import { cosineSim, l2normalize, tokenize, type TextEmbedder } from './embeddings'
 import { buildQueryText, jobText, type Scored } from './semantic'
+import { judgeCareerRelevance } from './relevance'
+import { evaluateJobV2 } from './rankingV2'
 
 /** Anything that turns text into a fixed-length numeric vector, asynchronously. */
 export type AsyncTextEmbedder = {
@@ -131,12 +133,8 @@ export async function semanticPrefilterAsync(
   embedder: AsyncTextEmbedder,
 ): Promise<NormalizedJob[]> {
   const survivors = jobs.filter((j) => {
-    if (prefs.remoteOnly && !j.location.remote) return false
-    if (prefs.dealbreakers.length) {
-      const hay = `${j.title} ${j.company} ${j.description}`.toLowerCase()
-      if (prefs.dealbreakers.some((d) => d.trim() && hay.includes(d.toLowerCase()))) return false
-    }
-    return true
+    if (!judgeCareerRelevance(j, profile, prefs).keep) return false
+    return !evaluateJobV2(j, profile, prefs, { asOf: j.fetched_at }).excludedByKnownMismatch
   })
   const scored = await scoreBySimilarityAsync(survivors, profile, prefs, embedder)
   return scored.slice(0, limit).map((s) => s.job)

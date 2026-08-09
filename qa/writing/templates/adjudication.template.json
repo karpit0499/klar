@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "evidenceKind": "human_release",
+  "corpusId": "REPLACE_WITH_LOCKED_CORPUS_ID",
+  "adjudicatorId": "adjudicator_REPLACE12HEX",
+  "adjudicatorIsHuman": false,
+  "completedAt": "",
+  "reviewerIds": [
+    "reviewer_REPLACE12HEX",
+    "reviewer_REPLACE12HEX"
+  ],
+  "blindToGeneratorAndVariantMapping": false,
+  "samples": [],
+  "conflicts": [],
+  "notes": []
+}

@@ -23,6 +23,11 @@ export type SourceStatus = {
   requested: true
   ok: boolean
   count: number
+  fetchedAt?: string
+  lastSuccessfulRefresh?: string
+  sourceUrl?: string
+  extractionConfidence?: 'published' | 'structured' | 'inferred' | 'unknown'
+  duplicateFamilies?: number
   note?: string
   error?: AppErrorData
 }

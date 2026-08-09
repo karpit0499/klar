@@ -1,6 +1,7 @@
 import 'fake-indexeddb/auto'
 import { strict as assert } from 'node:assert'
-import { strFromU8, unzipSync } from 'fflate'
+import { readFile } from 'node:fs/promises'
+import { unzipSync } from 'fflate'
 import { db } from '../src/db/db'
 import {
   buildChatRequestBody,
@@ -20,8 +21,13 @@ import {
   type EngineSettings,
 } from '../src/llm/provider'
 import { applicationPacketZip } from '../src/packets/download'
+import { createCoverLetterModel, inspectCoverLetterDocx } from '../src/application/coverLetterDocx'
 import { loadPacket, openPacket, updatePacket } from '../src/packets/store'
-import { newPacket } from '../src/packets/types'
+import {
+  ARTIFACT_GENERATOR_CONTRACTS,
+  currentArtifactProvenance,
+  newPacket,
+} from '../src/packets/types'
 import { normalizeResume } from '../src/resume/canonical'
 import type { FlexibleWorkPreferences, NormalizedJob } from '../src/types'
 import {
@@ -36,6 +42,17 @@ import {
 } from '../src/crypto/vault'
 import { isNewerRelease } from '../src/lib/version'
 
+const packageMetadata = JSON.parse(await readFile('package.json', 'utf8')) as {
+  private?: boolean
+  license?: string
+}
+assert.equal(packageMetadata.private, true)
+assert.equal(
+  packageMetadata.license,
+  'UNLICENSED',
+  'shipped package metadata must match Klar’s All Rights Reserved LICENSE',
+)
+
 assert.equal(isNewerRelease('2.5.3'), false)
 assert.equal(isNewerRelease('2.5.3.1'), false)
 assert.equal(isNewerRelease('2.5.3.2'), false)
@@ -45,8 +62,10 @@ assert.equal(isNewerRelease('2.5.3.5'), false)
 assert.equal(isNewerRelease('2.5.2'), false)
 assert.equal(isNewerRelease('2.5.4'), false)
 assert.equal(isNewerRelease('2.5.5'), false)
-assert.equal(isNewerRelease('2.5.6'), true)
-assert.equal(isNewerRelease('2.6.0'), true)
+assert.equal(isNewerRelease('2.5.6'), false)
+assert.equal(isNewerRelease('2.6.0'), false)
+assert.equal(isNewerRelease('2.6.1'), true)
+assert.equal(isNewerRelease('2.7.0'), true)
 assert.equal(isNewerRelease('not-a-release'), false)
 
 const schemas = [
@@ -112,13 +131,25 @@ const resume = normalizeResume({
 })
 
 const zip = unzipSync(new Uint8Array(await (
-  await applicationPacketZip(resume, 'en', 'klar-example', 'Dear team,\nHello.')
+  await applicationPacketZip(
+    resume,
+    'en',
+    'klar-example',
+    createCoverLetterModel({
+      body: 'My TypeScript work supports this role with specific, verified experience.',
+      resume,
+      job,
+      language: 'en',
+      details: { dateIso: '2026-07-31', place: 'Berlin' },
+    }),
+    currentArtifactProvenance(ARTIFACT_GENERATOR_CONTRACTS.coverLetter),
+  )
 ).arrayBuffer()))
 assert.ok(zip['klar-example-en.docx']?.length > 100)
-assert.equal(
-  strFromU8(zip['klar-example-cover-letter-en.txt']),
-  'Dear team,\nHello.',
-)
+const coverLetterName = Object.keys(zip).find((name) => name.endsWith('-cover-letter.docx'))
+assert.ok(coverLetterName)
+assert.equal(Object.keys(zip).some((name) => name.endsWith('.txt')), false)
+assert.ok(inspectCoverLetterDocx(zip[coverLetterName!]).text.includes('verified experience'))
 
 const packet = newPacket('career', job)
 await db.packets.put(packet)

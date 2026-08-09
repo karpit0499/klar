@@ -34,6 +34,27 @@ export function isFailedMatchPlaceholder(match: MatchResult): boolean {
     match.rationale.trim() === LEGACY_FAILED_RATIONALE
 }
 
+/** The exact job fields sent to the provider and therefore relevant to its cache. */
+export function rerankJobPromptInput(job: NormalizedJob) {
+  return {
+    jobId: job.id,
+    title: job.title,
+    company: job.company,
+    city: job.location.city,
+    remote: job.location.remote || undefined,
+    salary: job.salary.min != null || job.salary.max != null
+      ? {
+          min: job.salary.min,
+          max: job.salary.max,
+          period: job.salary.period,
+          currency: job.salary.currency,
+        }
+      : undefined,
+    employment_type: job.employment_type,
+    description: job.description.slice(0, MATCH.descriptionChars),
+  }
+}
+
 /** Build the (deterministic, testable) user prompt for one batch. */
 export function buildRerankPrompt(
   profile: Profile,
@@ -61,18 +82,7 @@ export function buildRerankPrompt(
   // v2.4.3: only the fields the scorer actually reads. A whole `location`
   // object, lat/lng included, was being sent per job when the city and the
   // remote flag are all that is reasoned about.
-  const jobsBlock = batch.map((j) => ({
-    jobId: j.id,
-    title: j.title,
-    company: j.company,
-    city: j.location.city,
-    remote: j.location.remote || undefined,
-    salary: j.salary.min != null || j.salary.max != null
-      ? { min: j.salary.min, max: j.salary.max, period: j.salary.period, currency: j.salary.currency }
-      : undefined,
-    employment_type: j.employment_type,
-    description: j.description.slice(0, MATCH.descriptionChars),
-  }))
+  const jobsBlock = batch.map(rerankJobPromptInput)
 
   return [
     'CANDIDATE PROFILE:',

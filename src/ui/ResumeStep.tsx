@@ -7,6 +7,7 @@ import type { ResumeData } from '../resume/types'
 import { useLocale } from '../i18n/LocaleProvider'
 import { ErrorNotice } from './ErrorNotice'
 import { toAppError, type AppErrorData } from '../errors/appError'
+import { recordOperationalEvent } from '../observability/events'
 
 export function ResumeStep({ apiKey, requireGroq, onDraft }: {
   apiKey?: string
@@ -32,6 +33,11 @@ export function ResumeStep({ apiKey, requireGroq, onDraft }: {
     setBusy('parsing'); setError(null)
     try { await onDraft(await extractResumeData(rawText, key)) }
     catch (caught) {
+      void recordOperationalEvent({
+        name: 'failed_parse',
+        outcome: 'error',
+        documentKind: 'resume',
+      }).catch(() => undefined)
       setError(toAppError(caught, {
         category: 'parsing', message: de ? 'Der Lebenslauf konnte nicht strukturiert werden.' : 'The résumé could not be structured.',
         dataSafe: true, available: de ? 'Der aktuelle Arbeitsbereich ist unverändert.' : 'The current workspace is unchanged.',
@@ -44,6 +50,11 @@ export function ResumeStep({ apiKey, requireGroq, onDraft }: {
     setBusy('reading'); setError(null); setFileName(file.name)
     try { const result = await extractText(file); setBusy(''); await structure(result.text) }
     catch (caught) {
+      void recordOperationalEvent({
+        name: 'failed_parse',
+        outcome: 'error',
+        documentKind: 'resume',
+      }).catch(() => undefined)
       setBusy(''); setError(toAppError(caught, {
         category: 'parsing', message: de ? 'Die Datei konnte lokal nicht gelesen werden.' : 'The file could not be read locally.',
         dataSafe: true, available: de ? 'Die Datei wurde nicht gespeichert oder hochgeladen.' : 'The file was not saved or uploaded.',

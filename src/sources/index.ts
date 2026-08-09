@@ -13,6 +13,8 @@ import { dedupeJobs } from './dedup'
 import { WORKER_URL } from '../lib/config'
 import type { AdzunaKey } from '../settings/adzunaKey'
 import { AppError, serializeAppError, toAppError } from '../errors/appError'
+import { recordOperationalEvent } from '../observability/events'
+import { initialSourceStatus, persistCareerSourceHealth } from './health'
 
 export type GatherOptions = {
   signal?: AbortSignal
@@ -61,7 +63,7 @@ export async function gatherJobs(q: SearchQuery, opts: GatherOptions = {}): Prom
       fetchBa(q, { signal: opts.signal })
         .then((r) => {
           buckets.push(r.jobs)
-          status.push({ source: 'ba', requested: true, ok: true, count: r.jobs.length, note: r.note })
+          status.push(initialSourceStatus('ba', { ok: true, count: r.jobs.length, note: r.note }))
         })
         .catch((e) => status.push(failedStatus('ba', e))),
     )
@@ -71,7 +73,7 @@ export async function gatherJobs(q: SearchQuery, opts: GatherOptions = {}): Prom
       fetchArbeitnow(q, { signal: opts.signal })
         .then((r) => {
           buckets.push(r.jobs)
-          status.push({ source: 'arbeitnow', requested: true, ok: true, count: r.jobs.length })
+          status.push(initialSourceStatus('arbeitnow', { ok: true, count: r.jobs.length }))
         })
         .catch((e) => status.push(failedStatus('arbeitnow', e))),
     )
@@ -81,7 +83,7 @@ export async function gatherJobs(q: SearchQuery, opts: GatherOptions = {}): Prom
       fetchAdzuna(q, { signal: opts.signal, key: opts.adzunaKey, country: opts.region?.adzunaCountry })
         .then((r) => {
           buckets.push(r.jobs)
-          status.push({ source: 'adzuna', requested: true, ok: true, count: r.jobs.length, note: r.note })
+          status.push(initialSourceStatus('adzuna', { ok: true, count: r.jobs.length, note: r.note }))
         })
         .catch((e) => status.push(failedStatus('adzuna', e))),
     )
@@ -91,13 +93,11 @@ export async function gatherJobs(q: SearchQuery, opts: GatherOptions = {}): Prom
       fetchAllAts(opts.signal)
         .then((r) => {
           buckets.push(r.jobs)
-          status.push({
-            source: 'ats',
-            requested: true,
+          status.push(initialSourceStatus('ats', {
             ok: true,
             count: r.jobs.length,
             note: `${r.okCompanies} companies${r.failedCompanies ? `, ${r.failedCompanies} skipped` : ''}`,
-          })
+          }))
         })
         .catch((e) => status.push(failedStatus('ats', e))),
     )
@@ -107,14 +107,49 @@ export async function gatherJobs(q: SearchQuery, opts: GatherOptions = {}): Prom
 
   const rawJobs = buckets.flat()
   const jobs = dedupeJobs(rawJobs)
+  for (const item of status) {
+    item.duplicateFamilies = jobs.filter((job) => {
+      if (!(job.also_on?.length ?? 0)) return false
+      const sources = new Set<string>([
+        job.source,
+        ...(job.also_on ?? []).map((entry) => entry.source),
+      ])
+      return item.source === 'ats'
+        ? ['greenhouse', 'lever', 'ashby'].some((source) => sources.has(source))
+        : sources.has(item.source)
+    }).length
+  }
+  if (rawJobs.length > jobs.length) {
+    void recordOperationalEvent({
+      name: 'duplicate_merge',
+      outcome: 'ok',
+      sourceFamily: 'career',
+    }).catch(() => undefined)
+  }
+  for (const item of status.filter((source) => !source.ok)) {
+    void recordOperationalEvent({
+      name: 'blocked_page',
+      outcome: 'error',
+      sourceFamily: item.source,
+    }).catch(() => undefined)
+  }
+  if (jobs.some((job) =>
+    job.validThrough && new Date(job.validThrough).getTime() < Date.now())) {
+    void recordOperationalEvent({
+      name: 'stale_listing',
+      outcome: 'error',
+      sourceFamily: 'career',
+    }).catch(() => undefined)
+  }
   // Stable order: newest first, then by title.
   jobs.sort((a, b) => (b.posted_at ?? '').localeCompare(a.posted_at ?? '') || a.title.localeCompare(b.title))
   const order: SourceStatus['source'][] = ['ba', 'arbeitnow', 'adzuna', 'ats']
   status.sort((a, b) => order.indexOf(a.source) - order.indexOf(b.source))
+  const persistedStatus = await persistCareerSourceHealth(status).catch(() => status)
   return {
     jobs,
-    status,
-    sourcesRequested: status.map((item) => item.source),
+    status: persistedStatus,
+    sourcesRequested: persistedStatus.map((item) => item.source),
     rawCount: rawJobs.length,
     duplicatesRemoved: rawJobs.length - jobs.length,
   }
@@ -130,12 +165,10 @@ function failedStatus(source: SourceStatus['source'], error: unknown): SourceSta
         available: 'Other requested sources can still return results.',
         action: { label: 'Retry this search', kind: 'retry' },
       })
-  return {
-    source,
-    requested: true,
+  return initialSourceStatus(source, {
     ok: false,
     count: 0,
     note: appError.message,
     error: serializeAppError(appError),
-  }
+  })
 }

@@ -4,7 +4,7 @@ Klar is a private, browser-based workspace for finding work, understanding job
 fit, preparing grounded applications, and tracking every opportunity from first
 look to final decision.
 
-**Current release: v2.5.5**
+**Current release: v2.6.0 Developer Preview**
 
 [**Open Klar →**](https://karpit0499.github.io/klar/) ·
 [What changed →](CHANGELOG.md) ·
@@ -18,14 +18,14 @@ _Highlights from Latest Update_
 
 ---
 
-v2.5.5 makes private deterministic ranking the default, so a career search
-spends zero AI tokens even when a key is configured. Every relevant job remains
-visible with slider-responsive skills, salary, location, and seniority factors.
-AI is requested only when you explicitly ask for an explanation on one opened
-job—including a result originally ranked below 40. Application actions show an
-honest rolling budget, wait only when waiting can help, and split an
-exceptionally long résumé into evidence-checked role chunks rather than sending
-a request that cannot fit.
+v2.6 is a measurement-first foundation release. It adds a versioned,
+evidence-linked ranking snapshot; source-health and privacy-reviewed issue
+reporting; semantic English/German cover-letter DOCX and recruiter-message
+checks; an internal code-generated résumé design lab; and a hardened macOS
+ARM64/Windows x64 desktop preview for a managed, signed local-model package.
+The desktop artifacts remain unsigned and internal. Adapter training, blinded
+human quality studies, production signing, and public optional local
+intelligence remain explicit graduation gates rather than claimed outcomes.
 
 ## What Klar does
 
@@ -66,6 +66,10 @@ zero-token, while **Explain this job with AI** can enrich any one opened result
 and caches that explanation. The compatibility switch may automatically enrich
 at most the top 40 locally ranked jobs; that boundary never limits how many
 relevant jobs Klar displays.
+
+Saved historical scores retain their original model label and value. In the
+Tracker, **Rescore with current profile** is an explicit action; Klar never
+silently reinterprets an earlier score under ranking v2.
 
 ### Search diagnostics you can act on
 
@@ -112,14 +116,26 @@ For a saved job, Klar can prepare English and German material independently:
 - interview questions and talking points; and
 - one saved application packet with notes and generation history.
 
-Packet download uses a single ZIP containing the DOCX résumé and, when present,
-the cover-letter text. This avoids the multiple-download behavior that mobile
+Packet download uses a single ZIP containing the DOCX résumé and the required
+semantic cover-letter DOCX. Filenames include candidate, company, role, and
+language without leaking internal IDs. This avoids the multiple-download behavior that mobile
 browsers commonly block.
 
-Klar refuses unsupported facts instead of inventing experience, figures, dates,
-skills, or credentials. AI output should still be reviewed before it is sent.
-Malformed or omitted AI fields fall back to the verified source résumé, and
-Klar derives its change notes locally from the evidence-audited edits.
+New v2.6 packets store row-level schema defaults. Each generated résumé, letter,
+and recruiter message stores its own per-language content/generator contract;
+each download records the source-artifact provenance and exact exporter used.
+Older or mixed packet rows stay conservatively labelled historical even when
+one artifact is regenerated, so Klar never silently calls untouched content a
+v2.6 artifact.
+
+For résumé tailoring, Klar rejects evidence-blocked rewrites at the decision,
+edit, and export boundaries; malformed or omitted AI fields fall back to the
+verified source résumé, and change notes are derived locally. Cover-letter and
+recruiter-message prompts project verified evidence and deterministic checks
+catch known risky patterns, but those checks are not a complete factual audit.
+Every generated letter and message still needs human review. The genuine
+blinded writing gate remains HOLD, so v2.6 makes no per-output guarantee that a
+model cannot invent a subtle claim.
 
 ### Flexible work without a résumé
 
@@ -210,6 +226,13 @@ Local HTTP model servers cannot be reached from the hosted HTTPS app because
 browsers block mixed content. A self-hosted Klar instance can configure an
 appropriate compatible endpoint.
 
+v2.6 also contains a managed Electron developer preview. Its main process runs
+a pinned llama.cpp server only on loopback and accepts only checksum- and
+signature-verified model packages. The tested Qwen3.5-9B Q4_K_M base package is
+an engineering feasibility input, not a bundled download. Precision and Writer
+adapter slots remain empty until the free Kaggle T4 experiment and frozen
+quality gates are genuinely completed.
+
 The default Groq models use strict JSON Schema responses, bounded output
 reservations, and low reasoning effort where supported. Empty or failed
 provider responses are treated as recoverable errors and are never saved as
@@ -249,6 +272,8 @@ npm run typecheck
 npm test
 npm run build
 npm run qa
+npm run audit:production
+npm run audit:build-tools
 ```
 
 `npm run qa` is the release gate. It validates:
@@ -258,7 +283,13 @@ npm run qa
 - generated Worker binding types;
 - the complete regression suite;
 - the production build; and
-- a Cloudflare Worker deployment dry run.
+- a Cloudflare Worker deployment dry run;
+- the generated Kaggle notebook freshness check; and
+- the web and desktop renderer bundle budgets.
+
+The production and full build-tool audits are separate release gates. Both are
+green for the lockfile verified on 8 August 2026; rerun both immediately before
+release because the advisory database can change.
 
 The current suite includes résumé-derived search regressions for role, job
 market, seniority, location, keyword ranking, local vocabulary ranking, prompt
@@ -269,7 +300,8 @@ context, cache invalidation, diagnostics, and displayed-score behavior.
 ## Deployment
 
 The production app is deployed to GitHub Pages from `main` by GitHub Actions.
-Pull requests run the full quality gate before merge. The production build
+Pull requests run the complete web quality gate before merge. Desktop-relevant
+pull requests also run the cross-platform preview workflow. The production build
 publishes `/klar/version.json`, and open clients check that metadata so they can
 offer a reload when a newer release is available.
 
@@ -286,6 +318,15 @@ browser origins must include the production GitHub Pages origin.
 - Local vocabulary ranking is deterministic retrieval, not neural semantic
   understanding.
 - Generated text needs human review.
+- v2.6 ranking and writing human-review gates are not passed until genuine
+  blinded English/German reviewers complete the frozen templates.
+- The macOS and Windows desktop packages are unsigned internal previews;
+  operating-system trust warnings are expected.
+- The free Kaggle adapter experiment has not run without owner Kaggle access,
+  so no adapter-quality or production-local-AI claim is made.
+- Dependency audits can change after the dated v2.6 verification; any new high
+  or critical production or build-tool finding returns public distribution to
+  HOLD until it is fixed or explicitly reviewed.
 - Clearing browser data can remove an unbacked-up workspace.
 - Salary calculations are estimates, not tax or financial advice.
 
@@ -293,6 +334,11 @@ browser origins must include the production GitHub Pages origin.
 
 ## Release history
 
+- **v2.6.0 — Measured intelligence foundation:** versioned evidence-linked
+  ranking, frozen synthetic and human evaluation gates, source-health and safe
+  GitHub report routing, semantic bilingual application documents, internal
+  résumé design experiments, signed local-model package verification, and
+  unsigned hardened desktop previews.
 - **v2.5.5 — Quota resilience:** unbounded zero-token deterministic career
   matching by default, one-job AI explanations for any opened result, rolling
   budget scheduling and visibility, bounded evidence-checked résumé chunks, and

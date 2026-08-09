@@ -8,13 +8,26 @@
 // wrong; this test is what keeps it that way.
 import 'fake-indexeddb/auto'
 import { strict as assert } from 'node:assert'
+import { readFileSync } from 'node:fs'
 import { db } from '../src/db/db'
 import {
   beginGeneration, deletePacket, endGeneration, listPackets, loadPacket, openPacket,
   pushPacketVersion, recordPacketExport, restorePacketVersion, updatePacket,
 } from '../src/packets/store'
 import {
-  emptyLanguageState, flexibleReadiness, newPacket, packetId, packetReadiness,
+  ARTIFACT_GENERATOR_CONTRACTS,
+  CURRENT_PACKET_FORMAT_VERSIONS,
+  LEGACY_ARTIFACT_PROVENANCE,
+  coverLetterProvenanceAfterManualEdit,
+  currentArtifactProvenance,
+  emptyLanguageState,
+  flexibleReadiness,
+  isCurrentCoverLetterProvenance,
+  isCurrentRecruiterMessageProvenance,
+  newPacket,
+  packetId,
+  packetReadiness,
+  recruiterMessageProvenanceAfterManualEdit,
 } from '../src/packets/types'
 import { disableVault, enableVault, getVaultStatus, lockVault, unlockVault } from '../src/crypto/vault'
 import { makeJob } from '../src/sources/normalize'
@@ -61,6 +74,7 @@ assert.ok(db.tables.some((table) => table.name === 'packets'), 'the packets tabl
   assert.equal(packet.id, packetId('career', job.id))
   assert.equal(packet.kind, 'career')
   assert.equal(packet.notes, '')
+  assert.deepEqual(packet.formatVersions, CURRENT_PACKET_FORMAT_VERSIONS)
 
   // Re-opening returns the SAME packet, refreshed with the current job snapshot.
   const again = await openPacket('career', { ...job, title: 'Junior Data Analyst (m/w/d)' })
@@ -109,11 +123,64 @@ assert.ok(db.tables.some((table) => table.name === 'packets'), 'the packets tabl
 // --- Export history, version history, interrupted generation -----------------
 {
   const id = packetId('career', job.id)
-  await recordPacketExport(id, { at: new Date().toISOString(), format: 'docx', filename: 'a.docx' })
-  await recordPacketExport(id, { at: new Date().toISOString(), format: 'pdf' })
+  await recordPacketExport(id, {
+    at: new Date().toISOString(),
+    format: 'docx',
+    artifact: 'resume',
+    filename: 'a.docx',
+  })
+  await recordPacketExport(id, { at: new Date().toISOString(), format: 'pdf', artifact: 'resume' })
   const withHistory = await loadPacket(id)
   assert.equal(withHistory?.exportHistory.length, 2, 'exports are recorded')
   assert.equal(withHistory?.exportHistory[0].format, 'pdf', 'newest export first')
+  assert.deepEqual(
+    withHistory?.exportHistory[0].formatVersions,
+    CURRENT_PACKET_FORMAT_VERSIONS,
+    'every new export pins the packet/content/prompt/exporter contract',
+  )
+  assert.equal(
+    withHistory?.exportHistory[0].exporterContract,
+    'klar-resume-browser-print-v2.6.0',
+    'a PDF records the exact browser-print exporter instead of claiming DOCX provenance',
+  )
+  assert.equal(
+    'recruiterMessage' in (withHistory?.exportHistory[0].sourceArtifactProvenance ?? {}),
+    false,
+    'workspace-only recruiter text is not falsely claimed as part of a résumé export',
+  )
+  await updatePacket(id, (row) => {
+    const previous = row.languages.en ?? emptyLanguageState()
+    row.languages.en = {
+      ...previous,
+      shortMessage: 'Hello — test-only reviewed recruiter text.',
+      artifactProvenance: {
+        ...previous.artifactProvenance,
+        recruiterMessage: currentArtifactProvenance(
+          ARTIFACT_GENERATOR_CONTRACTS.reviewedRecruiterMessage,
+        ),
+      },
+    }
+  })
+  await recordPacketExport(id, {
+    at: new Date().toISOString(),
+    format: 'zip',
+    artifact: 'packet',
+    language: 'en',
+    filename: 'application-packet.zip',
+  })
+  const packetExportState = await loadPacket(id)
+  assert.equal(
+    packetExportState?.languages.en?.artifactProvenance?.recruiterMessage
+      ?.generatorContract,
+    ARTIFACT_GENERATOR_CONTRACTS.reviewedRecruiterMessage,
+    'reviewed recruiter provenance stays in the saved packet workspace',
+  )
+  assert.equal(
+    'recruiterMessage' in
+      (packetExportState?.exportHistory[0].sourceArtifactProvenance ?? {}),
+    false,
+    'the DOCX-only packet ZIP does not claim that workspace-only recruiter text was exported',
+  )
 
   for (let index = 0; index < GENERATION.packetVersionLimit + 3; index += 1) {
     await pushPacketVersion(id, `v${index}`)
@@ -132,8 +199,136 @@ assert.ok(db.tables.some((table) => table.name === 'packets'), 'the packets tabl
 
   await beginGeneration(id, { stage: 'resume', language: 'en', startedAt: new Date().toISOString() })
   assert.equal((await loadPacket(id))?.generation?.stage, 'resume', 'an in-flight stage is recorded')
+  assert.deepEqual((await loadPacket(id))?.formatVersions, CURRENT_PACKET_FORMAT_VERSIONS)
   await endGeneration(id)
   assert.equal((await loadPacket(id))?.generation, undefined, 'finishing clears the stage')
+}
+
+// --- Unversioned historical rows are labelled, never silently called v2.6 ---
+{
+  const legacy = newPacket('career', { ...job, source_id: 'legacy-packet', id: 'legacy-packet' })
+  delete (legacy as Partial<typeof legacy>).formatVersions
+  legacy.exportHistory = [{
+    at: '2026-01-01T00:00:00.000Z',
+    format: 'docx',
+  } as typeof legacy.exportHistory[number]]
+  await db.packets.put(legacy)
+  const normalized = await loadPacket(legacy.id)
+  assert.equal(normalized?.formatVersions.packetSchema, 'historical:unversioned')
+  assert.equal(
+    normalized?.exportHistory[0].formatVersions.coverLetterExporter,
+    'historical:unversioned',
+  )
+  assert.equal(normalized?.exportHistory[0].exporterContract, 'historical:unversioned')
+  assert.equal(
+    isCurrentCoverLetterProvenance(normalized?.languages.en?.artifactProvenance?.coverLetter),
+    false,
+    'loading a historical saved letter never silently graduates its export provenance',
+  )
+  assert.equal(
+    isCurrentCoverLetterProvenance(
+      currentArtifactProvenance(ARTIFACT_GENERATOR_CONTRACTS.reviewedCoverLetter),
+    ),
+    true,
+    'an explicit body-only review creates current export provenance without rewriting the text',
+  )
+  const aiLetterProvenance = currentArtifactProvenance(
+    ARTIFACT_GENERATOR_CONTRACTS.coverLetter,
+  )
+  assert.equal(
+    coverLetterProvenanceAfterManualEdit(aiLetterProvenance)?.generatorContract,
+    ARTIFACT_GENERATOR_CONTRACTS.reviewedCoverLetter,
+    'editing a current AI letter records human-reviewed provenance',
+  )
+  assert.deepEqual(
+    coverLetterProvenanceAfterManualEdit(LEGACY_ARTIFACT_PROVENANCE),
+    LEGACY_ARTIFACT_PROVENANCE,
+    'editing legacy text does not silently upgrade it before explicit confirmation',
+  )
+  const aiRecruiterProvenance = currentArtifactProvenance(
+    ARTIFACT_GENERATOR_CONTRACTS.recruiterMessage,
+  )
+  const reviewedRecruiterProvenance =
+    recruiterMessageProvenanceAfterManualEdit(aiRecruiterProvenance)
+  assert.equal(
+    reviewedRecruiterProvenance?.generatorContract,
+    ARTIFACT_GENERATOR_CONTRACTS.reviewedRecruiterMessage,
+    'editing a current AI recruiter message records explicit human-reviewed provenance',
+  )
+  assert.equal(
+    isCurrentRecruiterMessageProvenance(reviewedRecruiterProvenance),
+    true,
+    'the reviewed recruiter-message contract remains a current packet artifact',
+  )
+  assert.deepEqual(
+    recruiterMessageProvenanceAfterManualEdit(LEGACY_ARTIFACT_PROVENANCE),
+    LEGACY_ARTIFACT_PROVENANCE,
+    'editing a historical recruiter message does not silently relabel its origin',
+  )
+
+  await beginGeneration(legacy.id, {
+    stage: 'resume',
+    language: 'en',
+    startedAt: '2026-08-01T00:00:00.000Z',
+  })
+  assert.equal(
+    (await loadPacket(legacy.id))?.formatVersions.packetSchema,
+    'historical:unversioned',
+    'starting work must not relabel untouched historical artifacts',
+  )
+  await pushPacketVersion(legacy.id, 'before-regeneration')
+  assert.equal(
+    (await loadPacket(legacy.id))?.versions[0].snapshot.formatVersions?.packetSchema,
+    'historical:unversioned',
+    'the pre-generation snapshot keeps its historical provenance',
+  )
+  await updatePacket(legacy.id, (row) => {
+    const previous = row.languages.en ?? emptyLanguageState()
+    row.languages.en = {
+      ...previous,
+      artifactProvenance: {
+        ...previous.artifactProvenance,
+        resume: currentArtifactProvenance(
+          ARTIFACT_GENERATOR_CONTRACTS.deterministicResume,
+        ),
+      },
+    }
+    delete row.generation
+  })
+
+  await recordPacketExport(legacy.id, {
+    at: '2026-08-01T00:00:00.000Z',
+    format: 'docx',
+    artifact: 'resume',
+    language: 'en',
+    filename: 'legacy-resume.docx',
+  })
+  const legacyAfterExport = await loadPacket(legacy.id)
+  assert.equal(
+    legacyAfterExport?.formatVersions.packetSchema,
+    'historical:unversioned',
+    'exporting does not relabel the source packet as current',
+  )
+  assert.equal(
+    legacyAfterExport?.exportHistory[0].formatVersions.packetSchema,
+    'historical:unversioned',
+    'the export preserves historical packet/content/prompt provenance',
+  )
+  assert.equal(
+    legacyAfterExport?.exportHistory[0].formatVersions.resumeExporter,
+    CURRENT_PACKET_FORMAT_VERSIONS.resumeExporter,
+    'only the exporter actually used is graduated to the current contract',
+  )
+  assert.equal(
+    legacyAfterExport?.exportHistory[0].formatVersions.coverLetterExporter,
+    'historical:unversioned',
+    'unused exporters are not mislabelled as current',
+  )
+  assert.equal(
+    legacyAfterExport?.exportHistory[0].sourceArtifactProvenance.resume?.generatorContract,
+    ARTIFACT_GENERATOR_CONTRACTS.deterministicResume,
+    'a newly generated artifact records its own exact contract inside a mixed historical packet',
+  )
 }
 
 // --- The flexible packet never needs a résumé --------------------------------
@@ -190,6 +385,68 @@ assert.ok(db.tables.some((table) => table.name === 'packets'), 'the packets tabl
   const fresh = newPacket('career', job)
   assert.equal(fresh.versions.length, 0)
   assert.equal(fresh.exportHistory.length, 0)
+}
+
+// --- Export enforcement exists at both the button and handler boundaries ----
+{
+  const bundleSource = readFileSync('src/ui/ApplicationBundle.tsx', 'utf8')
+  assert.match(
+    bundleSource,
+    /async function downloadResume\(\) \{\s+if \(!tailored \|\| !readiness\.ready\) return/,
+  )
+  assert.match(
+    bundleSource,
+    /async function downloadResumePdf\(\) \{\s+if \(!tailored \|\| !readiness\.ready\) return/,
+  )
+  assert.match(
+    bundleSource,
+    /async function downloadLetter\(\) \{\s+if \(!letterModel \|\| !letterExportReady \|\| !isCurrentCoverLetterProvenance\(letterProvenance\)\) return/,
+    'the standalone cover-letter handler independently enforces document checks and current provenance',
+  )
+  assert.match(
+    bundleSource,
+    /async function downloadAll\(\) \{[\s\S]*?!isCurrentCoverLetterProvenance\(letterProvenance\)[\s\S]*?!readiness\.ready[\s\S]*?exportBusy[\s\S]*?\) return/,
+    'the packet handler independently enforces résumé evidence, cover-letter checks, and current provenance',
+  )
+  assert.ok(
+    (bundleSource.match(/disabled=\{!readiness\.ready\}/g) ?? []).length >= 2,
+    'both standalone résumé export controls are disabled while evidence is blocked',
+  )
+  assert.match(
+    bundleSource,
+    /disabled=\{exportBusy \|\| !letterExportReady \|\| !readiness\.ready\}/,
+    'the packet ZIP control enforces the same evidence gate',
+  )
+  assert.match(
+    bundleSource,
+    /Confirm reviewed body-only text/,
+    'historical text stays editable and offers an explicit, free review migration',
+  )
+  assert.match(
+    bundleSource,
+    /coverLetterProvenanceAfterManualEdit\(\s+previous\.artifactProvenance\?\.coverLetter/,
+    'manual edits change current AI provenance to human-reviewed without graduating legacy text',
+  )
+  assert.match(
+    bundleSource,
+    /recruiterMessageProvenanceAfterManualEdit\(\s+previous\.artifactProvenance\?\.recruiterMessage/,
+    'manual recruiter-message edits record reviewed provenance without graduating legacy text',
+  )
+  assert.match(
+    bundleSource,
+    /async function makeLetter\(\) \{\s+if \(!packet\) return/,
+    'cover-letter generation independently requires an opened packet',
+  )
+  assert.match(
+    bundleSource,
+    /async function makeShortMessage\(\) \{\s+if \(!packet\) return/,
+    'short-message generation independently requires an opened packet',
+  )
+  assert.match(bundleSource, /disabled=\{letterBusy \|\| !packet\}/)
+  assert.match(
+    bundleSource,
+    /disabled=\{messageBusy \|\| !messagePrerequisitesReady \|\| !packet\}/,
+  )
 }
 
 console.log('v25-packets.test.ts: all tests passed')

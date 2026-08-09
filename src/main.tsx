@@ -51,7 +51,7 @@ async function checkForRelease(): Promise<void> {
 // Register the service worker for offline support (feature 8.2). Only in a
 // production build, and using the app's base path so it works on GitHub Pages
 // project sites served from /<repo>/.
-if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+if (import.meta.env.PROD && !window.klarDesktop && 'serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     const swUrl = `${import.meta.env.BASE_URL}sw.js`
     navigator.serviceWorker

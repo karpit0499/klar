@@ -1,0 +1,183 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://klar.invalid/schemas/model-manifest.v1.json",
+  "title": "Klar local model manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "artifactId",
+    "version",
+    "kind",
+    "baseModel",
+    "quantization",
+    "runtime",
+    "hardware",
+    "compatibility",
+    "artifacts",
+    "provenance",
+    "rollbackArtifactId"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "artifactId": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,95}$"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?$"
+    },
+    "kind": { "const": "klar-local-model" },
+    "baseModel": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "revision", "license", "source"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1, "maxLength": 256 },
+        "revision": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "license": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "source": {
+          "type": "string",
+          "format": "uri",
+          "pattern": "^https://"
+        }
+      }
+    },
+    "quantization": {
+      "enum": ["F16", "Q8_0", "Q6_K", "Q5_K_M", "Q4_K_M"]
+    },
+    "runtime": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["engine", "version", "contextTokens"],
+      "properties": {
+        "engine": { "const": "llama.cpp" },
+        "version": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "contextTokens": {
+          "type": "integer",
+          "minimum": 1024,
+          "maximum": 32768
+        }
+      }
+    },
+    "hardware": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "minimumMemoryBytes",
+        "recommendedMemoryBytes",
+        "expectedPackageBytes"
+      ],
+      "properties": {
+        "minimumMemoryBytes": { "type": "integer", "minimum": 0 },
+        "recommendedMemoryBytes": { "type": "integer", "minimum": 0 },
+        "expectedPackageBytes": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "compatibility": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["app", "runtime", "promptSchemas", "adapters", "platforms"],
+      "properties": {
+        "app": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "runtime": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "promptSchemas": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1, "maxLength": 128 },
+          "uniqueItems": true
+        },
+        "adapters": {
+          "type": "array",
+          "items": { "enum": ["precision-v1", "writer-v1"] },
+          "uniqueItems": true
+        },
+        "platforms": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "darwin-arm64",
+              "darwin-x64",
+              "win32-x64",
+              "win32-arm64",
+              "linux-x64",
+              "linux-arm64"
+            ]
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        }
+      }
+    },
+    "artifacts": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 3,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["role", "path", "mediaType"],
+        "properties": {
+          "role": {
+            "enum": ["model", "adapter_precision", "adapter_writer"]
+          },
+          "path": {
+            "type": "string",
+            "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*\\\\).+$"
+          },
+          "mediaType": { "type": "string", "minLength": 1, "maxLength": 128 }
+        }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "createdAt",
+        "builder",
+        "sourceCommit",
+        "recipe",
+        "sourceArtifact"
+      ],
+      "properties": {
+        "createdAt": { "type": "string", "format": "date-time" },
+        "builder": { "type": "string", "minLength": 1, "maxLength": 256 },
+        "sourceCommit": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "recipe": { "type": "string", "minLength": 1, "maxLength": 512 },
+        "sourceArtifact": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "repository",
+            "revision",
+            "filename",
+            "source",
+            "bytes",
+            "sha256"
+          ],
+          "properties": {
+            "repository": { "type": "string", "minLength": 1, "maxLength": 256 },
+            "revision": { "type": "string", "minLength": 1, "maxLength": 128 },
+            "filename": { "type": "string", "minLength": 1, "maxLength": 256 },
+            "source": {
+              "type": "string",
+              "format": "uri",
+              "pattern": "^https://"
+            },
+            "bytes": { "type": "integer", "minimum": 1 },
+            "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+          }
+        }
+      }
+    },
+    "rollbackArtifactId": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9._-]{2,95}$"
+        }
+      ]
+    }
+  }
+}

@@ -31,6 +31,8 @@ export type AppFlags = {
   budgetGuard: boolean
   /** v2.5.5: split only permanently oversized résumé requests by role. */
   tailoringChunking: boolean
+  /** v2.6 internal evaluation surface; never changes the production exporter. */
+  resumeDesignLab: boolean
 }
 
 const KEY = 'appFlags.v25'
@@ -43,6 +45,7 @@ export const DEFAULT_APP_FLAGS: AppFlags = {
   deterministicMatching: true,
   budgetGuard: true,
   tailoringChunking: true,
+  resumeDesignLab: false,
 }
 
 export async function loadAppFlags(): Promise<AppFlags> {

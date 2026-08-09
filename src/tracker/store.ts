@@ -3,7 +3,10 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
 import type { MatchResult, NormalizedJob, TrackedJob, TrackStatus } from '../types'
+import type { Preferences, Profile } from '../types'
 import { getVaultStatus, readSensitiveContent, updateSensitiveContent } from '../crypto/vault'
+import { buildLocalMatch } from '../match/fallback'
+import { evaluateJobV2 } from '../match/rankingV2'
 
 export function useTracked(): TrackedJob[] {
   return useLiveQuery(loadTracked, [], [] as TrackedJob[])
@@ -45,6 +48,36 @@ export async function setNotes(jobId: string, notes: string): Promise<void> {
   row.notes = notes
   row.updatedAt = new Date().toISOString()
   await putTracked(row)
+}
+
+/**
+ * Explicitly replace a saved historical score with the current deterministic
+ * contract. Nothing rescored in the background: the user chooses this action.
+ */
+export async function rescoreTrackedJob(
+  jobId: string,
+  profile: Profile,
+  prefs: Preferences,
+  locale: 'en' | 'de',
+): Promise<MatchResult | undefined> {
+  const row = await getTracked(jobId)
+  if (!row) return undefined
+  const evaluatedAt = new Date().toISOString()
+  const ranking = evaluateJobV2(row.job, profile, prefs, {
+    asOf: evaluatedAt,
+    includeKnownMismatches: true,
+  }).snapshot
+  row.match = buildLocalMatch(
+    row.job,
+    profile,
+    prefs,
+    evaluatedAt,
+    locale,
+    ranking,
+  )
+  row.updatedAt = evaluatedAt
+  await putTracked(row)
+  return row.match
 }
 
 // --- Reminders & contacts (feature 5.5) --------------------------------------

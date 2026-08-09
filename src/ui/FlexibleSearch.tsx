@@ -6,6 +6,7 @@
 // partial / limited state — never "No jobs found" while sources are unfinished.
 // ============================================================================
 import { useEffect, useRef, useState } from 'react'
+import { useLiveQuery } from 'dexie-react-hooks'
 import { Button, Card, Badge, TextInput } from './atoms'
 import { OpportunityCard } from './OpportunityCard'
 import { FlexiblePrepare } from './FlexiblePrepare'
@@ -15,14 +16,20 @@ import { openPacket, updatePacket } from '../packets/store'
 import { useFlexibleSearch } from '../flexible/useFlexibleSearch'
 import { createFlexibleSearch, recordFlexibleRun, getFlexibleSearch, splitFlexibleFresh } from '../flexible/savedFlexibleSearches'
 import type { SearchSessionSnapshot, SourceStatus } from '../flexible/searchSession'
+import { loadAllHealth } from '../flexible/resilience'
+import { FLEXIBLE_REGISTRY_DE } from '../flexible/connectors/registry.de'
+import type { ConnectorConfig, ConnectorType } from '../flexible/connectors/types'
 
 export function FlexibleSearch({
+  active,
   preferences,
   savedSearchId,
   onEdit,
   switcher,
   onSavePreferences,
 }: {
+  /** Hidden results stay mounted, while any preparation overlay is suspended. */
+  active: boolean
   preferences: FlexibleWorkPreferences
   savedSearchId?: string
   onEdit?: () => void
@@ -126,7 +133,7 @@ export function FlexibleSearch({
         )}
       </div>
 
-      {snapshot && snapshot.totalSources > 0 && <SourceStatusPanel snapshot={snapshot} />}
+      {snapshot && snapshot.totalSources > 0 && <SourceStatusPanel snapshot={snapshot} onRefresh={start} />}
 
       {/* Results */}
       {current.length > 0 ? (
@@ -172,7 +179,7 @@ export function FlexibleSearch({
         )
       )}
 
-      {preparing && onSavePreferences && (
+      {active && preparing && onSavePreferences && (
         <FlexiblePrepare
           job={preparing}
           preferences={preferences}
@@ -211,11 +218,25 @@ function TerminalBanner({ snapshot, onRetry }: { snapshot: SearchSessionSnapshot
   )
 }
 
-function SourceStatusPanel({ snapshot }: { snapshot: SearchSessionSnapshot }) {
-  const { t } = useLocale()
+function SourceStatusPanel({
+  snapshot,
+  onRefresh,
+}: {
+  snapshot: SearchSessionSnapshot
+  onRefresh: () => void
+}) {
+  const { locale, t } = useLocale()
+  const de = locale === 'de'
+  const health = useLiveQuery(loadAllHealth, [], [])
+  const healthById = new Map((health ?? []).map((row) => [row.connectorId, row]))
   // v2.4.2: say plainly how much the relevance gate removed, rather than
   // silently shrinking the result set.
   const hiddenTotal = Object.values(snapshot.filtered ?? {}).reduce((sum, n) => sum + n, 0)
+  const duplicateFamilies = new Set(
+    snapshot.pages.flat()
+      .filter((job) => (job.also_on?.length ?? 0) > 0)
+      .map((job) => job.duplicateFamily),
+  ).size
   return (
     <details className="mt-3 rounded-md border border-border bg-surface">
       <summary className="min-h-tap cursor-pointer list-none px-4 py-2 text-sm font-medium text-ink">
@@ -226,19 +247,92 @@ function SourceStatusPanel({ snapshot }: { snapshot: SearchSessionSnapshot }) {
           {t('flexible.search.hidden', { count: hiddenTotal })}
         </p>
       )}
+      <p className="border-t border-border px-4 py-2 text-xs text-faint">
+        {de ? 'Zusammengeführte Duplikatfamilien' : 'Merged duplicate families'}: {duplicateFamilies}
+      </p>
       <ul className="border-t border-border px-4 py-2">
-        {snapshot.sources.map((source) => (
-          <li key={source.connectorId} className="flex items-center justify-between gap-3 py-1 text-sm">
-            <span className="truncate text-ink">{source.employerFamily}</span>
-            <span className="flex shrink-0 items-center gap-2 text-muted">
-              {source.count > 0 && <span className="tabular-nums">{source.count}</span>}
-              <SourceBadge status={source.status} />
-            </span>
-          </li>
-        ))}
+        {snapshot.sources.map((source) => {
+          const config = CONFIG_BY_ID.get(source.connectorId)
+          const row = healthById.get(source.connectorId)
+          const sourceUrl = config ? sourceUrlFor(config) : undefined
+          return (
+            <li key={source.connectorId} className="border-b border-border py-3 text-sm last:border-0">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <span className="font-medium text-ink">{source.employerFamily}</span>
+                  <p className="mt-1 text-xs text-faint">
+                    {de ? 'Abruf' : 'Fetched'}: {source.fetchedAt ? formatHealthTime(source.fetchedAt, de) : '—'}
+                    {' · '}
+                    {de ? 'Letzter Erfolg' : 'Last success'}: {row?.lastSuccessAt
+                      ? formatHealthTime(row.lastSuccessAt, de)
+                      : '—'}
+                    {' · '}
+                    {de ? 'Extraktionssicherheit' : 'Extraction confidence'}: {confidenceForType(source.type)}
+                  </p>
+                  {sourceUrl && (
+                    <a
+                      href={sourceUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mt-1 inline-block max-w-full truncate text-xs text-accent underline"
+                    >
+                      {sourceUrl}
+                    </a>
+                  )}
+                </div>
+                <span className="flex shrink-0 items-center gap-2 text-muted">
+                  {source.count > 0 && <span className="tabular-nums">{source.count}</span>}
+                  <SourceBadge status={source.status} />
+                </span>
+              </div>
+              <div className="mt-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    sessionStorage.setItem('klar-source-report.v26', source.connectorId)
+                    window.dispatchEvent(new CustomEvent('klar:report-source'))
+                  }}
+                >
+                  {de ? 'Quelle melden' : 'Report source'}
+                </Button>
+              </div>
+            </li>
+          )
+        })}
       </ul>
+      <div className="border-t border-border px-4 py-3">
+        <Button variant="ghost" size="sm" onClick={onRefresh}>
+          {de ? 'Quellen jetzt aktualisieren' : 'Refresh sources now'}
+        </Button>
+      </div>
     </details>
   )
+}
+
+const CONFIG_BY_ID = new Map(FLEXIBLE_REGISTRY_DE.map((config) => [config.id, config]))
+
+function sourceUrlFor(config: ConnectorConfig): string | undefined {
+  if (config.fallback.kind === 'open_entry') return config.fallback.officialUrl
+  if (config.fallback.kind === 'official_search') return config.fallback.url
+  if (config.fallback.officialSearchUrl) return config.fallback.officialSearchUrl
+  const host = config.allowedHosts[0]
+  return host ? `https://${host}/` : undefined
+}
+
+function confidenceForType(type: ConnectorType): 'published' | 'structured' | 'unknown' {
+  if (type === 'api' || type === 'feed' || type === 'open_entry') return 'published'
+  if (type === 'portal' || type === 'sitemap') return 'structured'
+  return 'unknown'
+}
+
+function formatHealthTime(value: string, de: boolean): string {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return '—'
+  return new Intl.DateTimeFormat(de ? 'de-DE' : 'en-GB', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(date)
 }
 
 function SourceBadge({ status }: { status: SourceStatus }) {

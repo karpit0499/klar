@@ -1,10 +1,20 @@
 import type { SearchDiagnostics, ZeroResultReason } from '../search/diagnostics'
 import { ErrorNotice } from './ErrorNotice'
-import { useT } from '../i18n/LocaleProvider'
+import { Button } from './atoms'
+import { useLocale } from '../i18n/LocaleProvider'
 import type { TranslationKey } from '../i18n/translations'
 
-export function SearchDiagnosticsPanel({ diagnostics }: { diagnostics: SearchDiagnostics }) {
-  const t = useT()
+export function SearchDiagnosticsPanel({
+  diagnostics,
+  onRefresh,
+  refreshDisabled = false,
+}: {
+  diagnostics: SearchDiagnostics
+  onRefresh?: () => void
+  refreshDisabled?: boolean
+}) {
+  const { locale, t } = useLocale()
+  const de = locale === 'de'
   return (
     <details className="mt-4 rounded-lg border border-border bg-surface-2 p-3 text-sm">
       <summary className="min-h-tap cursor-pointer font-semibold leading-[44px] text-ink">
@@ -43,14 +53,62 @@ export function SearchDiagnosticsPanel({ diagnostics }: { diagnostics: SearchDia
       <div className="mt-3 space-y-2">
         {diagnostics.sources.map((source) => (
           <div key={source.source} className="rounded-md border border-border bg-surface p-3">
-            <p className="font-medium text-ink">
-              {source.source}: {source.ok ? t('search.sourceSuccess', { count: source.count }) : t('search.failed')}
-            </p>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <p className="font-medium text-ink">
+                  {source.source}: {source.ok ? t('search.sourceSuccess', { count: source.count }) : t('search.failed')}
+                </p>
+                <p className="mt-1 text-xs text-faint">
+                  {de ? 'Abruf' : 'Fetched'}: {source.fetchedAt ? formatTime(source.fetchedAt, locale) : '—'}
+                  {' · '}
+                  {de ? 'Letzter Erfolg' : 'Last success'}: {source.lastSuccessfulRefresh
+                    ? formatTime(source.lastSuccessfulRefresh, locale)
+                    : '—'}
+                </p>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  sessionStorage.setItem('klar-source-report.v26', source.source)
+                  window.dispatchEvent(new CustomEvent('klar:report-source'))
+                }}
+              >
+                {de ? 'Quelle melden' : 'Report source'}
+              </Button>
+            </div>
+            <dl className="mt-2 grid gap-1 sm:grid-cols-2">
+              <Diagnostic
+                label={de ? 'Extraktionssicherheit' : 'Extraction confidence'}
+                value={source.extractionConfidence ?? 'unknown'}
+              />
+              <Diagnostic
+                label={de ? 'Duplikatfamilien' : 'Duplicate families'}
+                value={source.duplicateFamilies ?? 0}
+              />
+            </dl>
+            {source.sourceUrl && (
+              <a
+                className="mt-2 inline-block break-all text-xs text-accent underline"
+                href={source.sourceUrl}
+                target="_blank"
+                rel="noreferrer"
+              >
+                {source.sourceUrl}
+              </a>
+            )}
             {source.note && <p className="mt-1 wrap-anywhere text-muted">{source.note}</p>}
             {source.error && <div className="mt-2"><ErrorNotice error={source.error} /></div>}
           </div>
         ))}
       </div>
+      {onRefresh && (
+        <div className="mt-3">
+          <Button variant="ghost" size="sm" onClick={onRefresh} disabled={refreshDisabled}>
+            {de ? 'Quellen jetzt aktualisieren' : 'Refresh sources now'}
+          </Button>
+        </div>
+      )}
       {diagnostics.zeroResultNextStep && (
         <p className="mt-3 rounded-md border border-accent/40 bg-accent-tint p-3 font-medium text-ink">
           {t('search.next', {
@@ -62,6 +120,15 @@ export function SearchDiagnosticsPanel({ diagnostics }: { diagnostics: SearchDia
       )}
     </details>
   )
+}
+
+function formatTime(value: string, locale: 'en' | 'de'): string {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return '—'
+  return new Intl.DateTimeFormat(locale === 'de' ? 'de-DE' : 'en-GB', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(date)
 }
 
 function zeroResultTranslation(reason: ZeroResultReason): TranslationKey {
