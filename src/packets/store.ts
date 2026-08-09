@@ -130,7 +130,7 @@ export async function recordPacketExport(
     let exporterContract: string
     if (entry.artifact === 'resume') {
       exporterContract = entry.format === 'pdf'
-        ? 'klar-resume-browser-print-v2.6.0'
+        ? 'klar-resume-browser-print-v2.6.0.1'
         : CURRENT_PACKET_FORMAT_VERSIONS.resumeExporter
       if (entry.format === 'docx') {
         formatVersions.resumeExporter = CURRENT_PACKET_FORMAT_VERSIONS.resumeExporter

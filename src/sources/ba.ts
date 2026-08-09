@@ -3,7 +3,7 @@
 // source (huge volume at entry/mid tiers). No CORS → goes through the Worker.
 //
 // Verified endpoints (public key "jobboerse-jobsuche", injected by the Worker):
-//   search: /pc/v4/jobs?was=&wo=&umkreis=&size=&page=
+//   search: /pc/v6/jobs?was=&wo=&umkreis=&angebotsart=&size=&page=
 //   detail: /pc/v4/jobdetails/<base64(refnr)>   (for the full description)
 // The search list has NO description, so we fetch it lazily (drawer / matching).
 // ============================================================================
@@ -14,26 +14,34 @@ import { clean, makeJob, toISO } from './normalize'
 import { stripHtml } from '../lib/html'
 
 type BaSearchResponse = {
-  stellenangebote?: BaListing[]
+  ergebnisliste?: BaListing[]
   maxErgebnisse?: number
 }
+
 type BaListing = {
-  refnr: string
-  titel?: string
-  beruf?: string
-  arbeitgeber?: string
-  aktuelleVeroeffentlichungsdatum?: string
-  externeUrl?: string
-  arbeitsort?: {
-    ort?: string
-    region?: string
-    land?: string
-    plz?: string
-    koordinaten?: { lat?: number; lon?: number }
+  referenznummer?: string
+  stellenangebotsTitel?: string
+  hauptberuf?: string
+  firma?: string
+  externeURL?: string
+  homeofficemoeglich?: boolean
+  veroeffentlichungszeitraum?: {
+    von?: string
   }
+  datumErsteVeroeffentlichung?: string
+  stellenlokationen?: {
+    adresse?: {
+      ort?: string
+      region?: string
+      land?: string
+      plz?: string
+    }
+    breite?: number
+    laenge?: number
+  }[]
 }
 
-/** Public web detail page — a reliable apply/detail link when externeUrl is absent. */
+/** Public web detail page — a reliable apply/detail link when externeURL is absent. */
 function baWebUrl(refnr: string): string {
   return `https://www.arbeitsagentur.de/jobsuche/jobdetail/${encodeURIComponent(refnr)}`
 }
@@ -47,39 +55,56 @@ export const fetchBa: Adapter = async (q: SearchQuery, opts = {}) => {
   const umkreis = q.where?.radius_km ?? 25
   const page = opts.page ?? 1
   const qs =
-    `/pc/v4/jobs?was=${encodeURIComponent(was)}` +
+    `/pc/v6/jobs?was=${encodeURIComponent(was)}` +
     (wo ? `&wo=${encodeURIComponent(wo)}` : '') +
-    `&umkreis=${umkreis}&size=50&page=${page}`
+    `&umkreis=${umkreis}&angebotsart=1&size=50&page=${page}`
 
-  const data = await getJson<BaSearchResponse>(workerUrl('ba', qs), { signal: opts.signal })
-  const listings = data.stellenangebote ?? []
+  const data = await getJson<BaSearchResponse>(workerUrl('ba', qs), {
+    signal: opts.signal,
+  })
+  // BA omits ergebnisliste entirely when maxErgebnisse is zero.
+  const listings = data.ergebnisliste ?? []
 
-  const jobs = listings
-    .filter((l) => l.refnr)
-    .map((l) => {
-      const ext = clean(l.externeUrl)
-      const koord = l.arbeitsort?.koordinaten
-      return makeJob({
+  const jobs = listings.flatMap((listing) => {
+    const refnr = clean(listing.referenznummer)
+    if (!refnr) return []
+
+    const externalUrl = clean(listing.externeURL)
+    const workplace = listing.stellenlokationen?.[0]
+    const address = workplace?.adresse
+    const publishedAt =
+      clean(listing.veroeffentlichungszeitraum?.von) ??
+      clean(listing.datumErsteVeroeffentlichung)
+
+    return [
+      makeJob({
         source: 'ba',
-        source_id: l.refnr,
-        title: clean(l.titel) ?? clean(l.beruf) ?? 'Untitled role',
-        company: clean(l.arbeitgeber) ?? 'Unknown company',
+        source_id: refnr,
+        title:
+          clean(listing.stellenangebotsTitel) ??
+          clean(listing.hauptberuf) ??
+          'Untitled role',
+        company: clean(listing.firma) ?? 'Unknown company',
         location: {
-          city: clean(l.arbeitsort?.ort),
-          region: clean(l.arbeitsort?.region),
-          country: clean(l.arbeitsort?.land) ?? 'Deutschland',
-          remote: false, // the list view doesn't say; detail's homeofficemoeglich does
-          lat: koord?.lat,
-          lng: koord?.lon,
+          city: clean(address?.ort),
+          region: clean(address?.region),
+          country: clean(address?.land) ?? 'Deutschland',
+          remote: listing.homeofficemoeglich ?? false,
+          lat: workplace?.breite,
+          lng: workplace?.laenge,
         },
         description: '', // enriched on demand — see fetchBaDetail
-        url: ext && ext.startsWith('http') ? ext : baWebUrl(l.refnr),
-        posted_at: toISO(l.aktuelleVeroeffentlichungsdatum),
+        url:
+          externalUrl && /^https?:\/\//i.test(externalUrl)
+            ? externalUrl
+            : baWebUrl(refnr),
+        posted_at: toISO(publishedAt),
         language: 'de',
         tags: [],
-        raw: l,
-      })
-    })
+        raw: listing,
+      }),
+    ]
+  })
 
   return { jobs }
 }
@@ -105,15 +130,17 @@ export async function fetchBaDetail(
   remote?: boolean
   salaryText?: string
 }> {
-  // The detail endpoint keys on base64(refnr). btoa handles ASCII refnrs fine.
+  // The detail endpoint remains v4 and keys on base64(refnr).
   const encoded = btoa(refnr)
-  const data = await getJson<BaDetail>(workerUrl('ba', `/pc/v4/jobdetails/${encoded}`), {
-    signal,
-  })
+  const data = await getJson<BaDetail>(
+    workerUrl('ba', `/pc/v4/jobdetails/${encoded}`),
+    { signal },
+  )
   const salaryText =
     data.verguetungsangabe && data.verguetungsangabe !== 'KEINE_ANGABEN'
       ? data.verguetungsangabe
       : undefined
+
   return {
     description: stripHtml(data.stellenangebotsBeschreibung ?? ''),
     employment_type: data.arbeitszeitVollzeit ? 'full-time' : undefined,

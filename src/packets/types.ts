@@ -46,7 +46,7 @@ export const CURRENT_PACKET_FORMAT_VERSIONS: PacketFormatVersions = Object.freez
   packetSchema: 'klar-packet-v1',
   contentSchema: 'klar-application-content-v1',
   writingPromptSchema: 'klar-writing-v2.6.0',
-  resumeExporter: 'klar-resume-docx-v2.6.0',
+  resumeExporter: 'klar-resume-docx-v2.6.0.1',
   coverLetterExporter: 'klar-cover-letter-docx-v1',
   archiveExporter: 'klar-application-packet-zip-v1',
 })

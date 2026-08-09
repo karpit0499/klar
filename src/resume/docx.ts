@@ -1,142 +1,331 @@
 // ============================================================================
-// Render a (tailored) ResumeData into an ATS-safe DOCX (feature 12).
+// Render a (tailored) ResumeData into Klar's production cross-compatible DOCX.
 //
-// Follows the Appendix-A "Klar Standard" rules: SINGLE COLUMN, no tables /
-// columns / text boxes / images, contact details as plain text in the BODY
-// (never a header/footer — parsers skip those), real round bullets, consistent
-// MM/YYYY dates, Calibri 11pt body / 12–13pt bold headings, ~1.5cm margins.
-//
-// `resumeDocxDocument` returns a `docx` Document (used by the parse-safety test
-// via Packer.toBuffer); `downloadResumeDocx` packs it to a Blob and downloads it
-// in the browser. Both render the SAME content.
+// The format is reconstructed from the three approved v2.6 reference samples:
+// A4, single column, Arial, compact role grouping, a restrained production
+// accent, real Heading 1 paragraphs, real bullets, and no tables, columns,
+// text boxes, images, headers, or footers. Contact details remain plain text in
+// the document body so Word, LibreOffice, Google Docs, and ATS parsers read the
+// same linear order.
 // ============================================================================
 import {
-  Document, Packer, Paragraph, TextRun, AlignmentType, LevelFormat, convertMillimetersToTwip,
+  AlignmentType,
+  BorderStyle,
+  Document,
+  HeadingLevel,
+  LevelFormat,
+  Packer,
+  Paragraph,
+  TextRun,
 } from 'docx'
 import type { ResumeData, ResumeLanguage } from './types'
-import { SECTION_HEADINGS, formatDateRange } from './types'
 import { triggerBlobDownload } from '../export/download'
 import {
   assertDocxSafeText,
   hasDocxUnsafeText,
   wordSafeStyles,
 } from '../export/wordCompatibility'
+import {
+  RESUME_TEMPLATE_COLORS,
+  RESUME_TEMPLATE_HEADINGS,
+  crossCompatibleDateRange,
+  displayResumeUrl,
+  resumeAccent,
+  resumeHeadline,
+} from './template'
 
-const BODY_FONT = 'Calibri'
-const BODY_SIZE = 22 // 11pt (half-points)
-const NAME_SIZE = 32 // 16pt
-const HEADING_SIZE = 26 // 13pt
+const BODY_FONT = 'Arial'
+const BODY_SIZE = 20 // 10 pt
+const SUMMARY_SIZE = 21 // 10.5 pt
+const NAME_SIZE = 47 // 23.5 pt
+const HEADLINE_SIZE = 22 // 11 pt
+const HEADING_SIZE = 21 // 10.5 pt
+const META_SIZE = 18 // 9 pt
 
-function heading(text: string): Paragraph {
+const normalRun = (
+  text: string,
+  options: {
+    bold?: boolean
+    italics?: boolean
+    color?: string
+    size?: number
+  } = {},
+): TextRun => new TextRun({
+  text,
+  bold: options.bold,
+  italics: options.italics,
+  color: options.color ?? RESUME_TEMPLATE_COLORS.ink,
+  size: options.size ?? BODY_SIZE,
+  font: BODY_FONT,
+})
+
+function sectionHeading(text: string, accent: string): Paragraph {
   return new Paragraph({
-    spacing: { before: 200, after: 60 },
-    children: [new TextRun({ text, bold: true, size: HEADING_SIZE, font: BODY_FONT })],
+    heading: HeadingLevel.HEADING_1,
+    spacing: { before: 140, after: 60 },
+    keepNext: true,
+    keepLines: true,
+    border: {
+      bottom: {
+        color: RESUME_TEMPLATE_COLORS.rule,
+        size: 4,
+        space: 2,
+        style: BorderStyle.SINGLE,
+      },
+    },
+    children: [new TextRun({
+      text,
+      bold: true,
+      allCaps: true,
+      color: accent,
+      size: HEADING_SIZE,
+      font: BODY_FONT,
+    })],
   })
 }
-function line(text: string, opts: { bold?: boolean; italics?: boolean; size?: number } = {}): Paragraph {
+
+function entryLine(primary: string, secondary = ''): Paragraph {
+  const children = primary
+    ? [
+        normalRun(primary, { bold: true }),
+        ...(secondary ? [normalRun(`  |  ${secondary}`)] : []),
+      ]
+    : [normalRun(secondary, { bold: true })]
   return new Paragraph({
-    spacing: { after: 20 },
-    children: [new TextRun({ text, bold: opts.bold, italics: opts.italics, size: opts.size ?? BODY_SIZE, font: BODY_FONT })],
-  })
-}
-function bullet(text: string): Paragraph {
-  return new Paragraph({
-    numbering: { reference: 'klar-bullets', level: 0 },
-    spacing: { after: 20 },
-    children: [new TextRun({ text, size: BODY_SIZE, font: BODY_FONT })],
+    spacing: { before: 20, after: 10 },
+    keepNext: true,
+    keepLines: true,
+    children,
   })
 }
 
-/** Build the docx Document for a (tailored) résumé in the given language. */
+function metaLine(text: string, keepNext = false): Paragraph {
+  return new Paragraph({
+    spacing: { after: 30 },
+    keepNext,
+    keepLines: true,
+    children: [normalRun(text, {
+      bold: true,
+      color: RESUME_TEMPLATE_COLORS.muted,
+      size: META_SIZE,
+    })],
+  })
+}
+
+function bulletLine(text: string): Paragraph {
+  return new Paragraph({
+    numbering: { reference: 'klar-cross-compatible-bullets', level: 0 },
+    spacing: { after: 44 },
+    keepLines: true,
+    children: [normalRun(text)],
+  })
+}
+
+function labelledLine(label: string, value: string): Paragraph {
+  return new Paragraph({
+    spacing: { after: 26 },
+    keepLines: true,
+    children: label
+      ? [normalRun(`${label}:`, { bold: true }), normalRun(` ${value}`)]
+      : [normalRun(value)],
+  })
+}
+
+/** Build the production DOCX for a tailored résumé in the requested language. */
 export function resumeDocxDocument(data: ResumeData, lang: ResumeLanguage): Document {
-  const H = SECTION_HEADINGS[lang]
+  const accent = resumeAccent(data)
+  const headings = RESUME_TEMPLATE_HEADINGS[lang]
   const children: Paragraph[] = []
 
-  // --- Contact (plain text, in the body) -------------------------------------
-  children.push(new Paragraph({
-    spacing: { after: 40 },
-    children: [new TextRun({ text: data.contact.name, bold: true, size: NAME_SIZE, font: BODY_FONT })],
-  }))
-  const contactBits = [
-    data.contact.location, data.contact.email, data.contact.phone,
-    ...data.contact.links.map((l) => l.url),
-  ].filter(Boolean) as string[]
-  if (contactBits.length) children.push(line(contactBits.join('  ·  ')))
+  const headline = resumeHeadline(data)
+  const primaryContact = [
+    data.contact.location,
+    data.contact.phone,
+    data.contact.email,
+  ].filter(Boolean).join('  |  ')
+  const links = data.contact.links
+    .map((link) => displayResumeUrl(link.url))
+    .filter(Boolean)
+    .join('  |  ')
 
-  // --- Summary / Kurzprofil --------------------------------------------------
+  const headerRows: {
+    text: string
+    size: number
+    bold: boolean
+    color: string
+    after: number
+  }[] = [{
+    text: data.contact.name,
+    size: NAME_SIZE,
+    bold: true,
+    color: RESUME_TEMPLATE_COLORS.ink,
+    after: 16,
+  }]
+  if (headline) {
+    headerRows.push({
+      text: headline,
+      size: HEADLINE_SIZE,
+      bold: true,
+      color: accent,
+      after: 60,
+    })
+  }
+  if (primaryContact) {
+    headerRows.push({
+      text: primaryContact,
+      size: META_SIZE,
+      bold: false,
+      color: RESUME_TEMPLATE_COLORS.muted,
+      after: links ? 20 : 80,
+    })
+  }
+  if (links) {
+    headerRows.push({
+      text: links,
+      size: META_SIZE,
+      bold: false,
+      color: RESUME_TEMPLATE_COLORS.muted,
+      after: 80,
+    })
+  }
+
+  headerRows.forEach((row, index) => {
+    const last = index === headerRows.length - 1
+    children.push(new Paragraph({
+      spacing: { after: row.after },
+      keepNext: true,
+      keepLines: true,
+      border: last
+        ? {
+            bottom: {
+              color: RESUME_TEMPLATE_COLORS.rule,
+              size: 4,
+              space: 3,
+              style: BorderStyle.SINGLE,
+            },
+          }
+        : undefined,
+      children: [normalRun(row.text, {
+        bold: row.bold,
+        color: row.color,
+        size: row.size,
+      })],
+    }))
+  })
+
+  // The approved samples use an unlabeled profile paragraph under the header.
   if (data.summary) {
-    children.push(heading(H.summary))
-    children.push(line(data.summary))
+    children.push(new Paragraph({
+      spacing: { before: 40, after: 80 },
+      keepLines: true,
+      children: [normalRun(data.summary, { size: SUMMARY_SIZE })],
+    }))
   }
 
-  // --- Experience ------------------------------------------------------------
   if (data.experience.length) {
-    children.push(heading(H.experience))
-    for (const e of data.experience) {
-      const head = [e.title, e.company, e.city].filter(Boolean).join(' — ')
-      children.push(line(head, { bold: true }))
-      const range = formatDateRange(e.start, e.end, e.current, lang)
-      if (range) children.push(line(range, { italics: true }))
-      for (const b of e.bullets) children.push(bullet(b.text))
+    children.push(sectionHeading(headings.experience, accent))
+    for (const role of data.experience) {
+      children.push(entryLine(role.title, role.company))
+      const range = crossCompatibleDateRange(
+        role.start,
+        role.end,
+        role.current,
+        lang,
+      )
+      const metadata = [role.city, range].filter(Boolean).join('  |  ')
+      if (metadata) children.push(metaLine(metadata, role.bullets.length > 0))
+      for (const item of role.bullets) children.push(bulletLine(item.text))
     }
   }
 
-  // --- Education -------------------------------------------------------------
-  if (data.education.length) {
-    children.push(heading(H.education))
-    for (const ed of data.education) {
-      const main = [ed.degree, ed.field].filter(Boolean).join(', ')
-      const inst = [ed.institution, ed.city].filter(Boolean).join(', ')
-      children.push(line([main, inst].filter(Boolean).join(' — '), { bold: true }))
-      const range = formatDateRange(ed.start, ed.end, false, lang)
-      if (range) children.push(line(range, { italics: true }))
-    }
-  }
-
-  // --- Skills (grouped, comma lists — no bars) --------------------------------
-  if (data.skills.length) {
-    children.push(heading(H.skills))
-    for (const g of data.skills) {
-      children.push(line(`${g.group ? g.group + ': ' : ''}${g.items.map((item) => item.name).join(', ')}`))
-    }
-  }
-
-  // --- Languages -------------------------------------------------------------
-  if (data.languages.length) {
-    children.push(heading(H.languages))
-    children.push(line(data.languages.map((l) => `${l.lang}${l.level ? ` — ${l.level}` : ''}`).join('  ·  ')))
-  }
-
-  // --- Projects --------------------------------------------------------------
   if (data.projects.length) {
-    children.push(heading(H.projects))
-    for (const p of data.projects) {
-      const t = `${p.name}${p.summary ? ` — ${p.summary}` : ''}`
-      children.push(line(t, { bold: true }))
-      const meta = [p.tech?.length ? p.tech.join(', ') : '', p.link ?? ''].filter(Boolean).join('  ·  ')
-      if (meta) children.push(line(meta))
+    children.push(sectionHeading(headings.projects, accent))
+    for (const project of data.projects) {
+      children.push(entryLine(project.name, project.summary))
+      const metadata = [
+        project.tech?.length ? project.tech.join(', ') : '',
+        project.link ? displayResumeUrl(project.link) : '',
+      ].filter(Boolean).join('  |  ')
+      if (metadata) children.push(metaLine(metadata))
     }
   }
 
-  // --- Certifications --------------------------------------------------------
+  if (data.education.length) {
+    children.push(sectionHeading(headings.education, accent))
+    for (const education of data.education) {
+      const qualification = [education.degree, education.field]
+        .filter(Boolean)
+        .join(', ')
+      const institution = [education.institution, education.city]
+        .filter(Boolean)
+        .join(', ')
+      children.push(entryLine(qualification, institution))
+      const range = crossCompatibleDateRange(
+        education.start,
+        education.end,
+        false,
+        lang,
+      )
+      if (range) children.push(metaLine(range))
+    }
+  }
+
   if (data.certifications.length) {
-    children.push(heading(H.certifications))
-    children.push(line(data.certifications.map((item) => item.name).join(', ')))
+    children.push(sectionHeading(headings.certifications, accent))
+    for (const certification of data.certifications) {
+      children.push(entryLine(
+        certification.name,
+        [certification.issuer, certification.issued]
+          .filter(Boolean)
+          .join(', '),
+      ))
+    }
+  }
+
+  if (data.skills.length || data.languages.length) {
+    children.push(sectionHeading(headings.skillsAndLanguages, accent))
+    for (const group of data.skills) {
+      children.push(labelledLine(
+        group.group ?? '',
+        group.items.map((item) => item.name).join(', '),
+      ))
+    }
+    if (data.languages.length) {
+      children.push(labelledLine(
+        headings.languages,
+        data.languages
+          .map((item) => `${item.lang}${item.level ? ` ${item.level}` : ''}`)
+          .join('  ·  '),
+      ))
+    }
   }
 
   return new Document({
     creator: 'Klar',
     title: `${data.contact.name} — CV`,
+    description: 'Klar cross-compatible résumé template',
     styles: wordSafeStyles({ font: BODY_FONT, size: BODY_SIZE }),
     numbering: {
       config: [{
-        reference: 'klar-bullets',
+        reference: 'klar-cross-compatible-bullets',
         levels: [{
           level: 0,
           format: LevelFormat.BULLET,
-          text: '\u2022', // real round bullet •
+          text: '\u2022',
           alignment: AlignmentType.LEFT,
-          style: { paragraph: { indent: { left: convertMillimetersToTwip(6), hanging: convertMillimetersToTwip(4) } } },
+          style: {
+            paragraph: {
+              indent: {
+                left: 450,
+                hanging: 225,
+              },
+            },
+            run: {
+              color: accent,
+              font: BODY_FONT,
+              size: BODY_SIZE,
+            },
+          },
         }],
       }],
     },
@@ -144,8 +333,10 @@ export function resumeDocxDocument(data: ResumeData, lang: ResumeLanguage): Docu
       properties: {
         page: {
           margin: {
-            top: convertMillimetersToTwip(18), right: convertMillimetersToTwip(18),
-            bottom: convertMillimetersToTwip(18), left: convertMillimetersToTwip(18),
+            top: 822,
+            right: 964,
+            bottom: 850,
+            left: 964,
           },
         },
       },
@@ -154,12 +345,7 @@ export function resumeDocxDocument(data: ResumeData, lang: ResumeLanguage): Docu
   })
 }
 
-/**
- * Every string that reaches a `w:t` element in this document. The cover-letter
- * exporter runs the same check; without it a single control character carried
- * in from PDF text extraction produces a package Word refuses to open, and the
- * packet ZIP would ship it beside a letter that opens correctly.
- */
+/** Every string that can reach a w:t element in the production document. */
 function resumeTextValues(data: ResumeData): (string | undefined)[] {
   return [
     data.contact.name,
@@ -181,6 +367,7 @@ function resumeTextValues(data: ResumeData): (string | undefined)[] {
       entry.degree,
       entry.field,
       entry.institution,
+      entry.city,
       entry.start,
       entry.end,
     ]),
@@ -211,13 +398,16 @@ export function resumeHasDocxUnsafeText(data: ResumeData): boolean {
   )
 }
 
-/** Browser: pack the résumé to a .docx Blob. */
-export async function resumeToDocxBlob(data: ResumeData, lang: ResumeLanguage): Promise<Blob> {
+/** Browser: pack the résumé into a Word-compatible DOCX Blob. */
+export async function resumeToDocxBlob(
+  data: ResumeData,
+  lang: ResumeLanguage,
+): Promise<Blob> {
   assertDocxSafeText('This résumé', resumeTextValues(data))
   return Packer.toBlob(resumeDocxDocument(data, lang))
 }
 
-/** Browser: generate and download the tailored résumé as a .docx file. */
+/** Browser: generate and download the tailored résumé as a DOCX file. */
 export async function downloadResumeDocx(
   data: ResumeData,
   lang: ResumeLanguage,

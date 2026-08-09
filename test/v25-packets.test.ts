@@ -140,7 +140,7 @@ assert.ok(db.tables.some((table) => table.name === 'packets'), 'the packets tabl
   )
   assert.equal(
     withHistory?.exportHistory[0].exporterContract,
-    'klar-resume-browser-print-v2.6.0',
+    'klar-resume-browser-print-v2.6.0.1',
     'a PDF records the exact browser-print exporter instead of claiming DOCX provenance',
   )
   assert.equal(

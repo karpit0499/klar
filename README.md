@@ -4,7 +4,7 @@ Klar is a private, browser-based workspace for finding work, understanding job
 fit, preparing grounded applications, and tracking every opportunity from first
 look to final decision.
 
-**Current release: v2.6.0 Developer Preview**
+**Current release: v2.6.0.1 Developer Preview**
 
 [**Open Klar →**](https://karpit0499.github.io/klar/) ·
 [What changed →](CHANGELOG.md) ·
@@ -26,6 +26,14 @@ ARM64/Windows x64 desktop preview for a managed, signed local-model package.
 The desktop artifacts remain unsigned and internal. Adapter training, blinded
 human quality studies, production signing, and public optional local
 intelligence remain explicit graduation gates rather than claimed outcomes.
+
+v2.6.0.1 is the production-format and source-continuity hotfix. It promotes the
+approved cross-compatible résumé structure to both DOCX and browser-print PDF,
+keeps every exported claim inside the canonical résumé evidence, migrates the
+Bundesagentur search connector from the rejected internal v4 route to the
+currently active v6 route and schema, and refreshes the web shell cache. The BA
+detail lookup remains on its working v4 detail route; the Cloudflare Worker
+contract and privacy boundary are unchanged.
 
 ## What Klar does
 
@@ -127,6 +135,15 @@ each download records the source-artifact provenance and exact exporter used.
 Older or mixed packet rows stay conservatively labelled historical even when
 one artifact is regenerated, so Klar never silently calls untouched content a
 v2.6 artifact.
+
+From v2.6.0.1, production DOCX and PDF résumés share the approved A4,
+single-column Arial layout: a compact identity block, an unlabeled profile,
+semantic ruled section headings, compact role and date grouping, coloured real
+bullets, and a combined skills-and-languages section. Klar uses the newest held
+role as the subtitle because schema v2 has no independently reviewed profile
+headline; it never presents the target vacancy title as experience. The three
+research palettes remain visual references, while production uses one stable
+blue accent until an explicit user-selected palette exists.
 
 For résumé tailoring, Klar rejects evidence-blocked rewrites at the decision,
 edit, and export boundaries; malformed or omitted AI fields fall back to the
@@ -288,7 +305,7 @@ npm run audit:build-tools
 - the web and desktop renderer bundle budgets.
 
 The production and full build-tool audits are separate release gates. Both are
-green for the lockfile verified on 8 August 2026; rerun both immediately before
+green for the lockfile verified on 10 August 2026; rerun both immediately before
 release because the advisory database can change.
 
 The current suite includes résumé-derived search regressions for role, job
@@ -313,6 +330,9 @@ browser origins must include the production GitHub Pages origin.
 ## Current limitations
 
 - Job coverage and freshness depend on third-party feeds and employer sites.
+- Bundesagentur search uses an undocumented internal public-web service. Klar
+  tests its current v6 search contract, but BA can change that contract without
+  a public API compatibility guarantee.
 - A strict search can correctly return zero exact matches.
 - Some source and salary features need separate credentials or have quotas.
 - Local vocabulary ranking is deterministic retrieval, not neural semantic
@@ -334,6 +354,12 @@ browser origins must include the production GitHub Pages origin.
 
 ## Release history
 
+- **v2.6.0.1 — Résumé format and BA continuity hotfix:** promoted the approved
+  cross-compatible résumé structure to production DOCX and PDF, versioned both
+  exporter contracts, migrated BA search to the working v6 list schema while
+  retaining v4 detail lookup, added connector-contract regressions and live
+  acceptance checks, and refreshed
+  the cached web shell.
 - **v2.6.0 — Measured intelligence foundation:** versioned evidence-linked
   ranking, frozen synthetic and human evaluation gates, source-health and safe
   GitHub report routing, semantic bilingual application documents, internal
