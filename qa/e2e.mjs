@@ -504,7 +504,7 @@ async function runIssueReporting() {
     diagnosticsMinimal:
       /Redacted diagnostics/.test(publicPreviewText) &&
       /Klar: 2\.6\.0/.test(publicPreviewText) &&
-      !/Groq|API key|résumé body/i.test(publicPreviewText),
+      !/Groq|API key|r(?:esume|\u00e9sum\u00e9) body/i.test(publicPreviewText),
     attemptsBeforeReview,
     publicInitiallyDisabled,
     openedAfterPublic,
@@ -531,21 +531,21 @@ async function runResumeDesignLab() {
   await page.getByRole('button', { name: 'Settings', exact: true }).click()
   await page.getByRole('heading', { name: 'Release features', exact: true }).waitFor()
   const hiddenByDefault = await page.getByRole('heading', {
-    name: 'Internal résumé design lab',
+    name: 'Internal resume design lab',
     exact: true,
   }).count() === 0
 
-  const labFlag = page.getByLabel('Show the internal résumé design evaluation lab', { exact: true })
+  const labFlag = page.getByLabel('Show the internal resume design evaluation lab', { exact: true })
   // This controlled checkbox updates after its IndexedDB write resolves, so a
   // plain click plus an explicit state wait mirrors what the user observes.
   await labFlag.click()
   await page.waitForFunction(() => {
     return [...document.querySelectorAll('label')].some((label) =>
-      label.textContent?.trim() === 'Show the internal résumé design evaluation lab' &&
+      label.textContent?.trim() === 'Show the internal resume design evaluation lab' &&
       label.querySelector('input')?.checked)
   })
 
-  const labHeading = page.getByRole('heading', { name: 'Internal résumé design lab', exact: true })
+  const labHeading = page.getByRole('heading', { name: 'Internal resume design lab', exact: true })
   await labHeading.waitFor()
   await page.getByRole('button', { name: 'Create ATS parse preview', exact: true }).click()
   const preview = page.locator('section[aria-labelledby="resume-lab-preview-heading"]')
@@ -598,7 +598,7 @@ async function runResumeDesignLab() {
   resumeDesignLab = {
     hiddenByDefault,
     flagPersisted: await page.getByLabel(
-      'Show the internal résumé design evaluation lab',
+      'Show the internal resume design evaluation lab',
       { exact: true },
     ).isChecked(),
     previewCheckCount: checkLabels.length,
@@ -720,7 +720,7 @@ async function runApplicationPacket() {
   let packetDialog = page.getByRole('dialog', { name: 'Application packet', exact: true })
   await packetDialog.waitFor()
   await packetDialog.getByRole('button', { name: 'Tailor without AI', exact: true }).click()
-  await packetDialog.getByRole('heading', { name: /Tailored résumé · EN/ }).waitFor()
+  await packetDialog.getByRole('heading', { name: /Tailored resume · EN/ }).waitFor()
   const packetDownload = packetDialog.getByRole('button', { name: 'Download packet (.zip)', exact: true })
   const exportBlockedBeforeLetter = await packetDownload.isDisabled()
 

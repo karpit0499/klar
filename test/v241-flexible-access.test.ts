@@ -3,11 +3,11 @@
 //
 // 1. Flexible Work must stay reachable for EVERY user. Before v2.4.1 both the
 //    Flexible Work home and the Flexible Work search were rendered only when
-//    `!(canonical && profile)` — saving a résumé silently removed the whole
+//    `!(canonical && profile)` — saving a resume silently removed the whole
 //    feature and stranded any saved flexible searches.
 // 2. The flexible search session must restart when the query changes.
 // 3. WCAG AA colour tokens.
-// 4. Every textarea in the résumé editor needs an accessible name.
+// 4. Every textarea in the resume editor needs an accessible name.
 // ============================================================================
 import { strict as assert } from 'node:assert'
 import { readFileSync } from 'node:fs'
@@ -26,16 +26,16 @@ const editor = source('src/ui/ResumeEditor.tsx')
 const css = source('src/index.css')
 const setupState = source('src/onboarding/setupState.ts')
 
-// --- 1. Flexible Work is never gated on the absence of a résumé -------------
+// --- 1. Flexible Work is never gated on the absence of a resume -------------
 assert.doesNotMatch(
   app,
   /!\(canonical && profile\)/,
-  'Flexible Work must not be gated on "has no résumé"',
+  'Flexible Work must not be gated on "has no resume"',
 )
 assert.match(app, /WorkModeSwitch/, 'the workspace exposes a career/flexible switch')
 assert.match(app, /const hasCareer = Boolean\(canonical && profile\)/)
 assert.match(app, /activeMode: WorkMode = hasCareer \? \(workMode \?\? 'career'\) : 'flexible'/)
-// The résumé branch of the search tab must not be the only branch any more.
+// The resume branch of the search tab must not be the only branch any more.
 assert.match(app, /tab === 'search' && showFlexible/)
 // Settings always offers a route into Flexible Work.
 assert.match(app, /onEditFlexible=\{\(\) => void editFlexible\(\)\}/)
@@ -47,7 +47,7 @@ assert.match(setupState, /export type WorkMode = 'career' \| 'flexible'/)
 assert.match(setupState, /export async function saveWorkMode/)
 assert.match(setupState, /export async function loadWorkMode/)
 
-// A résumé user has nothing to "add", so that button is optional.
+// A resume user has nothing to "add", so that button is optional.
 assert.match(home, /onAddResume\?: \(\) => void/)
 assert.match(home, /switcher\?: ReactNode/)
 assert.match(search, /switcher\?: React\.ReactNode/)
@@ -111,9 +111,9 @@ for (const background of darkBackgrounds) {
   assert.ok(contrast(darkAccent, tint) >= 4.5, `dark accent on its tint over ${background}`)
 }
 
-// --- 4. Résumé editor textareas have accessible names ----------------------
+// --- 4. Resume editor textareas have accessible names ----------------------
 const textareas = editor.match(/<textarea[^>]*/g) ?? []
-assert.ok(textareas.length >= 3, 'expected the résumé editor textareas')
+assert.ok(textareas.length >= 3, 'expected the resume editor textareas')
 for (const tag of textareas) {
   assert.match(tag, /aria-label=/, `textarea without an accessible name: ${tag.slice(0, 60)}`)
 }

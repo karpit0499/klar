@@ -126,7 +126,7 @@ assert.match(readFileSync('src/ui/FlexibleSearch.tsx', 'utf8'), /\{active && pre
 const securityPolicy = readFileSync('SECURITY.md', 'utf8')
 assert.match(securityPolicy, /security\/advisories\/new/)
 assert.match(securityPolicy, /issues\/new\/choose/)
-assert.match(securityPolicy, /Never attach a real résumé/)
+assert.match(securityPolicy, /Never attach a real resume/)
 const issueConfig = readFileSync('.github/ISSUE_TEMPLATE/config.yml', 'utf8')
 assert.match(issueConfig, /blank_issues_enabled:\s*true/)
 assert.match(issueConfig, /security\/advisories\/new/)

@@ -4,11 +4,11 @@ This file records Klar’s product history from the newest release to the origin
 
 ---
 
-## v2.6.0.1 — Résumé format and Bundesagentur continuity hotfix
+## v2.6.0.1 — Resume format and Bundesagentur continuity hotfix
 
-### Production résumé format
+### Production resume format
 
-- Reconstructed the approved cross-compatible résumé family as production
+- Reconstructed the approved cross-compatible resume family as production
   code instead of redistributing the reference DOCX packages. Standalone and
   application-packet DOCX exports now use A4, Arial, compact identity and link
   rows, an unlabeled profile, semantic ruled Heading 1 sections, compact
@@ -19,10 +19,10 @@ This file records Klar’s product history from the newest release to the origin
   body margin on top of `@page` margins.
 - Kept the production palette deterministic and stable. The supplied data,
   CRM, and industrial colours remain reference tokens; Klar does not infer a
-  person's visual category from résumé keywords. A future palette choice must
+  person's visual category from resume keywords. A future palette choice must
   be explicit and user-controlled.
 - Used the newest held role as the only evidence-backed subtitle available in
-  résumé schema v2. The target job title is never presented as work the
+  resume schema v2. The target job title is never presented as work the
   candidate has already performed. Fields that require a new schema—such as a
   reviewed profile headline, education modules, work eligibility, engagement,
   and project bullet/year metadata—remain out of this hotfix.
@@ -88,13 +88,13 @@ This file records Klar’s product history from the newest release to the origin
   Graduation requires at least 20% relative NDCG@10 improvement, at least 80%
   pairwise reviewer agreement, and no more than 2% top-10 hard violations.
 
-### Application quality and résumé research
+### Application quality and resume research
 
 - Cover letters now have semantic sender, recipient, place, date, subject,
   greeting, body, closing, and signature fields and export as selectable,
   single-column English/German DOCX. Missing place, placeholders, prompt
   fragments, invalid Unicode, or another fatal document check blocks download.
-- Application packet ZIPs contain only the tailored résumé DOCX and semantic
+- Application packet ZIPs contain only the tailored resume DOCX and semantic
   cover-letter DOCX. Candidate, company, role, and language appear in safe
   filenames; internal job IDs and URL queries do not.
 - New packet rows pin row-level storage defaults. Every generated language
@@ -105,9 +105,9 @@ This file records Klar’s product history from the newest release to the origin
 - Recruiter messages record tone, channel, application state, discovery and
   referral context. A claimed referral cannot be generated without the named
   person, and deterministic evidence/state checks remain visible.
-- Added a default-off internal résumé design lab with code-generated Current,
+- Added a default-off internal resume design lab with code-generated Current,
   Data & Analytics, Classic German, and Editorial variants. No supplied sample
-  résumé is redistributed. A possible later default stays blocked until every
+  resume is redistributed. A possible later default stays blocked until every
   recruiter, candidate, parse/render, evidence, and provenance prerequisite is
   explicitly recorded.
 - Added a writing human gate requiring at least two blinded bilingual reviewers,
@@ -126,7 +126,7 @@ This file records Klar’s product history from the newest release to the origin
   secrets, email addresses, private paths, and URL queries. Ordinary reports
   open public GitHub Issues; suspected vulnerabilities open GitHub private
   vulnerability reporting. Nothing is submitted automatically.
-- Added `SECURITY.md` and public Issue forms that prohibit résumés, application
+- Added `SECURITY.md` and public Issue forms that prohibit resumes, application
   documents, API keys, tokens, private paths, and employer-private data.
 - The semantic wordmark returns to Dashboard without discarding a completed
   search. Hidden search state suspends open drawer side effects so body scroll
@@ -169,7 +169,7 @@ This file records Klar’s product history from the newest release to the origin
 
 ### Data
 
-- Dexie database schema remains **7**, résumé schema remains **2**, and backup
+- Dexie database schema remains **7**, resume schema remains **2**, and backup
   schema remains **6**. Ranking snapshots and packet fields are additive and
   historical scores are labelled rather than silently reinterpreted.
 
@@ -200,19 +200,19 @@ This file records Klar’s product history from the newest release to the origin
 - Settings and application packets show estimated tokens used, currently
   available headroom, the pending action's estimate, and whether the limit is a
   conservative default or learned from the provider.
-- Résumés too large for one provider request use bounded, serial per-role
+- Resumes too large for one provider request use bounded, serial per-role
   chunks. Every chunk retains source indexes and passes the same evidence audit;
   a failed role keeps its original text and is named as unresolved.
 - Application packets store content-addressed generation fingerprints and local
   estimated/actual-when-supplied usage metadata. Reopening a fresh result costs
-  nothing; changed résumé, posting, language, engine, requirements, or tone is
+  nothing; changed resume, posting, language, engine, requirements, or tone is
   reported as stale.
 - Service-worker activation no longer waits for a client navigation, preventing
   a fresh production tab from stalling before the application mounts. Existing
   release awareness still offers the user-controlled reload notice.
 - Offline regression coverage includes 137-result keyword and semantic
   searches, a 40-AI/97-local compatibility run, responsive local ranking
-  factors, 1–14 résumé roles, 500–12,000-character postings, rolling-window
+  factors, 1–14 resume roles, 500–12,000-character postings, rolling-window
   accounting, bilingual explanations, cache invalidation, and three
   independently labelled career profiles.
 
@@ -223,13 +223,13 @@ This file records Klar’s product history from the newest release to the origin
   local card has slider-responsive factors, and hard-filtered rows remain
   outside the main grid and visible exports.
 - Strict schema recovery, evidence auditing, bilingual independence, packet
-  serialization, backup compatibility, and the no-AI résumé path are unchanged.
+  serialization, backup compatibility, and the no-AI resume path are unchanged.
 - Flexible Work remains its separate zero-AI discovery path.
 
 ### Data
 
 - No Dexie change: database schema remains **7**.
-- Résumé schema remains **2** and backup schema remains **6**.
+- Resume schema remains **2** and backup schema remains **6**.
 - No dependency or Worker change.
 
 ---
@@ -324,7 +324,7 @@ This file records Klar’s product history from the newest release to the origin
 - Authentication, rate-limit, oversized-request, network, abort, and retired
   model errors keep their original handling and are never retried as schema
   failures.
-- Résumé tailoring now treats AI output as a partial edit proposal. Missing
+- Resume tailoring now treats AI output as a partial edit proposal. Missing
   roles or projects, omitted trailing fields, empty bullets, blank source
   bullets, zero-bullet roles, duplicate entries, and invalid evidence indexes
   retain the person’s verified source content instead of failing the whole
@@ -339,7 +339,7 @@ This file records Klar’s product history from the newest release to the origin
   consistently, recognize more bilingual seniority terms, and cover common
   email/CRM tools including HubSpot, Salesforce, Klaviyo, Mailchimp, Braze,
   Marketo, and Google Analytics.
-- Résumé extraction, legacy profile parsing, AI matching, requirement
+- Resume extraction, legacy profile parsing, AI matching, requirement
   extraction, and interview preparation now sanitize missing, wrong-type,
   duplicate, blank, or unknown nested fields before they can reach storage or
   the UI. Interview evidence IDs must match IDs sent in the request.
@@ -371,8 +371,8 @@ This file records Klar’s product history from the newest release to the origin
 - Matching distinguishes the role from its job market. For example, an account
   role in email/CRM/digital marketing is not treated as equivalent to account
   sales in car rental, cybersecurity IAM, or another unrelated industry.
-- The requested titles and fields now outrank secondary résumé skills. Data
-  skills on a marketing résumé can support a relevant match but cannot admit or
+- The requested titles and fields now outrank secondary resume skills. Data
+  skills on a marketing resume can support a relevant match but cannot admit or
   elevate data-science and software-engineering jobs.
 - Junior searches reject clearly senior titles such as Principal, Lead, Head,
   and Director before scoring.
@@ -382,7 +382,7 @@ This file records Klar’s product history from the newest release to the origin
 - Local "semantic" mode now combines title/market relevance with its local
   vocabulary score, uses a larger refreshed vector cache, and is labelled
   accurately as a no-AI vocabulary comparison.
-- AI matching now receives the résumé summary and requested field, and match
+- AI matching now receives the resume summary and requested field, and match
   caches include both plus the ranking version. Existing stale scores therefore
   cannot survive this release.
 - The final displayed score preserves holistic role/market fit while keeping
@@ -393,7 +393,7 @@ This file records Klar’s product history from the newest release to the origin
 
 ### Quality gate
 
-- A résumé-derived regression set covers email/CRM account roles against the
+- A resume-derived regression set covers email/CRM account roles against the
   exact failure classes reported: car-rental sales, IAM sales, senior data
   science, engineering management, planning leadership, and unrelated media
   leadership.
@@ -409,13 +409,13 @@ This file records Klar’s product history from the newest release to the origin
 
 - All structured Groq actions now use strict JSON Schema decoding on Klar's
   default GPT-OSS models. This fixes provider-side `failed_generation` errors
-  during résumé tailoring and protects résumé extraction, profile parsing,
+  during resume tailoring and protects resume extraction, profile parsing,
   requirement extraction, matching, and interview preparation from the same
   failure.
 - Groq requests now use `max_completion_tokens`, set low reasoning effort for
   the supported GPT-OSS models, and treat an empty completion as a real,
   recoverable error instead of saving blank output.
-- Application packets download as one ZIP containing the DOCX résumé and, when
+- Application packets download as one ZIP containing the DOCX resume and, when
   present, the cover-letter text. This replaces the delayed two-download
   sequence that mobile browsers can block.
 - Rapid packet edits are serialized before persistence, preventing an older
@@ -460,13 +460,13 @@ This file records Klar’s product history from the newest release to the origin
   the startup race that could ask them to connect again.
 - Key validation now uses Groq's quota-free model-list endpoint instead of a
   five-token reasoning-model completion that could validly return no visible
-  text. Packet, tailored résumé, and cover-letter generation can continue with
+  text. Packet, tailored resume, and cover-letter generation can continue with
   an already saved key.
 
 ### Unchanged
 
 No data-schema change, migration, or new dependency. Existing saved credentials,
-application packets, tailored résumés, cover letters, and local data remain
+application packets, tailored resumes, cover letters, and local data remain
 unchanged.
 
 ---
@@ -494,25 +494,25 @@ unchanged.
 
 ## v2.5 — Application Quality
 
-Klar could already find the right roles. What it produced for them was still generic: one hidden coverage number, a résumé rewrite you had to accept whole or not at all, an Anglo cover letter with no register control, and nothing kept once the drawer closed. Flexible Work could find a minijob but gave you no way to reach out. This release makes what Klar produces materially better than what you started with — and shows you exactly what it changed and why.
+Klar could already find the right roles. What it produced for them was still generic: one hidden coverage number, a resume rewrite you had to accept whole or not at all, an Anglo cover letter with no register control, and nothing kept once the drawer closed. Flexible Work could find a minijob but gave you no way to reach out. This release makes what Klar produces materially better than what you started with — and shows you exactly what it changed and why.
 
 ### Added
 
 - **Review every change before you download it.** Tailoring no longer hands back a finished document. Each edit is listed on its own with your wording, Klar's wording, the reason, the evidence it rests on, the posting terms it gained, and its factual status. Accept, reject, edit or restore each one. Rejecting always brings your own sentence back.
-- **Four honest factual statuses.** Supported, Rephrased, Needs your confirmation, and Blocked. A change that states a number your résumé does not contain is Blocked — it cannot be accepted and cannot reach an export. Unsupported figures are refused, never suggested.
-- **A visible coverage loop.** The posting's key terms, what your résumé already evidences, and what it does not, with a progress bar and a plain note that "not evidenced" is not an instruction to add it. One button re-runs tailoring focused on the gaps.
+- **Four honest factual statuses.** Supported, Rephrased, Needs your confirmation, and Blocked. A change that states a number your resume does not contain is Blocked — it cannot be accepted and cannot reach an export. Unsupported figures are refused, never suggested.
+- **A visible coverage loop.** The posting's key terms, what your resume already evidences, and what it does not, with a progress bar and a plain note that "not evidenced" is not an instruction to add it. One button re-runs tailoring focused on the gaps.
 - **Requirements read from the posting itself.** Beyond the built-in technology dictionary, Klar can now read the concrete requirements a posting states — including non-technical ones like stakeholder communication — so coverage and tailoring work for marketing, logistics, lab and admin roles, not only engineering. Anything the posting does not actually contain is discarded, and results are cached so re-opening a job costs nothing.
 - **Cover-letter tone.** Concise, Balanced (the default) or Formal, in English or German, with the German letter written throughout in the Sie-form. The letter now mirrors the posting's vocabulary only where your evidence supports it.
 - **A short message** of four to six lines for an email or a LinkedIn note, alongside the full letter.
-- **Application packets.** Everything Klar produced for one job — the job snapshot, the tailored résumé and your review decisions, the letter, the short message, your notes, readiness, export history and a bounded version history — is saved as you work and is still there after a reload. English and German are prepared and reviewed independently. If a run is interrupted, Klar says so instead of losing it quietly.
-- **Flexible Work: prepare and reach out, with no résumé.** A short, truthful employer message built entirely from the details you chose to enter, an availability summary, and an optional one-page profile card you can print to PDF. You copy the message into the employer's own official route. Klar never fills in a form, never submits, and never applies on your behalf.
+- **Application packets.** Everything Klar produced for one job — the job snapshot, the tailored resume and your review decisions, the letter, the short message, your notes, readiness, export history and a bounded version history — is saved as you work and is still there after a reload. English and German are prepared and reviewed independently. If a run is interrupted, Klar says so instead of losing it quietly.
+- **Flexible Work: prepare and reach out, with no resume.** A short, truthful employer message built entirely from the details you chose to enter, an availability summary, and an optional one-page profile card you can print to PDF. You copy the message into the employer's own official route. Klar never fills in a form, never submits, and never applies on your behalf.
 - **Choose your AI engine.** Settings now holds the endpoint and the two model ids, so Klar can talk to any OpenAI-compatible service instead of only the built-in default. It can list the models an endpoint really serves, so a retired model id is a clear message instead of an opaque failure. Klar is honest about the limit: a local model on your own machine speaks plain http, which the hosted https site will block — the full local experience is v2.6 work.
 - **A cost switch for matching.** Matching is the step that makes the most AI requests. You can send just that step to the smaller, faster model and keep the full model for tailoring and letters.
 - **Per-feature switches.** Each part of this release can be turned off on its own in Settings, and each one falls back to a working, honest path.
 
 ### Changed
 
-- A tailored résumé's summary now names the exact role you are applying for, phrased as an application rather than a title you hold.
+- A tailored resume's summary now names the exact role you are applying for, phrased as an application rather than a title you hold.
 - A role's bullets are ordered by how much of the posting they genuinely evidence, instead of a simple two-way split.
 - Past job titles can be tidied but never promoted: a seniority word that is not in your own title is refused.
 - No term is repeated more than twice — modern applicant tracking systems penalise keyword stuffing.
@@ -529,22 +529,22 @@ The AI-budget work shipped in v2.4.3 is part of this release too, and is not und
 
 ### Data
 
-Local database schema 6 → 7, adding one new store for application packets. Nothing existing is read, moved or rewritten, so the upgrade cannot fail on your data. When the vault is enabled, packets live inside the encrypted content and never touch a plaintext store. The résumé schema itself is unchanged.
+Local database schema 6 → 7, adding one new store for application packets. Nothing existing is read, moved or rewritten, so the upgrade cannot fail on your data. When the vault is enabled, packets live inside the encrypted content and never touch a plaintext store. The resume schema itself is unchanged.
 
 ---
 
-## v2.4.3 — Building a résumé no longer runs out of AI
+## v2.4.3 — Building a resume no longer runs out of AI
 
-A student ran three searches, found the job she wanted, opened the application packet, clicked the English résumé button, and was told the request exceeded the AI plan's limit. She waited a minute and tried again. Same error. She tried German. Same error. She could not produce a document at all.
+A student ran three searches, found the job she wanted, opened the application packet, clicked the English resume button, and was told the request exceeded the AI plan's limit. She waited a minute and tried again. Same error. She tried German. Same error. She could not produce a document at all.
 
-Retrying could never have worked. A single résumé request was larger than everything the free AI plan allows in one go — measured at 8,203 to 10,297 tokens against a limit of 8,000 — so the feature had been impossible on the free plan for anyone with an ordinary résumé. Two thirds of every request was information the AI never reads.
+Retrying could never have worked. A single resume request was larger than everything the free AI plan allows in one go — measured at 8,203 to 10,297 tokens against a limit of 8,000 — so the feature had been impossible on the free plan for anyone with an ordinary resume. Two thirds of every request was information the AI never reads.
 
-This release makes the request small enough to succeed, tells you what it will cost before you spend it, stops pretending that waiting will help when it will not, and adds a way to build a tailored résumé with no AI at all.
+This release makes the request small enough to succeed, tells you what it will cost before you spend it, stops pretending that waiting will help when it will not, and adds a way to build a tailored resume with no AI at all.
 
 ### Fixed
 
 - **Tailoring works on a free AI plan.** The request now carries only what the AI actually needs. Internal identifiers, evidence references, your contact details, your languages and certifications, and the padding at the end of long job descriptions are no longer sent — none of it was ever read. A typical request dropped from about 9,200 tokens to about 2,900.
-- **Klar no longer reserves room it does not use.** Every AI request has to book space for the answer in advance, and that booking counts against your limit whether it is used or not. Klar was booking 4,096 tokens for an answer that needs about 1,300. The booking is now calculated from the size of your own résumé.
+- **Klar no longer reserves room it does not use.** Every AI request has to book space for the answer in advance, and that booking counts against your limit whether it is used or not. Klar was booking 4,096 tokens for an answer that needs about 1,300. The booking is now calculated from the size of your own resume.
 - **"Try again" is gone where it was a lie.** When a request is too large on its own, waiting cannot help. Klar now says exactly that, shows the numbers, and points at the option that does work.
 - **Cover letters and job matching got the same treatment.** The letter request is roughly half its former size. Job scoring no longer sends map coordinates and empty fields it never reads, and books a smaller answer.
 - **A rate-limited search stops instead of hammering.** A token limit does not clear in the middle of a search, so Klar now stops after two failed batches rather than spending the rest of your requests on calls that cannot succeed. The honest "some jobs were not scored" notice was already there and still appears.
@@ -552,8 +552,8 @@ This release makes the request small enough to succeed, tells you what it will c
 
 ### Added
 
-- **Tailor without AI.** A résumé built instantly, with no API key and no AI usage at all. Klar reorders your own bullet points and skills so the experience this posting asks for comes first, and writes a summary from your own facts. Your sentences are never changed. It downloads as DOCX and PDF exactly like the AI version, and the packet always says which of the two produced the document — a reordering is never presented as a rewrite.
-- **The cost, before you spend it.** The résumé button now shows roughly how much of your AI allowance the request will use.
+- **Tailor without AI.** A resume built instantly, with no API key and no AI usage at all. Klar reorders your own bullet points and skills so the experience this posting asks for comes first, and writes a summary from your own facts. Your sentences are never changed. It downloads as DOCX and PDF exactly like the AI version, and the packet always says which of the two produced the document — a reordering is never presented as a rewrite.
+- **The cost, before you spend it.** The resume button now shows roughly how much of your AI allowance the request will use.
 - **Klar learns your real limit.** AI providers state their actual numbers when they refuse a request. Klar reads and remembers them, so its warnings match your plan instead of a guess.
 
 ### Unchanged
@@ -584,18 +584,18 @@ Flexible Work was showing jobs it should never have shown: senior professional r
 
 ### Unchanged
 
-No data-schema change, no migration, no new dependencies. Career discovery, résumé matching and application tooling are untouched.
+No data-schema change, no migration, no new dependencies. Career discovery, resume matching and application tooling are untouched.
 
 ---
 
 ## v2.4.1 — Flexible Work for everyone, and accessibility repairs
 
-Flexible Work was reachable only by people who had never added a résumé. Adding one removed the entire feature from the workspace and stranded any saved flexible searches. Flexible Work is for everyone, so it is now always available, and this release also repairs the colour and labelling defects found in a full accessibility pass over v2.4.
+Flexible Work was reachable only by people who had never added a resume. Adding one removed the entire feature from the workspace and stranded any saved flexible searches. Flexible Work is for everyone, so it is now always available, and this release also repairs the colour and labelling defects found in a full accessibility pass over v2.4.
 
 ### Fixed
 
-- Flexible Work is now reachable whether or not a résumé exists. A career/flexible switch appears on the dashboard and the search screen once a résumé is present, and the chosen surface is remembered between sessions.
-- Saved flexible searches are no longer stranded. Adding a résumé previously hid the only screen that listed them.
+- Flexible Work is now reachable whether or not a resume exists. A career/flexible switch appears on the dashboard and the search screen once a resume is present, and the chosen surface is remembered between sessions.
+- Saved flexible searches are no longer stranded. Adding a resume previously hid the only screen that listed them.
 - Settings now always offers a route into Flexible Work, and invites first-time setup when no flexible search exists yet, instead of showing an edit action that led nowhere.
 - Editing a flexible search now re-runs it. The search session previously started only once when the screen mounted, so edited locations or work types kept returning the previous search's results.
 - "New since last check" is recalculated when a different saved search is opened, instead of being computed once per session.
@@ -607,7 +607,7 @@ Flexible Work was reachable only by people who had never added a résumé. Addin
 - Secondary and tertiary text now meets WCAG 2.1 AA contrast in both light and dark themes. Tertiary text previously measured 2.83:1 in light and 3.26:1 in dark against a 4.5:1 requirement.
 - The destructive-action and success colours meet AA in light mode, where they previously measured 3.91:1 and 3.49:1.
 - The dark-theme accent meets AA on its own tint, which is the background behind the language toggle, the appearance toggle, the active navigation item, and every accent chip. It previously measured 3.98:1.
-- The three free-text fields in the résumé editor now have accessible names. A screen reader previously announced them as unlabelled edit fields.
+- The three free-text fields in the resume editor now have accessible names. A screen reader previously announced them as unlabelled edit fields.
 - The new work-type switch is a standard radio group with 44-pixel targets and wraps rather than overflowing on narrow screens.
 
 ### Unchanged
@@ -618,13 +618,13 @@ No data-schema change, no new dependency, and no change to search behaviour, mat
 
 ## v2.4 — Flexible Work and Source Fabric
 
-Klar v2.4 turns Flexible Work from a preferences screen into a working, résumé-free search, and puts a resilient, honest source layer beneath it. Career discovery, résumé matching, and application tooling are unchanged.
+Klar v2.4 turns Flexible Work from a preferences screen into a working, resume-free search, and puts a resilient, honest source layer beneath it. Career discovery, resume matching, and application tooling are unchanged.
 
 ### Added
 
-#### Résumé-free Flexible Work search
+#### Resume-free Flexible Work search
 
-- A complete Flexible Work search experience for minijob, part-time, working-student, temporary, seasonal, weekend, evening, and night roles, reachable without a résumé. (In v2.4 this surface was reachable *only* without a résumé; v2.4.1 makes it available to everyone.)
+- A complete Flexible Work search experience for minijob, part-time, working-student, temporary, seasonal, weekend, evening, and night roles, reachable without a resume. (In v2.4 this surface was reachable *only* without a resume; v2.4.1 makes it available to everyone.)
 - A progressive search session that publishes its first page as soon as ten results exist, with an eight-second low-supply escape hatch so a thin market still shows results early instead of waiting.
 - A sixty-second hard deadline on every search. When the deadline is reached the session finalizes and reports its reason rather than continuing indefinitely.
 - Per-source attempt timeouts in a ten-to-fifteen-second band, a maximum of two retries, and twenty results per page.
@@ -676,10 +676,10 @@ Klar v2.4 turns Flexible Work from a preferences screen into a working, résumé
 ### Changed
 
 - Upgraded the local database to schema version 6, adding the `flexibleSearches`, `flexibleCache`, and `connectorHealth` stores. Existing data is preserved.
-- Replaced the Flexible Work home placeholder with the real workspace, including saved searches and a path to add a résumé for career roles.
-- Routed résumé-free users to the progressive Flexible Work search from both the dashboard and the search tab, while leaving the career `SearchStep` and its always-mounted state untouched.
+- Replaced the Flexible Work home placeholder with the real workspace, including saved searches and a path to add a resume for career roles.
+- Routed resume-free users to the progressive Flexible Work search from both the dashboard and the search tab, while leaving the career `SearchStep` and its always-mounted state untouched.
 - Mounted the Flexible Work search only when the search tab is active, so it no longer runs a background search from the dashboard.
-- Moved the "Add résumé for career roles" label out of component source and into the translation dictionary.
+- Moved the "Add resume for career roles" label out of component source and into the translation dictionary.
 - Extended the English and German dictionaries with the full `flexible.*` key block; parity between the two remains compile-time enforced.
 
 ### Fixed
@@ -716,7 +716,7 @@ Klar v2.3.1 is a focused fix release on top of v2.3. It tightens the new adaptiv
 
 ### Added
 
-- A **Back** control in adaptive onboarding that steps correctly through welcome, résumé, review, preferences, connections, and Flexible Work.
+- A **Back** control in adaptive onboarding that steps correctly through welcome, resume, review, preferences, connections, and Flexible Work.
 - `viewport-fit=cover` plus top and bottom safe-area insets so content clears the notch and home indicator on modern phones.
 
 ### Changed
@@ -749,23 +749,23 @@ The v2.3 UI regression suite was extended to assert the onboarding Back control,
 
 ---
 
-## v2.3 — Résumé foundation and adaptive onboarding
+## v2.3 — Resume foundation and adaptive onboarding
 
-Klar v2.3 rebuilds the workspace around a single canonical résumé and an onboarding that adapts to how each person searches, while adding a résumé-free Flexible Work mode and hardening exports and backups.
+Klar v2.3 rebuilds the workspace around a single canonical resume and an onboarding that adapts to how each person searches, while adding a resume-free Flexible Work mode and hardening exports and backups.
 
 ### Added
 
-#### Canonical résumé foundation
+#### Canonical resume foundation
 
-- A single canonical résumé (schema version 2) that is the source of truth for matching, tailoring, cover letters, and interview preparation.
+- A single canonical resume (schema version 2) that is the source of truth for matching, tailoring, cover letters, and interview preparation.
 - Stable identifiers on every role, bullet, and skill, plus evidence references linking derived content back to source bullets.
-- A lightweight matching profile derived on demand from the canonical résumé rather than stored as a separate, independently editable record.
-- Résumé readiness analysis reporting role count, missing dates, roles without achievements, and an overall structural completeness percentage.
-- A structured sample résumé used by the explore workspace.
+- A lightweight matching profile derived on demand from the canonical resume rather than stored as a separate, independently editable record.
+- Resume readiness analysis reporting role count, missing dates, roles without achievements, and an overall structural completeness percentage.
+- A structured sample resume used by the explore workspace.
 
-#### In-app résumé editor and history
+#### In-app resume editor and history
 
-- A full résumé editor for experience, education, skills, projects, certifications, and languages.
+- A full resume editor for experience, education, skills, projects, certifications, and languages.
 - Reordering of entries, remove-with-undo, and an inline completeness summary in English and German.
 - Automatic versioned snapshots with restore, capturing edit, re-upload, and manual reasons.
 - History pruning that keeps the ten most recent automatic snapshots within a ninety-day window while preserving named snapshots.
@@ -778,14 +778,14 @@ Klar v2.3 rebuilds the workspace around a single canonical résumé and an onboa
 - Saved onboarding progress with continue-setup and safe start-over behaviour.
 - Restore-from-backup during onboarding with a pre-import preview and password-required detection.
 - A just-in-time Groq key prompt that verifies the key at the moment an AI feature needs it.
-- A setup checklist and an explicit workspace-capability model covering career discovery, flexible discovery, application preparation, and résumé matching.
+- A setup checklist and an explicit workspace-capability model covering career discovery, flexible discovery, application preparation, and resume matching.
 
 #### Flexible Work mode
 
 - A new discovery mode covering career, flexible, or both.
-- A résumé-free Flexible Work setup for minijob, part-time, working-student, temporary, seasonal, weekend, evening, and night roles.
+- A resume-free Flexible Work setup for minijob, part-time, working-student, temporary, seasonal, weekend, evening, and night roles.
 - Workplace and role-family selection, multi-city search with per-city radius, schedule and weekly-hours preferences, language comfort, physical-work level, transport, and earliest-start availability.
-- A Flexible Work home surface with a path to add a résumé for career roles.
+- A Flexible Work home surface with a path to add a resume for career roles.
 - Validation and normalisation for city, work-type, and radius selections.
 
 #### Explore workspace
@@ -799,17 +799,17 @@ Klar v2.3 rebuilds the workspace around a single canonical résumé and an onboa
 
 ### Changed
 
-#### Résumé, matching, and generation
+#### Resume, matching, and generation
 
-- Routed résumé re-upload, tailoring, cover letters, and interview preparation through the canonical résumé.
-- Grounded cover-letter and interview prompts in specific résumé bullet evidence identifiers.
-- Derived the matching profile from the canonical résumé and stamped local matches with the `local-v2.3` model version.
-- Invalidated stale match caches when the canonical résumé changes.
+- Routed resume re-upload, tailoring, cover letters, and interview preparation through the canonical resume.
+- Grounded cover-letter and interview prompts in specific resume bullet evidence identifiers.
+- Derived the matching profile from the canonical resume and stamped local matches with the `local-v2.3` model version.
+- Invalidated stale match caches when the canonical resume changes.
 
 #### Storage, backup, and vault
 
 - Upgraded the local database and the backup envelope to schema version 5.
-- Stored the canonical résumé inside the encrypted vault as sensitive content.
+- Stored the canonical resume inside the encrypted vault as sensitive content.
 - Included Flexible Work preferences in the standard backup and validated them on import, rejecting invalid employment or schedule data before the active workspace is touched.
 - Added migration of v2.2 standard and complete-encrypted backups into the v2.3 format.
 - Preserved transactional, all-or-nothing restore behaviour and SHA-256 integrity checks.
@@ -817,16 +817,16 @@ Klar v2.3 rebuilds the workspace around a single canonical résumé and an onboa
 #### Interface and setup
 
 - Replaced the fixed key gate and standalone profile step with the adaptive onboarding frame.
-- Localised the new résumé editor, Flexible Work setup, explore workspace, and onboarding copy in English and German.
+- Localised the new resume editor, Flexible Work setup, explore workspace, and onboarding copy in English and German.
 - Added Settings entries to edit the Flexible Work search and reach the Backup and Encryption safety centre.
 
 ### Fixed
 
-- Fixed derived profiles being persisted and edited independently of the résumé they came from.
-- Fixed generated cover letters and interview material that were not explicitly tied to source résumé bullets.
-- Fixed stale match results surviving a résumé change.
+- Fixed derived profiles being persisted and edited independently of the resume they came from.
+- Fixed generated cover letters and interview material that were not explicitly tied to source resume bullets.
+- Fixed stale match results surviving a resume change.
 - Fixed spreadsheet and CSV exports being able to emit unescaped formula-injection payloads; leading `=`, `+`, `-`, and `@` values are now neutralised and sheet names are sanitised and length-capped.
-- Fixed Flexible Work having no résumé-free path, previously forcing an empty résumé to exist.
+- Fixed Flexible Work having no resume-free path, previously forcing an empty resume to exist.
 
 ### Validation
 
@@ -840,7 +840,7 @@ npm run build
 npx tsc --noEmit -p worker/tsconfig.json
 ```
 
-New suites covered the canonical résumé model and history pruning, Flexible Work preferences and setup, the v5 backup and migration path, export formula-injection safety, and the updated onboarding and résumé user interface. The complete legacy suites from v1 through v2.2 continued to pass, and the production build and rendered mobile browser checks completed without document-level horizontal overflow or console warnings and errors.
+New suites covered the canonical resume model and history pruning, Flexible Work preferences and setup, the v5 backup and migration path, export formula-injection safety, and the updated onboarding and resume user interface. The complete legacy suites from v1 through v2.2 continued to pass, and the production build and rendered mobile browser checks completed without document-level horizontal overflow or console warnings and errors.
 
 ---
 
@@ -893,11 +893,11 @@ Klar v2.2 strengthens privacy, recovery, search transparency, and day-to-day rel
 
 #### Encryption and local data
 
-- Expanded optional encryption from résumé-only protection to the complete sensitive workspace boundary.
-- Protected profiles, preferences, career and search caches, matches, vectors, saved searches, rich résumé data, dashboard data, and tracker data.
+- Expanded optional encryption from resume-only protection to the complete sensitive workspace boundary.
+- Protected profiles, preferences, career and search caches, matches, vectors, saved searches, rich resume data, dashboard data, and tracker data.
 - Kept credentials in a separate encrypted vault partition.
-- Removed confirmed raw résumé text from new and migrated stored profiles.
-- Added locked-state gates so encrypted content cannot reach matching, résumé generation, or application tools.
+- Removed confirmed raw resume text from new and migrated stored profiles.
+- Added locked-state gates so encrypted content cannot reach matching, resume generation, or application tools.
 - Kept the active vault key in memory for the current session only.
 - Added safe lock/write coordination and queued mutation recovery.
 
@@ -952,7 +952,7 @@ npm run build
 npx tsc --noEmit -p worker/tsconfig.json
 ```
 
-The complete legacy and v2.2 automated suites passed, including security, backup, search-safety, localization, résumé generation, source behaviour, and database migration coverage. The production build and rendered mobile browser checks completed without document-level horizontal overflow or console warnings and errors.
+The complete legacy and v2.2 automated suites passed, including security, backup, search-safety, localization, resume generation, source behaviour, and database migration coverage. The production build and rendered mobile browser checks completed without document-level horizontal overflow or console warnings and errors.
 
 ---
 
@@ -970,18 +970,18 @@ Klar v2.1 keeps the v2 feature set and focuses on trustworthy deliverables, resp
 - Reusable preference-row controls.
 - Complete English and German copy for the affected setup and Settings flows.
 
-#### Résumé deliverables
+#### Resume deliverables
 
-- User-selectable English and German résumé generation for every supported job.
-- Guarded AI résumé tailoring designed to make materially stronger job-specific rewrites.
-- Evidence mapping from generated bullets back to source résumé bullets.
-- Protection for employers, dates, schools, certifications, metrics, tools, and other résumé facts.
+- User-selectable English and German resume generation for every supported job.
+- Guarded AI resume tailoring designed to make materially stronger job-specific rewrites.
+- Evidence mapping from generated bullets back to source resume bullets.
+- Protection for employers, dates, schools, certifications, metrics, tools, and other resume facts.
 - Language-specific DOCX and PDF filenames.
 - Explicit failure handling so an unchanged or stale result is never presented as successfully tailored.
 
 #### Regression coverage
 
-- Automated regression tests for bilingual résumé output.
+- Automated regression tests for bilingual resume output.
 - Tests for protected facts and evidence guards.
 - Tests for partial scoring failure behaviour.
 - Tests for Go keyword false positives.
@@ -1004,7 +1004,7 @@ Klar v2.1 keeps the v2 feature set and focuses on trustworthy deliverables, resp
 
 - Added editable Adzuna App ID and App Key fields to Settings.
 - Added save and remove actions for Adzuna credentials.
-- Localized Settings and résumé re-upload controls completely in English and German.
+- Localized Settings and resume re-upload controls completely in English and German.
 - Distinguished missing credentials from a temporarily unavailable salary benchmark.
 - Preserved credential exclusion from exported backups.
 
@@ -1036,9 +1036,9 @@ Klar v2.1 keeps the v2 feature set and focuses on trustworthy deliverables, resp
 - Prevented drawers from scrolling the page behind them.
 - Improved layout at 320px through large desktop widths and at browser zoom levels up to 200%.
 
-#### Résumé generation quality
+#### Resume generation quality
 
-- Fixed the earlier deterministic output being too similar to the uploaded résumé.
+- Fixed the earlier deterministic output being too similar to the uploaded resume.
 - Added aggressive rewording, reordering, and job-specific emphasis while retaining source truth.
 - Fixed output language being implicitly chosen instead of explicitly user-selectable.
 - Prevented generation failures from exposing old output as a new result.
@@ -1082,7 +1082,7 @@ The manual release checklist also covers:
 - Dashboard editing at 320px.
 - Search persistence across every top-level destination.
 - Score and saved-state consistency across every view.
-- English and German résumé generation for English and German postings.
+- English and German resume generation for English and German postings.
 - Fact preservation and evidence grounding.
 - Drawer and overflow behaviour at eight target viewport sizes.
 - Light/dark themes, English/German copy, and browser zoom.
@@ -1125,17 +1125,17 @@ Klar v2 transformed the v1 application into a polished, accessible, bilingual, m
 - Saved searches.
 - New-since-last-check result detection.
 
-#### Résumé and application suite
+#### Resume and application suite
 
-- Résumé re-upload and replacement without resetting tracked jobs or preferences.
-- Rich résumé data model for contact details, roles, dated experience, skills, education, languages, projects, and certifications.
-- Per-job tailored résumé generation.
+- Resume re-upload and replacement without resetting tracked jobs or preferences.
+- Rich resume data model for contact details, roles, dated experience, skills, education, languages, projects, and certifications.
+- Per-job tailored resume generation.
 - ATS-safe, table-free DOCX output.
 - Text-based, selectable PDF output.
-- Résumé-to-job-description keyword coverage report.
+- Resume-to-job-description keyword coverage report.
 - Missing-skill badges and coverage summary.
 - Adzuna salary histogram insights.
-- One-click application workspace combining tailored résumé, coverage, cover letter, and salary guidance.
+- One-click application workspace combining tailored resume, coverage, cover letter, and salary guidance.
 
 #### LLM and matching depth
 
@@ -1152,7 +1152,7 @@ Klar v2 transformed the v1 application into a polished, accessible, bilingual, m
 - Full English/German interface.
 - Type-safe translation dictionary whose German completeness is checked by TypeScript.
 - German Brutto-to-Netto salary estimator using the 2025 tax formula and major social-insurance deductions.
-- Optional client-side résumé encryption using AES-GCM and PBKDF2.
+- Optional client-side resume encryption using AES-GCM and PBKDF2.
 - Passphrase kept out of storage.
 
 ### Changed
@@ -1160,14 +1160,14 @@ Klar v2 transformed the v1 application into a polished, accessible, bilingual, m
 - Rebuilt the application shell, screens, atoms, theme engine, and global CSS around shared semantic tokens.
 - Threaded country, region, and Adzuna credential data through job gathering.
 - Added a new Dexie saved-search store and migration.
-- Expanded the application bundle around a richer persisted résumé.
-- Restyled and localized onboarding, dashboard, search, job drawer, tracker, résumé workflow, and Settings.
-- Added richer test coverage across regions, sources, discovery, résumés, embedding evaluation, localization, salary, and encryption.
+- Expanded the application bundle around a richer persisted resume.
+- Restyled and localized onboarding, dashboard, search, job drawer, tracker, resume workflow, and Settings.
+- Added richer test coverage across regions, sources, discovery, resumes, embedding evaluation, localization, salary, and encryption.
 
 ### Fixed during the v2 QA pass
 
 - Fixed a first-time-user blank screen caused by treating a missing preferences row as the loading state.
-- Fixed résumé re-upload previews rendering title objects as `[object Object]`.
+- Fixed resume re-upload previews rendering title objects as `[object Object]`.
 - Fixed Swiss Adzuna jobs being labelled as EUR instead of CHF.
 - Fixed salary benchmark formatting being hard-coded to the euro symbol.
 - Fixed German tax class VI incorrectly producing the same estimate as tax class I.
@@ -1194,10 +1194,10 @@ Klar v1 established the privacy-first architecture and the complete original job
 - A configurable employer ATS registry.
 - German-language and visa-sponsorship hard filters.
 
-#### Résumé and profile
+#### Resume and profile
 
 - Browser-side PDF and DOCX text extraction.
-- Groq-assisted résumé parsing into a structured profile.
+- Groq-assisted resume parsing into a structured profile.
 - Intake preferences for target roles, location, language level, remote work, and market constraints.
 - Local dashboard with profile details and an optional photo.
 

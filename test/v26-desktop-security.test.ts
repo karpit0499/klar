@@ -274,7 +274,7 @@ assert.equal(
 assert.deepEqual(
   redactDiagnosticValue({
     event: 'generation.failed',
-    resume: 'private résumé text',
+    resume: 'private resume text',
     apiKey: 'gsk_private',
     detail: 'user at user@example.com',
   }),
@@ -284,6 +284,11 @@ assert.deepEqual(
     apiKey: '[REDACTED_CONTENT]',
     detail: 'user at [REDACTED_EMAIL]',
   },
+)
+const legacyResumeKey = 'r\u00e9sum\u00e9'
+assert.deepEqual(
+  redactDiagnosticValue({ [legacyResumeKey]: 'private document text' }),
+  { [legacyResumeKey]: '[REDACTED_CONTENT]' },
 )
 const diagnosticPiiRequestId = 'Kumar_Arpit_Resume_2026_08_01'
 const diagnosticPiiArtifactId = 'QXJwaXQtS3VtYXItUHJpdmF0ZS1Nb2RlbA'

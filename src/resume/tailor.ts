@@ -1,5 +1,5 @@
 // ============================================================================
-// Deterministic (no-LLM) résumé tailoring. This is the floor every AI result is
+// Deterministic (no-LLM) resume tailoring. This is the floor every AI result is
 // built on top of, and the path that still works with no API key at all.
 //
 // v2.5 (WS4a, in-schema only):
@@ -13,7 +13,7 @@
 //
 // Deliberately NOT here (ATS plan §3, WS4b → v2.6): project/thesis bullets,
 // cross-section re-ranking, a "Relevant Projects" lead section. Those need
-// résumé schemaVersion 3 and are a separate, migrated release.
+// resume schemaVersion 3 and are a separate, migrated release.
 // ============================================================================
 import type { NormalizedJob, Profile } from '../types'
 import type { ResumeBullet, ResumeData, ResumeLanguage, SkillGroup } from './types'

@@ -529,7 +529,7 @@ function unresolvedPlaceholderMatches(value: string): string[] {
 
 function promptFragmentMatches(value: string): string[] {
   return value.match(
-    /VERIFIED RÉSUMÉ EVIDENCE|JOB REQUIREMENTS|MATCH CONTEXT|EXPLICIT CONTACT CONTEXT|SYSTEM PROMPT|```(?:json)?/gi,
+    /VERIFIED (?:RESUME|R\u00c9SUM\u00c9) EVIDENCE|JOB REQUIREMENTS|MATCH CONTEXT|EXPLICIT CONTACT CONTEXT|SYSTEM PROMPT|```(?:json)?/gi,
   ) ?? []
 }
 

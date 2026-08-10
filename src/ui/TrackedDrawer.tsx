@@ -135,7 +135,7 @@ export function TrackedDrawer({
             <p className="mt-1 text-xs text-faint">
               {locale === 'de'
                 ? 'Für eine Neubewertung ist ein aktueller Lebenslauf erforderlich.'
-                : 'A current résumé is required before rescoring.'}
+                : 'A current resume is required before rescoring.'}
             </p>
           )}
           {rescoreError && <p className="mt-1 text-xs text-danger" role="alert">{rescoreError}</p>}

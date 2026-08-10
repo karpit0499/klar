@@ -1,5 +1,5 @@
 // ============================================================================
-// v2.5 — Flexible "prepare & reach out", résumé-free.
+// v2.5 — Flexible "prepare & reach out", resume-free.
 //
 // The roadmap's v2.5 flexible deliverable, exactly as written: an OFFICIAL-ROUTE
 // HANDOFF with the prepared short message and availability shown alongside to

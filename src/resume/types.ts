@@ -1,5 +1,5 @@
 // ============================================================================
-// Canonical résumé contracts (v2.3).
+// Canonical resume contracts (v2.3).
 //
 // ResumeData is the only authoritative career-fact model. Matching receives a
 // derived Profile at runtime; it is never an independently editable record.

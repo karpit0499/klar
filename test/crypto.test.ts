@@ -1,5 +1,5 @@
 // Run with: npx tsx test/crypto.test.ts
-// Covers client-side résumé encryption at rest (feature 22).
+// Covers client-side resume encryption at rest (feature 22).
 import {
   encryptString, decryptString, encryptJSON, decryptJSON, isCipherEnvelope, bytesToB64, b64ToBytes,
 } from '../src/crypto/resumeCrypto.ts'

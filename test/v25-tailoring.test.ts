@@ -7,7 +7,7 @@
 //   a tailored bullet can never introduce a tool, metric, date or employer that
 //   its cited source does not contain.
 //
-// The fixtures include a CAREER-CHANGER résumé (email marketing → data science),
+// The fixtures include a CAREER-CHANGER resume (email marketing → data science),
 // which is the case the ATS plan says the old fixtures never covered.
 import { strict as assert } from 'node:assert'
 import {
@@ -372,7 +372,7 @@ const analystJob = jd(
   ok(after.total > before.total, 'WS2: extractor terms widen the report')
   ok(before.covered.every((term) => after.covered.includes(term)), 'WS2: nothing previously covered is lost')
   ok(after.missing.includes('stakeholder communication'), 'WS2: an unevidenced requirement shows as missing')
-  ok(after.covered.includes('segmentation'), 'WS2: a requirement the résumé text attests shows as covered')
+  ok(after.covered.includes('segmentation'), 'WS2: a requirement the resume text attests shows as covered')
 
   ok(mergeJdTerms(['SQL'], ['sql', 'Tableau']).length === 2, 'merge: case-insensitive dedup')
   ok(mergeJdTerms(['SQL'], ['k8s'])[1] === 'Kubernetes', 'merge: aliases canonicalise')

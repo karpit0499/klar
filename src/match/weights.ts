@@ -5,7 +5,7 @@
 // (skills / salary / location / seniority). The number the UI ranks by is a
 // COMPOSITE: the holistic role/market fit plus a weighted average of the four
 // user-correctable factors. Keeping the holistic signal prevents a secondary
-// résumé skill from making an unrelated role outrank the requested career.
+// resume skill from making an unrelated role outrank the requested career.
 // ============================================================================
 import type { MatchResult, ScoreWeights } from '../types'
 

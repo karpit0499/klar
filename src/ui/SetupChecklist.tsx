@@ -41,7 +41,7 @@ export function SetupChecklist({ resume, preferences, onProfile, onPreferences, 
       done: reviewed,
       label: resume
         ? (de ? 'Profil prüfen' : 'Review profile')
-        : (de ? 'Lebenslauf optional hinzufügen' : 'Optionally add a résumé'),
+        : (de ? 'Lebenslauf optional hinzufügen' : 'Optionally add a resume'),
       action: resume ? onProfile : onAddResume,
     },
     { done: hasPreferences, label: de ? 'Jobpräferenzen ergänzen' : 'Add job preferences', action: onPreferences },

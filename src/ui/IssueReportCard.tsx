@@ -165,7 +165,7 @@ export function IssueReportCard() {
       <p className="mt-2 text-sm leading-relaxed text-muted">
         {de
           ? 'Füge keinen Lebenslauf, Bewerbungstext oder andere persönliche Dokumente ein. Die automatische Prüfung erkennt bekannte Geheimnisse und Kontaktdaten, aber nicht jeden persönlichen Satz.'
-          : 'Do not paste a résumé, application writing, or another personal document. The automatic scan catches known secrets and contact data, but it cannot recognize every personal sentence.'}
+          : 'Do not paste a resume, application writing, or another personal document. The automatic scan catches known secrets and contact data, but it cannot recognize every personal sentence.'}
       </p>
       {!open && (
         <div className="mt-4">
@@ -272,7 +272,7 @@ export function IssueReportCard() {
             />
             <span>{de
               ? 'Reduzierte technische Diagnose anhängen (ohne Lebenslauf, Bewerbungstext, Schlüssel, Pfade oder vollständige URLs).'
-              : 'Include a minimal diagnostic summary (no résumé, application writing, keys, paths, or full URLs).'}</span>
+              : 'Include a minimal diagnostic summary (no resume, application writing, keys, paths, or full URLs).'}</span>
           </label>
           <div className="flex flex-wrap gap-3">
             <Button

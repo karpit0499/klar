@@ -1,6 +1,6 @@
 // ============================================================================
-// Job-description keyword extraction + résumé↔JD coverage (feature 13), also
-// used by the tailored-résumé generator (feature 12) to mirror a posting's
+// Job-description keyword extraction + resume↔JD coverage (feature 13), also
+// used by the tailored-resume generator (feature 12) to mirror a posting's
 // exact terminology.
 //
 // Approach: a curated dictionary of hard skills / technologies (each with its
@@ -203,8 +203,8 @@ export type CoverageReport = {
 }
 
 /**
- * Feature 13: compare a résumé's skills to a posting's key terms and report
- * exactly what's covered and what's missing — making the tailored-résumé output
+ * Feature 13: compare a resume's skills to a posting's key terms and report
+ * exactly what's covered and what's missing — making the tailored-resume output
  * explainable rather than a black-box rewrite.
  *
  * `extraJdTerms` (v2.5) folds in requirements found by the optional LLM
@@ -220,7 +220,7 @@ export function coverageReport(
     extraJdTerms,
   )
   const have = profileSkillSet(profile)
-  // Confirmed profiles intentionally do not retain the raw résumé text. Build a
+  // Confirmed profiles intentionally do not retain the raw resume text. Build a
   // safe backstop corpus from reviewed structured facts when rawText is absent.
   const rawText = (profile.rawText ?? [
     profile.summary,
@@ -239,7 +239,7 @@ export function coverageReport(
     const known =
       have.has(canonLower) ||
       aliases.some((a) => have.has(a)) ||
-      // Backstop: the term appears in the résumé free text even if not a listed skill.
+      // Backstop: the term appears in the resume free text even if not a listed skill.
       [term, ...aliases].some((a) => containsTerm(rawText, a))
     if (known) covered.push(term)
     else missing.push(term)

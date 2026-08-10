@@ -3,7 +3,7 @@
 //
 // THE PROBLEM THIS SOLVES
 // `userPrompt` in tailorResume.ts used to spread the whole `ResumeData` into the
-// request. Measured on an ordinary 3-role student résumé with a 6,000-character
+// request. Measured on an ordinary 3-role student resume with a 6,000-character
 // German posting, that came to 5,368 input tokens, of which:
 //
 //   • 2,309 tokens were `sourceResume`, containing 71 `id` / `evidence` /
@@ -14,11 +14,11 @@
 //     already been reduced to what matters.
 //
 // So roughly two thirds of the request was waste, and that waste is what pushed
-// a normal résumé past the free tier's 8,000-token minute.
+// a normal resume past the free tier's 8,000-token minute.
 //
 // WHY AN ALLOW-LIST, NOT A DELETE-LIST
 // These functions BUILD a minimal object rather than copying `ResumeData` and
-// removing keys. That way adding a field to the résumé model can never silently
+// removing keys. That way adding a field to the resume model can never silently
 // re-inflate every prompt. It is an invariant a test can assert, and
 // `test/v243-budget.test.ts` does exactly that.
 //
@@ -65,7 +65,7 @@ export type ProjectedJob = {
   excerpt: string
 }
 
-/** Build the minimal résumé view a rewrite needs. Pure. */
+/** Build the minimal resume view a rewrite needs. Pure. */
 export function projectResumeForPrompt(source: ResumeData): ProjectedResume {
   return {
     summary: source.summary?.trim() || undefined,
@@ -144,7 +144,7 @@ export function projectEvidenceForPrompt(source: ResumeData) {
   }
 }
 
-/** Counts the output estimator needs, without re-walking the résumé elsewhere. */
+/** Counts the output estimator needs, without re-walking the resume elsewhere. */
 export function resumeShape(source: ResumeData): {
   bulletCount: number
   roleCount: number

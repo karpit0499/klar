@@ -463,7 +463,7 @@ function validateWorkspace(workspace: BackupWorkspace, mode: BackupMode): void {
   ]
   for (const key of keys) if (!Array.isArray(workspace[key])) throw invalidBackup(`Workspace field ${key} is invalid.`)
   if (workspace.settings.some((row) => !row || typeof row.key !== 'string' || SECRET_SETTINGS.has(row.key))) throw invalidBackup('Readable API credentials are not allowed in a Klar backup.')
-  if (workspace.resumes.length > 1 || workspace.resumes.some((row) => row.id !== 'current')) throw invalidBackup('The canonical résumé row is invalid.')
+  if (workspace.resumes.length > 1 || workspace.resumes.some((row) => row.id !== 'current')) throw invalidBackup('The canonical resume row is invalid.')
   for (const preferences of workspace.preferences) validateFlexiblePreferences(preferences)
   for (const saved of workspace.flexibleSearches) {
     if (
@@ -574,8 +574,8 @@ function validateFlexiblePreferences(preferences: PreferencesRow): void {
 function validatePrimaryKeys(workspace: BackupWorkspace): void {
   const valid = (rows: unknown[], key: string) => rows.every((row) => Boolean(row) && typeof row === 'object' && typeof (row as Record<string, unknown>)[key] === 'string')
   const checks: [unknown[], string, string][] = [
-    [workspace.resumes, 'id', 'résumé'], [workspace.resumeHistory, 'id', 'résumé history'],
-    [workspace.resumeDrafts, 'id', 'résumé drafts'], [workspace.preferences, 'id', 'preferences'],
+    [workspace.resumes, 'id', 'resume'], [workspace.resumeHistory, 'id', 'resume history'],
+    [workspace.resumeDrafts, 'id', 'resume drafts'], [workspace.preferences, 'id', 'preferences'],
     [workspace.jobs, 'queryKey', 'jobs'], [workspace.matches, 'cacheKey', 'matches'],
     [workspace.tracked, 'jobId', 'tracked jobs'], [workspace.dashboard, 'id', 'dashboard'],
     [workspace.vectors, 'jobId', 'vectors'], [workspace.savedSearches, 'id', 'saved searches'],

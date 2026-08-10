@@ -1,5 +1,5 @@
 const SENSITIVE_KEY =
-  /(?:api.?key|authorization|credential|secret|token|passphrase|password|request.?id|artifact.?id|resume|résumé|cover.?letter|application.?content|prompt|messages?|generated.?text|raw.?text|body)/i
+  /(?:api.?key|authorization|credential|secret|token|passphrase|password|request.?id|artifact.?id|resume|r\u00e9sum\u00e9|cover.?letter|application.?content|prompt|messages?|generated.?text|raw.?text|body)/i
 const EMAIL = /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi
 const BEARER = /\bBearer\s+[A-Za-z0-9._~+/-]+=*/gi
 const LIKELY_SECRET =

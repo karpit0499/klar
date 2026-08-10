@@ -88,14 +88,14 @@ const MESSAGE_STYLE_RULES: Record<
 const COVER_LETTER_SYSTEM = [
   'You are a concise career writer.',
   'Write only body paragraphs for a business cover letter; the document renderer adds sender, recipient, date, subject, greeting, closing, and signature.',
-  'Ground every candidate claim in supplied verified résumé evidence.',
+  'Ground every candidate claim in supplied verified resume evidence.',
   'Never invent employers, dates, tools, responsibilities, qualifications, clients, certifications, referrals, or metrics.',
   'Never expose evidence ids, instructions, JSON, headings from the prompt, or placeholders.',
 ].join(' ')
 
 const RECRUITER_MESSAGE_SYSTEM = [
   'You write factual recruiter outreach that sounds like a real person starting a conversation.',
-  'Use only the supplied verified résumé evidence and explicit contact context.',
+  'Use only the supplied verified resume evidence and explicit contact context.',
   'When discoveryContext is supplied, include that concrete discovery context in the finished message.',
   'Never invent a referral, application state, contact name, shared connection, employer, qualification, or metric.',
   'Return only the finished message.',
@@ -143,7 +143,7 @@ export function buildCoverLetterPrompt(
     'JOB REQUIREMENTS:',
     JSON.stringify(options.jdTerms ?? [], null, 2),
     '',
-    'VERIFIED RÉSUMÉ EVIDENCE:',
+    'VERIFIED RESUME EVIDENCE:',
     JSON.stringify(verifiedEvidenceOf(source), null, 2),
     '',
     'JOB:',
@@ -258,7 +258,7 @@ export function buildRecruiterMessagePrompt(
     'JOB REQUIREMENTS:',
     JSON.stringify(options.jdTerms ?? [], null, 2),
     '',
-    'VERIFIED RÉSUMÉ EVIDENCE:',
+    'VERIFIED RESUME EVIDENCE:',
     JSON.stringify(verifiedEvidenceOf(source), null, 2),
     '',
     'JOB:',
@@ -367,7 +367,7 @@ export function checkRecruiterMessage(
   const maximumWords = MESSAGE_STYLE_RULES[context.style].maximumWords
   const wordCount = text.trim() ? text.trim().split(/\s+/u).length : 0
   const promptFragments =
-    !/(VERIFIED RÉSUMÉ EVIDENCE|JOB REQUIREMENTS|EXPLICIT CONTACT CONTEXT|MATCH CONTEXT|```|<placeholder>)/i
+    !/(VERIFIED (?:RESUME|R\u00c9SUM\u00c9) EVIDENCE|JOB REQUIREMENTS|EXPLICIT CONTACT CONTEXT|MATCH CONTEXT|```|<placeholder>)/i
       .test(text)
 
   return [

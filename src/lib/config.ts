@@ -70,7 +70,7 @@ export const MATCH = {
  * bounded excerpt from the beginning keeps the signal and drops the padding.
  */
 export const PROMPT = {
-  /** Characters of the description sent with a résumé rewrite. */
+  /** Characters of the description sent with a resume rewrite. */
   jobExcerptChars: 1200,
   /** Shorter excerpt used by the exceptional per-role chunking path. */
   chunkExcerptChars: 600,

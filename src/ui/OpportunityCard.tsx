@@ -4,7 +4,7 @@
 // hourly pay, an inferred-details note when Klar classified fields, a "New"
 // badge for saved-search deltas, and an accessible apply/official-route link.
 //
-// v2.5: an optional "Prepare message" action opens the résumé-free prepare
+// v2.5: an optional "Prepare message" action opens the resume-free prepare
 // drawer. The apply link is unchanged — it still goes straight to the employer's
 // own official route, and Klar still never applies for anyone.
 // ============================================================================

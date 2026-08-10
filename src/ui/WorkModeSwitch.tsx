@@ -1,7 +1,7 @@
 // ============================================================================
 // WorkModeSwitch (v2.4.1). A segmented control that lets ANY user move between
 // career discovery and Flexible Work. Before v2.4.1 the two surfaces were
-// mutually exclusive — saving a résumé silently removed Flexible Work from the
+// mutually exclusive — saving a resume silently removed Flexible Work from the
 // app. Flexible Work is a feature for everyone, so this control is shown
 // whenever both surfaces are meaningful.
 // ============================================================================

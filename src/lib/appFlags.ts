@@ -29,7 +29,7 @@ export type AppFlags = {
   deterministicMatching: boolean
   /** v2.5.5: schedule transiently unaffordable calls instead of firing them. */
   budgetGuard: boolean
-  /** v2.5.5: split only permanently oversized résumé requests by role. */
+  /** v2.5.5: split only permanently oversized resume requests by role. */
   tailoringChunking: boolean
   /** v2.6 internal evaluation surface; never changes the production exporter. */
   resumeDesignLab: boolean

@@ -1,5 +1,5 @@
 // ============================================================================
-// Résumé text extraction — 100% client-side. PDFs via pdf.js, DOCX via
+// Resume text extraction — 100% client-side. PDFs via pdf.js, DOCX via
 // mammoth, and plain text / paste directly. The file never leaves the browser.
 //
 // The heavy libraries (pdf.js ~1MB, mammoth) are loaded with DYNAMIC import()
@@ -40,7 +40,7 @@ async function extractDocx(file: File): Promise<string> {
   return result.value
 }
 
-/** Extract raw text from an uploaded résumé file. */
+/** Extract raw text from an uploaded resume file. */
 export async function extractText(file: File): Promise<ExtractResult> {
   const name = file.name.toLowerCase()
   if (name.endsWith('.pdf') || file.type === 'application/pdf') {

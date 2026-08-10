@@ -133,8 +133,8 @@ export default function App() {
   const profile = canonical ? deriveProfile(canonical.data) : null
 
   // ---------------------------------------------------------------------------
-  // v2.4.1 routing. Career discovery needs a résumé; Flexible Work never does.
-  // Both are always reachable — having a résumé no longer hides Flexible Work.
+  // v2.4.1 routing. Career discovery needs a resume; Flexible Work never does.
+  // Both are always reachable — having a resume no longer hides Flexible Work.
   // ---------------------------------------------------------------------------
   const hasCareer = Boolean(canonical && profile)
   const activeMode: WorkMode = hasCareer ? (workMode ?? 'career') : 'flexible'

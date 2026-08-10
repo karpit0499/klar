@@ -28,7 +28,7 @@ export function ResumeStep({ apiKey, requireGroq, onDraft }: {
         action: { label: de ? 'Datei oder Text prüfen' : 'Check the file or text', kind: 'choose_file' },
       }); return
     }
-    const key = apiKey ?? await requireGroq(de ? 'Lebenslauf strukturieren' : 'structure résumé')
+    const key = apiKey ?? await requireGroq(de ? 'Lebenslauf strukturieren' : 'structure resume')
     if (!key) return
     setBusy('parsing'); setError(null)
     try { await onDraft(await extractResumeData(rawText, key)) }
@@ -39,7 +39,7 @@ export function ResumeStep({ apiKey, requireGroq, onDraft }: {
         documentKind: 'resume',
       }).catch(() => undefined)
       setError(toAppError(caught, {
-        category: 'parsing', message: de ? 'Der Lebenslauf konnte nicht strukturiert werden.' : 'The résumé could not be structured.',
+        category: 'parsing', message: de ? 'Der Lebenslauf konnte nicht strukturiert werden.' : 'The resume could not be structured.',
         dataSafe: true, available: de ? 'Der aktuelle Arbeitsbereich ist unverändert.' : 'The current workspace is unchanged.',
         action: { label: de ? 'Erneut versuchen' : 'Try again', kind: 'retry' },
       }))
@@ -66,7 +66,7 @@ export function ResumeStep({ apiKey, requireGroq, onDraft }: {
   return (
     <div className="mx-auto max-w-3xl p-4 sm:p-6">
       <Card className="p-4 sm:p-6">
-        <h1 className="font-display text-display-md font-semibold text-ink">{de ? 'Lebenslauf als Grundlage' : 'Use your résumé as the foundation'}</h1>
+        <h1 className="font-display text-display-md font-semibold text-ink">{de ? 'Lebenslauf als Grundlage' : 'Use your resume as the foundation'}</h1>
         <p className="mt-2 text-base leading-relaxed text-muted">{de ? 'Dateien werden zuerst lokal gelesen. Nur der extrahierte Text wird für die ausdrücklich gestartete KI-Strukturierung an Groq gesendet. Der Rohtext wird nach der Prüfung verworfen.' : 'Files are read locally first. Only extracted text is sent to Groq for the AI structuring action you explicitly start. Raw text is discarded after review.'}</p>
         <p className="mt-2 text-sm text-faint">{de ? 'Extraktion kann Felder übersehen oder falsch einordnen. Du prüfst und bearbeitest jeden Abschnitt vor dem Speichern.' : 'Extraction can miss or misclassify fields. You review and edit every section before saving.'}</p>
         <label className="mt-5 flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-border p-8 text-center hover:border-accent">

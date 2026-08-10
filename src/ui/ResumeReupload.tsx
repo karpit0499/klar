@@ -22,7 +22,7 @@ export function ResumeReupload({ apiKey, requireGroq, onReplace }: {
 
   async function parse(text: string) {
     if (text.trim().length < 30) return
-    const key = apiKey ?? await requireGroq(de ? 'Lebenslauf neu strukturieren' : 'structure replacement résumé')
+    const key = apiKey ?? await requireGroq(de ? 'Lebenslauf neu strukturieren' : 'structure replacement resume')
     if (!key) return
     setBusy('parsing'); setError(null)
     try { setPreview(await extractResumeData(text, key)) }
@@ -33,7 +33,7 @@ export function ResumeReupload({ apiKey, requireGroq, onReplace }: {
         documentKind: 'resume',
       }).catch(() => undefined)
       setError(toAppError(caught, {
-      category: 'parsing', message: de ? 'Der neue Lebenslauf konnte nicht strukturiert werden.' : 'The replacement résumé could not be structured.',
+      category: 'parsing', message: de ? 'Der neue Lebenslauf konnte nicht strukturiert werden.' : 'The replacement resume could not be structured.',
       dataSafe: true, available: de ? 'Das aktuelle Profil bleibt unverändert.' : 'The current profile remains unchanged.',
       action: { label: de ? 'Erneut versuchen' : 'Try again', kind: 'retry' },
       }))
@@ -64,5 +64,5 @@ export function ResumeReupload({ apiKey, requireGroq, onReplace }: {
 
   if (preview) return <div className="mt-4"><div className="mb-3 rounded-md border border-accent bg-accent-tint p-3 text-sm text-accent">{de ? 'Vorschau: Prüfe alle Abschnitte. Beim Bestätigen legt Klar automatisch eine wiederherstellbare Version des aktuellen Profils an und ersetzt es vollständig.' : 'Preview: review every section. On confirmation, Klar automatically saves a restorable version of the current profile and replaces it in full.'}</div><ResumeEditor value={preview} onChange={setPreview} onSave={() => void confirm()} busy={busy === 'saving'} saveLabel={de ? 'Vorschau bestätigen und ersetzen' : 'Confirm preview and replace'} /><div className="mt-3"><Button variant="ghost" onClick={() => setPreview(null)}>{de ? 'Abbrechen' : 'Cancel'}</Button></div></div>
 
-  return <div><div className="flex flex-wrap items-center gap-3"><label className="inline-flex"><input type="file" accept=".pdf,.docx,.txt,.md" className="hidden" onChange={(e) => { const selected = e.target.files?.[0]; if (selected) void file(selected) }} /><span className="inline-flex min-h-tap cursor-pointer items-center rounded-md border border-border bg-surface px-4 py-2 font-medium text-ink hover:bg-surface-2">{de ? 'Neue Datei wählen' : 'Choose replacement file'}</span></label>{busy === 'reading' && <Spinner label={de ? 'Lokal lesen' : 'Reading locally'} />}{busy === 'parsing' && <Spinner label={de ? 'Strukturieren' : 'Structuring'} />}</div><textarea aria-label={de ? 'Lebenslauftext einfügen' : 'Paste résumé text'} className="mt-3 h-32 w-full rounded-md border border-border bg-surface p-3 text-base text-ink outline-none focus:border-accent" value={pasted} onChange={(e) => setPasted(e.target.value)} placeholder={de ? 'Oder Lebenslauftext einfügen' : 'Or paste résumé text'} /><div className="mt-2"><Button size="sm" variant="ghost" onClick={() => void parse(pasted)} disabled={Boolean(busy) || pasted.trim().length < 30}>{de ? 'Text prüfen' : 'Preview pasted text'}</Button></div>{error && <div className="mt-3"><ErrorNotice error={error} /></div>}</div>
+  return <div><div className="flex flex-wrap items-center gap-3"><label className="inline-flex"><input type="file" accept=".pdf,.docx,.txt,.md" className="hidden" onChange={(e) => { const selected = e.target.files?.[0]; if (selected) void file(selected) }} /><span className="inline-flex min-h-tap cursor-pointer items-center rounded-md border border-border bg-surface px-4 py-2 font-medium text-ink hover:bg-surface-2">{de ? 'Neue Datei wählen' : 'Choose replacement file'}</span></label>{busy === 'reading' && <Spinner label={de ? 'Lokal lesen' : 'Reading locally'} />}{busy === 'parsing' && <Spinner label={de ? 'Strukturieren' : 'Structuring'} />}</div><textarea aria-label={de ? 'Lebenslauftext einfügen' : 'Paste resume text'} className="mt-3 h-32 w-full rounded-md border border-border bg-surface p-3 text-base text-ink outline-none focus:border-accent" value={pasted} onChange={(e) => setPasted(e.target.value)} placeholder={de ? 'Oder Lebenslauftext einfügen' : 'Or paste resume text'} /><div className="mt-2"><Button size="sm" variant="ghost" onClick={() => void parse(pasted)} disabled={Boolean(busy) || pasted.trim().length < 30}>{de ? 'Text prüfen' : 'Preview pasted text'}</Button></div>{error && <div className="mt-3"><ErrorNotice error={error} /></div>}</div>
 }

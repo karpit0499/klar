@@ -1,5 +1,5 @@
 // ============================================================================
-// Text-based PDF export for the tailored résumé.
+// Text-based PDF export for the tailored resume.
 //
 // The browser prints semantic HTML that mirrors the production DOCX template.
 // It remains selectable, single-column ATS text — never a rasterized canvas.

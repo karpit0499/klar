@@ -1,6 +1,6 @@
 // ============================================================================
 // Build the normalized FlexibleQuery the fabric runs, and a stable cache key.
-// The résumé is never consulted — Flexible Work is résumé-free by design.
+// The resume is never consulted — Flexible Work is resume-free by design.
 // ============================================================================
 import type { FlexibleWorkPreferences } from '../types'
 import { stableHash } from '../lib/hash'

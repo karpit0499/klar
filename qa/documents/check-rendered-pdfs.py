@@ -62,7 +62,7 @@ def inspect_pdf(pdf: Path) -> dict:
         checks["no_prompt_fragment"] = not any(
             value in text
             for value in (
-                "VERIFIED RÉSUMÉ EVIDENCE",
+                "VERIFIED RESUME EVIDENCE",
                 "JOB REQUIREMENTS",
                 "SYSTEM PROMPT",
             )

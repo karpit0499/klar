@@ -6,8 +6,8 @@
 // titles into a deterministic allow-list of role families before either local
 // ranking mode or the paid LLM sees a posting.
 //
-// Important: résumé skills are deliberately NOT an admission signal here.
-// Skills can rank two relevant jobs, but Python on a marketing résumé must not
+// Important: resume skills are deliberately NOT an admission signal here.
+// Skills can rank two relevant jobs, but Python on a marketing resume must not
 // admit "Senior Data Scientist" into an account-management search.
 // ============================================================================
 import type { NormalizedJob, Preferences, Profile } from '../types'

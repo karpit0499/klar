@@ -1,10 +1,10 @@
 // ============================================================================
-// The Flexible Work home (v2.4). The résumé-free entry surface: a search
+// The Flexible Work home (v2.4). The resume-free entry surface: a search
 // launcher for the saved preferences, the list of saved Flexible Work searches,
-// and paths to edit the search or add a résumé for career roles.
+// and paths to edit the search or add a resume for career roles.
 //
-// v2.4.1: this screen is no longer reserved for résumé-free users. It also
-// serves people who already have a résumé and are switching over to flexible
+// v2.4.1: this screen is no longer reserved for resume-free users. It also
+// serves people who already have a resume and are switching over to flexible
 // work, so the "not set up yet" state now invites them to create a flexible
 // search instead of assuming they arrived here from onboarding.
 // ============================================================================
@@ -26,7 +26,7 @@ export function FlexibleWorkHome({
   preferences: Preferences
   onSearch: (launch: FlexibleLaunch) => void
   onEdit: () => void
-  /** Omitted when the user already has a résumé — there is nothing to add. */
+  /** Omitted when the user already has a resume — there is nothing to add. */
   onAddResume?: () => void
   /** v2.4.1: the career/flexible segmented control, rendered above the panel. */
   switcher?: ReactNode

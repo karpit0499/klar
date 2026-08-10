@@ -4,7 +4,7 @@ import { resumeFromLegacyProfile } from '../resume/canonical'
 import { extractJson, groqChat } from './groq'
 import { INTERVIEW_OUTPUT } from './jsonSchemas'
 
-const SYSTEM = `You are an interview coach. Use only the supplied verified résumé achievements and the job description. Never invent experience. Return one JSON object only.`
+const SYSTEM = `You are an interview coach. Use only the supplied verified resume achievements and the job description. Never invent experience. Return one JSON object only.`
 
 export type InterviewPrep = {
   likelyQuestions: { question: string; evidenceIds: string[]; answerOutline: string[] }[]
@@ -31,7 +31,7 @@ export function buildInterviewPrompt(source: ResumeData | Profile, job: Normaliz
 /**
  * Coerce a partial/schema-recovery response without inventing content.
  * Unknown evidence IDs are discarded so a malformed model row can never make
- * an answer look grounded in résumé evidence that was not actually supplied.
+ * an answer look grounded in resume evidence that was not actually supplied.
  */
 export function coerceInterviewPrep(raw: unknown, source: ResumeData): InterviewPrep {
   const parsed = record(raw)

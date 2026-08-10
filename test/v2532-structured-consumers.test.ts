@@ -133,7 +133,7 @@ const scoredAt = '2026-07-26T12:00:00.000Z'
   assert.equal(coerceProfile(null, 'raw').titles.length, 0)
 }
 
-// Résumé extraction drops empty nested rows, ignores a string "false" instead
+// Resume extraction drops empty nested rows, ignores a string "false" instead
 // of treating it as true, and states the strict nullable contract in the prompt.
 {
   const resume = coerceResumeData({

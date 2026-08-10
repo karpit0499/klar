@@ -56,7 +56,7 @@ export type WorkplaceType =
 /**
  * v2.5: the minimal, OPTIONAL contact block a flexible user may enter so Klar
  * can build a short employer message and a compact profile card. Never required,
- * never a résumé, and stored inside the same encrypted boundary as preferences.
+ * never a resume, and stored inside the same encrypted boundary as preferences.
  */
 export type FlexibleContact = {
   name?: string
@@ -144,7 +144,7 @@ export type NormalizedJob = {
   cityAvailability?: string[]
 }
 
-/** Parsed résumé profile (produced by the LLM parse step). */
+/** Parsed resume profile (produced by the LLM parse step). */
 export type Profile = {
   summary: string
   titles: { title: string; seniority?: string; years?: number }[]
@@ -178,7 +178,7 @@ export type Preferences = {
   hideGermanAboveLevel?: boolean
   /** Hard filter: hide roles that state they don't sponsor visas (feature 2.2). */
   hideNoVisaSponsorship?: boolean
-  /** v2.3 foundation for the résumé-optional Flexible Work experience. */
+  /** v2.3 foundation for the resume-optional Flexible Work experience. */
   discoveryMode?: DiscoveryMode
   flexibleWork?: FlexibleWorkPreferences
 }

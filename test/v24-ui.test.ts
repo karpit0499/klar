@@ -32,7 +32,7 @@ assert.match(card, /flexible\.card\.apply/)
 assert.match(card, /flexible\.card\.inferred/)
 assert.match(card, /rel="noreferrer"/)
 
-// App wires the progressive search into the search tab for résumé-free users.
+// App wires the progressive search into the search tab for resume-free users.
 assert.match(app, /<FlexibleSearch/)
 assert.match(app, /flexLaunch/)
 

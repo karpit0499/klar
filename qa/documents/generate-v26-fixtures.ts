@@ -126,7 +126,7 @@ const job: NormalizedJob = {
 
 const summary: Record<string, unknown> = {
   generatedAt: new Date().toISOString(),
-  source: 'authored synthetic fixture; no supplied résumé sample is embedded',
+  source: 'authored synthetic fixture; no supplied resume sample is embedded',
   resumeDocuments: {},
   coverLetters: {},
   packet: {},

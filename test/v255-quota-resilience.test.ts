@@ -139,7 +139,7 @@ function posting(chars: number, id = `job-${chars}`) {
   })
 }
 
-// Regression grid: every accepted résumé shape either fits whole or has only
+// Regression grid: every accepted resume shape either fits whole or has only
 // bounded role requests. The posting tail cannot inflate a chunk.
 {
   for (let roles = 1; roles <= 14; roles += 1) {

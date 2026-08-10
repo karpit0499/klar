@@ -1,9 +1,9 @@
 // ============================================================================
 // v2.6 — the application packet workspace.
 //
-// v2.4 generated a résumé and a letter and forgot them the moment the drawer
+// v2.4 generated a resume and a letter and forgot them the moment the drawer
 // closed. v2.5 turns this drawer into a PERSISTENT PACKET: job snapshot,
-// tailored résumé + review decisions, letter, short message, notes, readiness,
+// tailored resume + review decisions, letter, short message, notes, readiness,
 // export history and a bounded version history — per language, independently.
 //
 // The flow, in the order a person meets it:
@@ -525,7 +525,7 @@ export function ApplicationBundle({
         category: 'parsing',
         message: t('bundle.resumeFailed', { error: '' }).replace(/:\s*$/, ''),
         dataSafe: true,
-        available: 'Your source résumé and previous output remain unchanged.',
+        available: 'Your source resume and previous output remain unchanged.',
         action: { label: t('common.regenerate'), kind: 'retry' },
       }))
       await endGeneration(packet.id)
@@ -595,7 +595,7 @@ export function ApplicationBundle({
     } catch (error) {
       setLetterError(toAppError(error, {
         category: 'parsing', message: t('bundle.letterFailed'), dataSafe: true,
-        available: 'Your résumé and saved workspace remain unchanged.',
+        available: 'Your resume and saved workspace remain unchanged.',
         action: { label: t('common.regenerate'), kind: 'retry' },
       }))
       if (packet) await endGeneration(packet.id)
@@ -676,7 +676,7 @@ export function ApplicationBundle({
     } catch (error) {
       setLetterError(toAppError(error, {
         category: 'parsing', message: t('message.failed'), dataSafe: true,
-        available: 'Your résumé and saved workspace remain unchanged.',
+        available: 'Your resume and saved workspace remain unchanged.',
         action: { label: t('common.regenerate'), kind: 'retry' },
       }))
       if (packet) await endGeneration(packet.id)
@@ -774,9 +774,9 @@ export function ApplicationBundle({
       }).catch(() => undefined)
       setExportError(toAppError(error, {
         category: 'export',
-        message: 'Klar could not prepare the résumé download.',
+        message: 'Klar could not prepare the resume download.',
         dataSafe: true,
-        available: 'The tailored résumé and application packet remain saved.',
+        available: 'The tailored resume and application packet remain saved.',
         action: { label: 'Try the download again', kind: 'retry' },
       }))
     }
@@ -801,9 +801,9 @@ export function ApplicationBundle({
       }).catch(() => undefined)
       setExportError(toAppError(error, {
         category: 'export',
-        message: 'Klar could not prepare the résumé PDF.',
+        message: 'Klar could not prepare the resume PDF.',
         dataSafe: true,
-        available: 'The tailored résumé and application packet remain saved.',
+        available: 'The tailored resume and application packet remain saved.',
         action: { label: 'Try the PDF again', kind: 'retry' },
       }))
     }
@@ -875,7 +875,7 @@ export function ApplicationBundle({
         category: 'export',
         message: 'Klar could not prepare the application packet download.',
         dataSafe: true,
-        available: 'The tailored résumé, cover letter, and saved packet remain unchanged.',
+        available: 'The tailored resume, cover letter, and saved packet remain unchanged.',
         action: { label: 'Try the download again', kind: 'retry' },
       }))
     } finally {
@@ -1653,12 +1653,12 @@ export function ApplicationBundle({
                 {!readiness.ready
                   ? (resumeLanguage === 'de'
                       ? 'Lehne zuerst jede blockierte Lebenslaufänderung ab. Nicht belegte Formulierungen können nicht exportiert werden.'
-                      : 'Reject every blocked résumé change first. Unsupported wording cannot be exported.')
+                      : 'Reject every blocked resume change first. Unsupported wording cannot be exported.')
                   : letterExportReady
                   ? t('bundle.packetNoteWithLetter')
                   : resumeLanguage === 'de'
                     ? 'Erstelle und prüfe zuerst das Anschreiben. Neue Pakete enthalten immer Lebenslauf und DOCX-Anschreiben.'
-                    : 'Draft and pass the cover-letter checks first. Every new packet contains the résumé and a DOCX cover letter.'}
+                    : 'Draft and pass the cover-letter checks first. Every new packet contains the resume and a DOCX cover letter.'}
               </span>
             </div>
             {exportError && <div className="mt-3"><ErrorNotice error={exportError} /></div>}

@@ -103,7 +103,7 @@ export function buildRerankPrompt(
     'confidence (number 0-1: how sure you are, lower it when the description is thin).',
     'The factors must justify the fitScore: skills = how well the candidate\'s skills match,',
     'Treat the requested title AND job market/field as primary fit criteria. A shared secondary skill',
-    'must not compensate for an unrelated role or industry (for example, data skills in a marketing résumé).',
+    'must not compensate for an unrelated role or industry (for example, data skills in a marketing resume).',
     'salary = fit vs the candidate\'s salary preference (use 50 when unknown),',
     'location = fit vs the candidate\'s locations/remote preference, seniority = level fit.',
     'Reply ONLY as: {"results":[ ... ]} with one entry per job, same order.',

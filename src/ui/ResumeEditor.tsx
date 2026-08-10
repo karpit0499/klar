@@ -34,7 +34,7 @@ export function ResumeEditor({ value, onChange, onSave, saveLabel, busy = false 
       <Card className="p-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h2 className="text-xl font-semibold text-ink">{de ? 'Geprüfter Lebenslauf' : 'Reviewed résumé'}</h2>
+            <h2 className="text-xl font-semibold text-ink">{de ? 'Geprüfter Lebenslauf' : 'Reviewed resume'}</h2>
             <p className="mt-1 text-sm text-muted">{completenessSummary}</p>
           </div>
           <span className="rounded-full bg-accent-tint px-3 py-1 font-display text-lg font-semibold text-accent">{completeness.percentage}%</span>

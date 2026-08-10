@@ -7,6 +7,8 @@ look to final decision.
 **Current release: v2.6.0.1 Developer Preview**
 
 [**Open Klar →**](https://karpit0499.github.io/klar/) ·
+[Knowledge Base →](https://klar-knowledge-base.kmrarpit2704.chatgpt.site/) ·
+[Browse KB source →](knowledge-base/content/) ·
 [What changed →](CHANGELOG.md) ·
 [Report an issue →](https://github.com/karpit0499/klar/issues)
 
@@ -21,15 +23,15 @@ _Highlights from Latest Update_
 v2.6 is a measurement-first foundation release. It adds a versioned,
 evidence-linked ranking snapshot; source-health and privacy-reviewed issue
 reporting; semantic English/German cover-letter DOCX and recruiter-message
-checks; an internal code-generated résumé design lab; and a hardened macOS
+checks; an internal code-generated resume design lab; and a hardened macOS
 ARM64/Windows x64 desktop preview for a managed, signed local-model package.
 The desktop artifacts remain unsigned and internal. Adapter training, blinded
 human quality studies, production signing, and public optional local
 intelligence remain explicit graduation gates rather than claimed outcomes.
 
 v2.6.0.1 is the production-format and source-continuity hotfix. It promotes the
-approved cross-compatible résumé structure to both DOCX and browser-print PDF,
-keeps every exported claim inside the canonical résumé evidence, migrates the
+approved cross-compatible resume structure to both DOCX and browser-print PDF,
+keeps every exported claim inside the canonical resume evidence, migrates the
 Bundesagentur search connector from the rejected internal v4 route to the
 currently active v6 route and schema, and refreshes the web shell cache. The BA
 detail lookup remains on its working v4 detail route; the Cloudflare Worker
@@ -59,7 +61,7 @@ is not enough. Klar now evaluates these separately:
   campaign automation, Klaviyo, Mailchimp, or HubSpot can refine already
   relevant results.
 
-Résumé skills support ranking only after a job passes those gates. A secondary
+Resume skills support ranking only after a job passes those gates. A secondary
 Python or SQL skill cannot turn an unrelated technical role into a career match.
 
 Both local ranking modes use the same relevance rules:
@@ -95,17 +97,17 @@ If the answer is zero, Klar explains whether the problem was the sources, the
 radius, the requested role and market, another filter, or unfinished matching.
 It does not fill an empty result page with unrelated jobs.
 
-### Résumé and profile workspace
+### Resume and profile workspace
 
-Klar keeps one canonical résumé behind search and application tools. You can:
+Klar keeps one canonical resume behind search and application tools. You can:
 
-- import PDF or DOCX, or build the résumé manually;
+- import PDF or DOCX, or build the resume manually;
 - review and edit contact details, summary, experience, education, skills,
   projects, certifications, and languages;
 - reorder sections and roles;
 - see structural completeness checks;
 - keep and restore earlier versions; and
-- derive a thin matching profile without maintaining a second résumé.
+- derive a thin matching profile without maintaining a second resume.
 
 The career setup keeps target titles and **Job market / field** separate so an
 account role can be searched within email marketing, CRM, healthcare, fintech,
@@ -115,8 +117,8 @@ or another intended market.
 
 For a saved job, Klar can prepare English and German material independently:
 
-- an ATS-friendly tailored résumé;
-- a no-AI résumé reorder that preserves every original sentence;
+- an ATS-friendly tailored resume;
+- a no-AI resume reorder that preserves every original sentence;
 - a factual change review with accept, reject, and edit controls;
 - keyword coverage from the posting;
 - a grounded cover letter in Concise, Balanced, or Formal tone;
@@ -124,19 +126,19 @@ For a saved job, Klar can prepare English and German material independently:
 - interview questions and talking points; and
 - one saved application packet with notes and generation history.
 
-Packet download uses a single ZIP containing the DOCX résumé and the required
+Packet download uses a single ZIP containing the DOCX resume and the required
 semantic cover-letter DOCX. Filenames include candidate, company, role, and
 language without leaking internal IDs. This avoids the multiple-download behavior that mobile
 browsers commonly block.
 
-New v2.6 packets store row-level schema defaults. Each generated résumé, letter,
+New v2.6 packets store row-level schema defaults. Each generated resume, letter,
 and recruiter message stores its own per-language content/generator contract;
 each download records the source-artifact provenance and exact exporter used.
 Older or mixed packet rows stay conservatively labelled historical even when
 one artifact is regenerated, so Klar never silently calls untouched content a
 v2.6 artifact.
 
-From v2.6.0.1, production DOCX and PDF résumés share the approved A4,
+From v2.6.0.1, production DOCX and PDF resumes share the approved A4,
 single-column Arial layout: a compact identity block, an unlabeled profile,
 semantic ruled section headings, compact role and date grouping, coloured real
 bullets, and a combined skills-and-languages section. Klar uses the newest held
@@ -145,16 +147,16 @@ headline; it never presents the target vacancy title as experience. The three
 research palettes remain visual references, while production uses one stable
 blue accent until an explicit user-selected palette exists.
 
-For résumé tailoring, Klar rejects evidence-blocked rewrites at the decision,
+For resume tailoring, Klar rejects evidence-blocked rewrites at the decision,
 edit, and export boundaries; malformed or omitted AI fields fall back to the
-verified source résumé, and change notes are derived locally. Cover-letter and
+verified source resume, and change notes are derived locally. Cover-letter and
 recruiter-message prompts project verified evidence and deterministic checks
 catch known risky patterns, but those checks are not a complete factual audit.
 Every generated letter and message still needs human review. The genuine
 blinded writing gate remains HOLD, so v2.6 makes no per-output guarantee that a
 model cannot invent a subtle claim.
 
-### Flexible work without a résumé
+### Flexible work without a resume
 
 Flexible Work is a separate path for minijobs, part-time work, working-student
 roles, temporary work, and evening, night, weekend, or seasonal shifts.
@@ -179,7 +181,7 @@ salary tools provide market context and an estimated German take-home amount.
 
 Klar has no application server that stores a person's career history.
 
-- Résumés, profiles, preferences, saved jobs, packets, and tracker data live in
+- Resumes, profiles, preferences, saved jobs, packets, and tracker data live in
   the browser.
 - Optional vault protection encrypts sensitive local data and saved credentials.
 - Standard backups exclude API credentials.
@@ -223,7 +225,7 @@ starts; Adzuna credentials are optional.
 
 1. [Open Klar](https://karpit0499.github.io/klar/).
 2. Choose Career roles or Flexible work.
-3. Import a résumé, build one manually, or continue résumé-free for Flexible
+3. Import a resume, build one manually, or continue resume-free for Flexible
    Work.
 4. Set the target title, job market, seniority, location, and radius.
 5. Search, review the diagnostics, save useful jobs, and prepare applications.
@@ -308,7 +310,7 @@ The production and full build-tool audits are separate release gates. Both are
 green for the lockfile verified on 10 August 2026; rerun both immediately before
 release because the advisory database can change.
 
-The current suite includes résumé-derived search regressions for role, job
+The current suite includes resume-derived search regressions for role, job
 market, seniority, location, keyword ranking, local vocabulary ranking, prompt
 context, cache invalidation, diagnostics, and displayed-score behavior.
 
@@ -354,8 +356,8 @@ browser origins must include the production GitHub Pages origin.
 
 ## Release history
 
-- **v2.6.0.1 — Résumé format and BA continuity hotfix:** promoted the approved
-  cross-compatible résumé structure to production DOCX and PDF, versioned both
+- **v2.6.0.1 — Resume format and BA continuity hotfix:** promoted the approved
+  cross-compatible resume structure to production DOCX and PDF, versioned both
   exporter contracts, migrated BA search to the working v6 list schema while
   retaining v4 detail lookup, added connector-contract regressions and live
   acceptance checks, and refreshed
@@ -363,11 +365,11 @@ browser origins must include the production GitHub Pages origin.
 - **v2.6.0 — Measured intelligence foundation:** versioned evidence-linked
   ranking, frozen synthetic and human evaluation gates, source-health and safe
   GitHub report routing, semantic bilingual application documents, internal
-  résumé design experiments, signed local-model package verification, and
+  resume design experiments, signed local-model package verification, and
   unsigned hardened desktop previews.
 - **v2.5.5 — Quota resilience:** unbounded zero-token deterministic career
   matching by default, one-job AI explanations for any opened result, rolling
-  budget scheduling and visibility, bounded evidence-checked résumé chunks, and
+  budget scheduling and visibility, bounded evidence-checked resume chunks, and
   content-addressed packet caches.
 - **v2.5.3.4 — Complete ranked results:** every relevant career job stays
   visible, the 40-job guard applies only to AI enrichment, and deterministic
@@ -378,7 +380,7 @@ browser origins must include the production GitHub Pages origin.
   diagnostics, reconciled candidate counts, strict hard-filter partitioning,
   and expanded Data/AI/BI title relevance in English and German.
 - **v2.5.3.2 — AI output recovery:** bounded Groq schema fallback, partial
-  evidence-safe résumé recovery, bilingual completion headroom, locally derived
+  evidence-safe resume recovery, bilingual completion headroom, locally derived
   change notes, and defensive normalization across every structured AI action.
 - **v2.5.3.1 — Search relevance:** role-and-market gating, stricter seniority and
   radius rules, corrected local ranking, stale-score invalidation, and editable
@@ -392,10 +394,10 @@ browser origins must include the production GitHub Pages origin.
   relay for browser reliability.
 - **v2.5 — Application quality:** grounded change review, keyword coverage,
   bilingual packets, cover-letter tones, short messages, configurable AI, and
-  résumé-free flexible outreach.
+  resume-free flexible outreach.
 - **v2.4 — Flexible Work and Source Fabric:** progressive employer discovery,
   open applications, source provenance, bounded sessions, and saved searches.
-- **v2.3 — Résumé foundation:** canonical résumé, editor and history, adaptive
+- **v2.3 — Resume foundation:** canonical resume, editor and history, adaptive
   onboarding, sample exploration, and safer exports.
 - **v2.2 and earlier:** stability, privacy, multi-country discovery, matching,
   tracking, exports, salary context, and the original private workspace.

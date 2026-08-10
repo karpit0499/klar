@@ -95,7 +95,7 @@ assert.ok(db.tables.some((table) => table.name === 'packets'), 'the packets tabl
 {
   const id = packetId('career', job.id)
   let ready = packetReadiness(await loadPacket(id), 'en')
-  assert.equal(ready.resume, false, 'no résumé yet → not ready')
+  assert.equal(ready.resume, false, 'no resume yet → not ready')
   assert.equal(ready.letter, true, 'the letter is detected')
 
   await updatePacket(id, (row) => {
@@ -107,7 +107,7 @@ assert.ok(db.tables.some((table) => table.name === 'packets'), 'the packets tabl
     }
   })
   ready = packetReadiness(await loadPacket(id), 'en')
-  assert.equal(ready.resume, true, 'a baseline means a résumé exists')
+  assert.equal(ready.resume, true, 'a baseline means a resume exists')
   assert.equal(ready.blocked, 1, 'the blocked change is counted')
   assert.equal(ready.ready, true, 'a REJECTED blocked change does not stop an export')
 
@@ -146,7 +146,7 @@ assert.ok(db.tables.some((table) => table.name === 'packets'), 'the packets tabl
   assert.equal(
     'recruiterMessage' in (withHistory?.exportHistory[0].sourceArtifactProvenance ?? {}),
     false,
-    'workspace-only recruiter text is not falsely claimed as part of a résumé export',
+    'workspace-only recruiter text is not falsely claimed as part of a resume export',
   )
   await updatePacket(id, (row) => {
     const previous = row.languages.en ?? emptyLanguageState()
@@ -331,7 +331,7 @@ assert.ok(db.tables.some((table) => table.name === 'packets'), 'the packets tabl
   )
 }
 
-// --- The flexible packet never needs a résumé --------------------------------
+// --- The flexible packet never needs a resume --------------------------------
 {
   const packet = await openPacket('flexible', flexJob)
   assert.equal(packet.kind, 'flexible')
@@ -340,7 +340,7 @@ assert.ok(db.tables.some((table) => table.name === 'packets'), 'the packets tabl
     row.flexible = { message: 'Guten Tag, …', availability: 'Ich kann Samstag arbeiten.' }
   })
   assert.equal(flexibleReadiness(await loadPacket(packet.id)).ready, true, 'message + availability = ready')
-  assert.equal((await loadPacket(packet.id))?.languages.en, undefined, 'no résumé state is created')
+  assert.equal((await loadPacket(packet.id))?.languages.en, undefined, 'no resume state is created')
 
   const all = await listPackets()
   assert.ok(all.length >= 2, 'both packets are listed')
@@ -406,11 +406,11 @@ assert.ok(db.tables.some((table) => table.name === 'packets'), 'the packets tabl
   assert.match(
     bundleSource,
     /async function downloadAll\(\) \{[\s\S]*?!isCurrentCoverLetterProvenance\(letterProvenance\)[\s\S]*?!readiness\.ready[\s\S]*?exportBusy[\s\S]*?\) return/,
-    'the packet handler independently enforces résumé evidence, cover-letter checks, and current provenance',
+    'the packet handler independently enforces resume evidence, cover-letter checks, and current provenance',
   )
   assert.ok(
     (bundleSource.match(/disabled=\{!readiness\.ready\}/g) ?? []).length >= 2,
-    'both standalone résumé export controls are disabled while evidence is blocked',
+    'both standalone resume export controls are disabled while evidence is blocked',
   )
   assert.match(
     bundleSource,

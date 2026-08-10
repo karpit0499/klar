@@ -1,5 +1,5 @@
 // Run with: npx tsx test/resume.test.ts
-// Covers the tailored-résumé generator (feature 12): deterministic tailoring,
+// Covers the tailored-resume generator (feature 12): deterministic tailoring,
 // the parse self-check, and a REAL DOCX parse-safety check (generate → unzip →
 // confirm section order + content survive as clean linear text).
 //
@@ -7,7 +7,7 @@
 // export story, so the plan's job was to widen it, not replace it:
 //   • it now runs for EVERY template variant (English and German headings), and
 //   • it asserts COVERED-KEYWORD SURVIVAL: each term coverageReport() said the
-//     résumé evidences must still be findable in the unzipped document text.
+//     resume evidences must still be findable in the unzipped document text.
 //     Section headings surviving is not enough; an ATS matches on the terms.
 import { Packer } from 'docx'
 import { execFileSync } from 'node:child_process'
@@ -173,14 +173,14 @@ async function docxCheck() {
     // ATS-safety: the document.xml must contain NO table elements.
     ok(!/<w:tbl[ >]/.test(xml), `docx[${variant.lang}]: contains NO tables (parse-safe)`)
 
-    // v2.5 (WS1): every term we CLAIM the résumé evidences must survive the
+    // v2.5 (WS1): every term we CLAIM the resume evidences must survive the
     // round-trip. Headings surviving is not enough — an ATS matches on terms.
     ok(t.coverage.covered.length > 0, `docx[${variant.lang}]: the fixture has covered terms to check`)
     const lost = t.coverage.covered.filter((term) => !text.toLowerCase().includes(term.toLowerCase()))
     ok(lost.length === 0, `docx[${variant.lang}]: every covered keyword survives (lost: ${lost.join(', ')})`)
   }
 
-  console.log(`\nRésumé tests: ${passed} passed, ${failed} failed`)
+  console.log(`\nResume tests: ${passed} passed, ${failed} failed`)
   if (failed) process.exit(1)
 }
 docxCheck().catch((e) => { console.error(e); process.exit(1) })

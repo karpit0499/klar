@@ -8,7 +8,7 @@ body:
     attributes:
       value: |
         Feature requests are public. Describe the need without attaching or
-        pasting a real résumé, application, private job description, or secret.
+        pasting a real resume, application, private job description, or secret.
   - type: textarea
     id: problem
     attributes:

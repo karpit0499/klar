@@ -67,7 +67,7 @@ assert.deepEqual(flexibleState.capabilities, {
   canPrepareApplications: false,
   canUseResumeMatching: false,
 })
-assert.equal(await loadCanonicalResume(), null, 'Flexible Work must not create an empty résumé.')
+assert.equal(await loadCanonicalResume(), null, 'Flexible Work must not create an empty resume.')
 
 const backup = await createStandardBackup()
 const preview = await inspectBackup(backup)

@@ -55,7 +55,7 @@ export function IntakeStep({
   const [hideNoVisa, setHideNoVisa] = useState(initial?.hideNoVisaSponsorship ?? false)
 
   function save() {
-    // Keep the résumé's languages, but make sure German reflects the chosen level.
+    // Keep the resume's languages, but make sure German reflects the chosen level.
     const langs = profile.languages
       .filter((l) => !/deutsch|german/i.test(l.lang))
       .map((l) => ({ lang: l.lang, min_level: l.level ?? '' }))

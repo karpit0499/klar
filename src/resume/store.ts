@@ -97,7 +97,7 @@ export async function deleteSnapshot(id: string): Promise<void> {
 
 export async function restoreSnapshot(id: string): Promise<CanonicalResumeRow> {
   const snapshot = (await loadResumeHistory()).find((item) => item.id === id)
-  if (!snapshot) throw new Error('That résumé snapshot no longer exists.')
+  if (!snapshot) throw new Error('That resume snapshot no longer exists.')
   return saveCanonicalResume(snapshot.data, { reason: 'edit', snapshotCurrent: true })
 }
 

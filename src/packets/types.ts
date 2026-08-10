@@ -2,7 +2,7 @@
 // v2.5 — the application packet.
 //
 // A packet is everything Klar produced for ONE opportunity: the job snapshot,
-// the tailored résumé and its review decisions, the letter, the short message,
+// the tailored resume and its review decisions, the letter, the short message,
 // notes, readiness, export history and a bounded version history. It survives a
 // reload, and it records an in-flight generation so an interrupted run can be
 // recognised instead of silently lost.
@@ -10,7 +10,7 @@
 // Two rules the shape enforces:
 //   • Per-language state is INDEPENDENT (roadmap v2.5: "Independent bilingual
 //     generation … separate review state"). EN and DE never share decisions.
-//   • A flexible packet never requires a résumé. It carries a message, an
+//   • A flexible packet never requires a resume. It carries a message, an
 //     availability line and a status — nothing more.
 // ============================================================================
 import type { NormalizedJob } from '../types'
@@ -186,7 +186,7 @@ export type PacketCoverage = {
 
 export type PacketLanguageState = {
   /**
-   * v2.4.3: which path produced this résumé. A deterministic reorder must never
+   * v2.4.3: which path produced this resume. A deterministic reorder must never
    * be presented as an AI rewrite, so the mode is stored, not inferred.
    */
   mode?: 'ai' | 'deterministic'
@@ -331,7 +331,7 @@ export type PacketReadiness = {
   reviewed: boolean
   blocked: number
   confirmationRequired: number
-  /** Exportable = a résumé exists and nothing unsupported is still accepted. */
+  /** Exportable = a resume exists and nothing unsupported is still accepted. */
   ready: boolean
 }
 
@@ -357,7 +357,7 @@ export function packetReadiness(
   }
 }
 
-/** Pure readiness check for a flexible packet (no résumé is ever required). */
+/** Pure readiness check for a flexible packet (no resume is ever required). */
 export function flexibleReadiness(packet: PacketRow | null): {
   message: boolean
   availability: boolean

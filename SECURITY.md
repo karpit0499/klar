@@ -15,7 +15,7 @@ https://github.com/karpit0499/klar/security/advisories/new
 Do not open a public Issue for suspected authentication, encryption, secret
 handling, sandbox escape, code execution, update, model-package trust, or
 personal-data exposure problems. Include the minimum reproducible information.
-Never attach a real résumé, cover letter, application, API key, password,
+Never attach a real resume, cover letter, application, API key, password,
 token, private signing key, or unredacted diagnostic archive.
 
 The project is maintained on a best-effort basis and does not promise a response
@@ -30,7 +30,7 @@ https://github.com/karpit0499/klar/issues/new/choose
 
 Public Issues are visible to everyone. Replace personal names, email addresses,
 phone numbers, employer-private text, local file paths, query strings, and
-identifiers with synthetic examples. Never paste a résumé or application
+identifiers with synthetic examples. Never paste a resume or application
 document into a public report.
 
 Klar never submits either type of report automatically. The in-app report tool

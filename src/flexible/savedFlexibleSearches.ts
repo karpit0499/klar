@@ -1,5 +1,5 @@
 // ============================================================================
-// Saved Flexible Work searches (v2.4 deliverable). Résumé-free named searches
+// Saved Flexible Work searches (v2.4 deliverable). Resume-free named searches
 // that remember their own preferences and, on each run, highlight what is new
 // since last time — reusing the v2.2 content-fingerprint "seen identities"
 // model so a reposted job is not mislabelled as new. All local, no backend.

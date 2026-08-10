@@ -1,5 +1,5 @@
 // Run with: npx tsx test/resume.test.ts
-// Covers the tailored-résumé generator (feature 12): deterministic tailoring,
+// Covers the tailored-resume generator (feature 12): deterministic tailoring,
 // the parse self-check, and a REAL DOCX parse-safety check (generate → unzip →
 // confirm section order + content survive as clean linear text).
 import { Packer } from 'docx'
@@ -132,7 +132,7 @@ async function docxCheck() {
   // ATS-safety: the document.xml must contain NO table elements.
   ok(!/<w:tbl[ >]/.test(xml), 'docx: contains NO tables (parse-safe)')
 
-  console.log(`\nRésumé tests: ${passed} passed, ${failed} failed`)
+  console.log(`\nResume tests: ${passed} passed, ${failed} failed`)
   if (failed) process.exit(1)
 }
 docxCheck().catch((e) => { console.error(e); process.exit(1) })

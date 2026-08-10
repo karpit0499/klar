@@ -144,7 +144,7 @@ const en = {
 
   // Vault unlock
   'vault.title': 'Unlock Klar',
-  'vault.intro': 'Your career data and saved credentials are encrypted on this device. Enter your passphrase to use résumé, matching, generation, dashboard, and tracker features.',
+  'vault.intro': 'Your career data and saved credentials are encrypted on this device. Enter your passphrase to use resume, matching, generation, dashboard, and tracker features.',
   'vault.passphrase': 'Vault passphrase',
   'vault.unlock': 'Unlock vault',
   'vault.unlocking': 'Unlocking…',
@@ -167,7 +167,7 @@ const en = {
   // Groq key gate
   'key.title': 'Connect your free Groq key',
   'key.intro':
-    "Klar uses Groq's free API for résumé parsing and job matching. Klar's fixed relay passes your key to Groq for each request and never stores it.",
+    "Klar uses Groq's free API for resume parsing and job matching. Klar's fixed relay passes your key to Groq for each request and never stores it.",
   'key.step1Open': 'Open',
   'key.step1After': 'and create a key (free, ~30 seconds).',
   'key.step2': 'Paste it below and click Validate.',
@@ -210,17 +210,17 @@ const en = {
   'settings.adzunaRemove': 'Remove credentials',
   'settings.adzunaPrivacy':
     'Stored only in this browser and sent to the Klar Worker only when an Adzuna request needs them.',
-  'settings.resumeTitle': 'Résumé',
+  'settings.resumeTitle': 'Resume',
   'settings.resumeIntro':
-    'Replace the résumé behind your profile. Your tracked jobs and preferences are kept.',
+    'Replace the resume behind your profile. Your tracked jobs and preferences are kept.',
   'settings.regionTitle': 'Region',
   'settings.regionIntro': 'Choose the market to search. Each region controls which job sources run.',
   'settings.activeRegion': 'Active region',
   'settings.regionChanged': 'Region set to {region}. It applies on your next search.',
-  'settings.reuploadTooShort': 'That looks too short to be a résumé. Paste more text or choose a file.',
+  'settings.reuploadTooShort': 'That looks too short to be a resume. Paste more text or choose a file.',
   'settings.reuploadParseFailed': 'Parsing failed.',
   'settings.reuploadReadFailed': 'Could not read that file.',
-  'settings.reuploadConfirm': 'New résumé parsed — replace your current profile?',
+  'settings.reuploadConfirm': 'New resume parsed — replace your current profile?',
   'settings.reuploadSkills': 'Skills',
   'settings.reuploadDetected': '{count} detected',
   'settings.reuploadYears': '{years} years',
@@ -265,20 +265,20 @@ const en = {
   'settings.adzunaTesting': 'Testing…',
   'settings.adzunaWorks': 'Adzuna connection works.',
 
-  // Résumé upload (onboarding)
-  'resume.tooShort': 'That looks too short to be a résumé. Paste more text or upload a file.',
+  // Resume upload (onboarding)
+  'resume.tooShort': 'That looks too short to be a resume. Paste more text or upload a file.',
   'resume.parseFailed': 'Parsing failed.',
   'resume.readFailed': 'Could not read that file.',
-  'resume.title': 'Add your résumé',
+  'resume.title': 'Add your resume',
   'resume.intro':
     'PDF, DOCX, or paste text. Everything is processed in your browser; the file is never uploaded to us.',
   'resume.chooseFile': 'Click to choose a file',
   'resume.fileHint': 'PDF or DOCX',
-  'resume.orPaste': '…or paste résumé text',
-  'resume.placeholder': 'Paste your résumé here…',
+  'resume.orPaste': '…or paste resume text',
+  'resume.placeholder': 'Paste your resume here…',
   'resume.parsePasted': 'Parse pasted text',
   'resume.readingFile': 'Reading file…',
-  'resume.parsingAI': 'Parsing résumé with AI…',
+  'resume.parsingAI': 'Parsing resume with AI…',
 
   // Profile review
   'profile.title': 'Does this look right?',
@@ -411,29 +411,29 @@ const en = {
 
   // Application bundle
   'bundle.title': 'Application packet',
-  'bundle.tooShort': 'That looks too short to be a résumé.',
+  'bundle.tooShort': 'That looks too short to be a resume.',
   'bundle.extractionFailed': 'Extraction failed.',
   'bundle.readFailed': 'Could not read that file.',
   'bundle.letterFailed': 'Could not draft the cover letter.',
-  'bundle.needResumeTitle': 'One-time detailed résumé',
+  'bundle.needResumeTitle': 'One-time detailed resume',
   'bundle.needResumeBody':
-    'To tailor your résumé we need a detailed version once. Upload it and we cache it in this browser.',
+    'To tailor your resume we need a detailed version once. Upload it and we cache it in this browser.',
   'bundle.chooseFile': 'Choose file',
   'bundle.readingFile': 'Reading file…',
-  'bundle.extractingResume': 'Extracting résumé…',
-  'bundle.coverage': 'Résumé ↔ posting coverage',
+  'bundle.extractingResume': 'Extracting resume…',
+  'bundle.coverage': 'Resume ↔ posting coverage',
   'bundle.gap': 'gap: {skill}',
-  'bundle.tailoredResume': 'Tailored résumé · {lang}',
+  'bundle.tailoredResume': 'Tailored resume · {lang}',
   'bundle.tailoredHint': 'Rewritten from your source evidence. Review every change; blocked wording cannot be accepted or exported.',
-  'bundle.languagePrompt': 'Choose résumé language',
+  'bundle.languagePrompt': 'Choose resume language',
   'bundle.english': 'English',
   'bundle.german': 'German',
   'bundle.suggested': 'Suggested',
-  'bundle.generateResume': 'Generate tailored résumé',
-  'bundle.generatingResume': 'Tailoring résumé…',
-  'bundle.resumeFailed': 'Could not tailor the résumé: {error}',
+  'bundle.generateResume': 'Generate tailored resume',
+  'bundle.generatingResume': 'Tailoring resume…',
+  'bundle.resumeFailed': 'Could not tailor the resume: {error}',
   'bundle.changeSummary': 'What changed',
-  'bundle.resumeReady': 'Your tailored résumé is ready.',
+  'bundle.resumeReady': 'Your tailored resume is ready.',
   'bundle.downloadDocx': 'Download DOCX',
   'bundle.printPdf': 'Print / save PDF',
   'bundle.salary': 'Salary expectation',
@@ -443,8 +443,8 @@ const en = {
     'No benchmark is available for this role and location right now. Check the Klar Worker configuration or try again later.',
   'bundle.draft': 'Draft',
   'bundle.downloadPacket': 'Download packet (.zip)',
-  'bundle.packetNote': 'One mobile-safe download containing the tailored résumé.',
-  'bundle.packetNoteWithLetter': 'One mobile-safe download containing the résumé and cover letter.',
+  'bundle.packetNote': 'One mobile-safe download containing the tailored resume.',
+  'bundle.packetNoteWithLetter': 'One mobile-safe download containing the resume and cover letter.',
 
   // Flexible Work + Source Fabric (v2.4)
   'flexible.home.eyebrow': 'Flexible Work',
@@ -452,13 +452,13 @@ const en = {
   'flexible.home.noLocation': 'No location selected yet',
   'flexible.home.start': 'Search flexible work',
   'flexible.home.edit': 'Edit flexible search',
-  'flexible.home.addResume': 'Add résumé for career roles',
-    // v2.4.1 — Flexible Work is reachable with or without a résumé.
+  'flexible.home.addResume': 'Add resume for career roles',
+    // v2.4.1 — Flexible Work is reachable with or without a resume.
   'workmode.aria': 'Choose what kind of work to look for',
   'workmode.career': 'Career roles',
   'workmode.flexible': 'Flexible work',
   'flexible.home.setUpTitle': 'Look for flexible work',
-  'flexible.home.setUpBody': 'Minijobs, part-time, working-student, weekend, evening and seasonal roles — searched by place and work type. Your résumé is not used here.',
+  'flexible.home.setUpBody': 'Minijobs, part-time, working-student, weekend, evening and seasonal roles — searched by place and work type. Your resume is not used here.',
   'flexible.home.setUp': 'Set up flexible search',
     // v2.4.2 — honest location + relevance reporting.
   'flexible.card.remote': 'Remote',
@@ -512,16 +512,16 @@ const en = {
 
   // Coverage panel (C2)
   'coverage.score': '{covered} of {total} key terms',
-  'coverage.barAria': 'Share of the posting’s key terms your résumé evidences',
-  'coverage.covered': 'Your résumé evidences',
+  'coverage.barAria': 'Share of the posting’s key terms your resume evidences',
+  'coverage.covered': 'Your resume evidences',
   'coverage.missing': 'Not evidenced yet',
   'coverage.missingHint':
-    'Missing means your résumé does not show this yet — not that you should add it. Klar only works a term in where your own experience supports it.',
+    'Missing means your resume does not show this yet — not that you should add it. Klar only works a term in where your own experience supports it.',
   'coverage.fromExtractor': '{count} extra requirement(s) read from this posting.',
   'coverage.improve': 'Try again focusing on the gaps',
   'coverage.improving': 'Re-reading the posting…',
   'coverage.improveHint':
-    'Runs tailoring once more with the missing terms in focus. Nothing is added unless your source résumé supports it.',
+    'Runs tailoring once more with the missing terms in focus. Nothing is added unless your source resume supports it.',
 
   // Change review (C1)
   'review.title': 'Review every change',
@@ -558,8 +558,8 @@ const en = {
   'review.unresolvedTitle': 'What Klar could not improve safely',
   'review.unresolvedIntro':
     'Klar retried once ({attempts} attempts in total) and then stopped rather than invent anything. Edit these by hand, or generate again.',
-  'review.unresolved.number': '{location}: a number ({detail}) had no support in your résumé.',
-  'review.unresolved.term': '{location}: a term ({detail}) had no support in your résumé.',
+  'review.unresolved.number': '{location}: a number ({detail}) had no support in your resume.',
+  'review.unresolved.term': '{location}: a term ({detail}) had no support in your resume.',
   'review.unresolved.repetition': '{location}: {detail} was repeated too often to read naturally.',
   'review.unresolved.title': '{location}: a seniority word ({detail}) was not in your own title.',
   'review.unresolved.other': '{location}: {detail}',
@@ -587,7 +587,7 @@ const en = {
   'packet.blockedCount': '{count} blocked',
   'packet.interrupted': 'A previous run was interrupted while working on the {stage}. Nothing was saved from it.',
   'packet.interruptedDismiss': 'Got it',
-  'packet.stage.resume': 'résumé',
+  'packet.stage.resume': 'resume',
   'packet.stage.letter': 'cover letter',
   'packet.stage.message': 'short message',
 
@@ -614,7 +614,7 @@ const en = {
   'budget.waiting': 'Scheduled safely. Starts automatically in about {seconds} seconds.',
   'budget.ready': 'Enough estimated headroom is available.',
   'bundle.cacheFresh': 'Saved result reused · 0 new AI tokens',
-  'bundle.cacheStale': 'Your résumé, posting, language, or engine changed. Regenerate before treating this as current.',
+  'bundle.cacheStale': 'Your resume, posting, language, or engine changed. Regenerate before treating this as current.',
   'bundle.willChunk':
     'The whole request is about {tokens} tokens, above the {limit}-token limit. Klar will split only the experience roles, schedule each bounded request, and keep any role that cannot be completed unchanged.',
   'bundle.usageTitle': 'AI usage for this packet',
@@ -622,10 +622,10 @@ const en = {
   'bundle.usageActual': '{tokens} actual tokens reported by the engine',
   'bundle.usageRequests': '{count} AI requests',
   'bundle.usageModel': 'Model: {model}',
-  'bundle.usageWhole': 'Résumé strategy: one evidence-checked request',
-  'bundle.usageChunked': 'Résumé strategy: bounded evidence-checked role requests',
+  'bundle.usageWhole': 'Resume strategy: one evidence-checked request',
+  'bundle.usageChunked': 'Resume strategy: bounded evidence-checked role requests',
   'bundle.tooLarge':
-    'This résumé and job description need about {tokens} tokens in one AI request, and your plan allows {limit} at once.',
+    'This resume and job description need about {tokens} tokens in one AI request, and your plan allows {limit} at once.',
   'bundle.tooLargeAction':
     'Waiting will not help, because the request itself is over the limit. Use "Tailor without AI" below, or paste a shorter job description.',
 
@@ -692,8 +692,8 @@ const en = {
   'settings.flags.packets': 'Keep an application packet per job',
   'settings.flags.deterministicMatching': 'Use private zero-token matching by default',
   'settings.flags.budgetGuard': 'Schedule AI actions within the rolling minute budget',
-  'settings.flags.tailoringChunking': 'Split only oversized résumés into evidence-checked role chunks',
-  'settings.flags.resumeDesignLab': 'Show the internal résumé design evaluation lab',
+  'settings.flags.tailoringChunking': 'Split only oversized resumes into evidence-checked role chunks',
+  'settings.flags.resumeDesignLab': 'Show the internal resume design evaluation lab',
 } as const
 
 export type TranslationKey = keyof typeof en

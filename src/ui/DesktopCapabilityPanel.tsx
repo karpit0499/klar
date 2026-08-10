@@ -66,7 +66,7 @@ const COPY: Record<'en' | 'de', Copy> = {
     stopping: 'Stopping…',
     diagnostics: 'Redacted diagnostic export',
     diagnosticsHint:
-      'Contains app/runtime status and content-free events only—no résumé, job description, generated writing, secret, email address, URL query, or local path.',
+      'Contains app/runtime status and content-free events only—no resume, job description, generated writing, secret, email address, URL query, or local path.',
     download: 'Download diagnostics',
     downloading: 'Preparing…',
     noModel: 'No verified model is running',

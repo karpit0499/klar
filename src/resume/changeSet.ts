@@ -217,7 +217,7 @@ export function proposeChanges(
  * Replay the decisions onto the deterministic baseline. `baseline` already has
  * v2.4's ordering applied (skills and bullets sorted toward the posting) and
  * still carries the ORIGINAL bullet text, so rejecting everything returns
- * exactly the deterministic, no-AI résumé.
+ * exactly the deterministic, no-AI resume.
  */
 export function applyChanges(
   baseline: ResumeData,

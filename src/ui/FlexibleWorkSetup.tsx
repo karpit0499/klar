@@ -159,7 +159,7 @@ export function FlexibleWorkSetup({
       <Card className="p-5 sm:p-6">
         <h1 className="text-2xl font-semibold text-ink">{de ? 'Flexible Arbeit finden' : 'Find flexible work'}</h1>
         <p className="mt-2 text-base text-muted">
-          {de ? 'Du brauchst keinen Lebenslauf. Wähle selbst, wo und wie du arbeiten möchtest.' : 'You do not need a résumé. Choose where and how you want to work.'}
+          {de ? 'Du brauchst keinen Lebenslauf. Wähle selbst, wo und wie du arbeiten möchtest.' : 'You do not need a resume. Choose where and how you want to work.'}
         </p>
         <fieldset className="mt-6">
           <legend className="text-base font-medium text-ink">{de ? 'Arbeitsorte' : 'Work locations'}</legend>

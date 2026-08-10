@@ -46,7 +46,7 @@ export type SavedSearchRow = {
   lastRunAt?: string
 }
 
-/** A saved Flexible Work search (v2.4). Résumé-free; stores its own preferences. */
+/** A saved Flexible Work search (v2.4). Resume-free; stores its own preferences. */
 export type FlexibleSearchRow = {
   id: string
   name: string
@@ -199,15 +199,15 @@ export class KlarDB extends Dexie {
       savedSearches: 'id, updatedAt',
       vault: 'id, updatedAt',
     }).upgrade(async (transaction) => {
-      // Raw résumé text was a v2.1 debugging convenience. v2.2 removes it from
+      // Raw resume text was a v2.1 debugging convenience. v2.2 removes it from
       // every confirmed stored profile during the in-place upgrade.
       await transaction.table('profiles').toCollection().modify((row: Record<string, unknown>) => {
         delete row.rawText
       })
     })
-    // v5 — v2.3 promotes the rich résumé to the sole career-fact source.
+    // v5 — v2.3 promotes the rich resume to the sole career-fact source.
     // Existing plaintext ResumeData is normalized; old thin profiles are used
-    // only when no rich résumé exists. The transaction is atomic, and the
+    // only when no rich resume exists. The transaction is atomic, and the
     // migration snapshot provides a recoverable pre-edit version.
     this.version(5).stores({
       settings: 'key',
@@ -272,8 +272,8 @@ export class KlarDB extends Dexie {
     })
     // v7 — v2.5 Application Quality: persistent application packets. This is a
     // PURELY ADDITIVE store: no existing row is read, written or transformed, so
-    // the upgrade cannot fail on user data. A future résumé schema change must
-    // remain a separate, coordinated migration; v2.6 deliberately keeps résumé
+    // the upgrade cannot fail on user data. A future resume schema change must
+    // remain a separate, coordinated migration; v2.6 deliberately keeps resume
     // schemaVersion 2 and does not fold a content migration into this store.
     this.version(7).stores({
       settings: 'key',

@@ -209,13 +209,24 @@ for (const language of ['en', 'de'] as const) {
 }
 
 const badPrompt = createCoverLetterModel({
-  body: 'VERIFIED RÉSUMÉ EVIDENCE: SQL',
+  body: 'VERIFIED RESUME EVIDENCE: SQL',
   resume,
   job,
   language: 'en',
 })
 assert.equal(
   validateCoverLetterModel(badPrompt).find((check) => check.id === 'prompt_fragments')?.ok,
+  false,
+)
+const legacyPromptMarker = 'VERIFIED R\u00c9SUM\u00c9 EVIDENCE: SQL'
+const legacyBadPrompt = createCoverLetterModel({
+  body: legacyPromptMarker,
+  resume,
+  job,
+  language: 'en',
+})
+assert.equal(
+  validateCoverLetterModel(legacyBadPrompt).find((check) => check.id === 'prompt_fragments')?.ok,
   false,
 )
 
@@ -469,6 +480,16 @@ const dishonestChecks = checkRecruiterMessage(
 assert.equal(dishonestChecks.find((check) => check.id === 'application_state')?.ok, false)
 assert.equal(dishonestChecks.find((check) => check.id === 'unsupported_claims')?.ok, false)
 assert.equal(dishonestChecks.find((check) => check.id === 'human_ask')?.ok, false)
+assert.equal(
+  checkRecruiterMessage(
+    legacyPromptMarker,
+    resume,
+    job,
+    appliedContext,
+    'en',
+  ).find((check) => check.id === 'prompt_fragments')?.ok,
+  false,
+)
 
 for (const style of ['conversational', 'formal', 'concise'] as const) {
   const prompt = buildRecruiterMessagePrompt(
@@ -479,7 +500,7 @@ for (const style of ['conversational', 'formal', 'concise'] as const) {
   )
   assert.match(prompt, /Never invent|Do not claim/)
   assert.match(prompt, /EXPLICIT CONTACT CONTEXT/)
-  assert.match(prompt, /VERIFIED RÉSUMÉ EVIDENCE/)
+  assert.match(prompt, /VERIFIED RESUME EVIDENCE/)
   assert.match(prompt, /"applicationState": "applied"/)
   assert.match(prompt, /Include this supplied discovery context naturally/)
   assert.match(prompt, /"discoveryContext": "the company careers page"/)

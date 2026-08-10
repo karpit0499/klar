@@ -1,5 +1,5 @@
 // ============================================================================
-// v2.5 — Flexible Work "prepare & reach out", résumé-free and DETERMINISTIC.
+// v2.5 — Flexible Work "prepare & reach out", resume-free and DETERMINISTIC.
 //
 // The roadmap asks for a short employer message, an availability summary and an
 // optional compact profile card, "grounded only in the minimal flexible profile
@@ -9,7 +9,7 @@
 //   • it is impossible for a template to invent experience, so the honesty
 //     guarantee is absolute rather than validated after the fact;
 //   • it costs nothing and needs no API key — which is the whole point for the
-//     student who never wants to write a résumé;
+//     student who never wants to write a resume;
 //   • it works offline and is trivially unit-testable in both languages.
 //
 // Klar still never applies for anyone. The message is text the person copies
@@ -167,7 +167,7 @@ function esc(value: unknown): string {
 
 /**
  * A one-page, text-only card the person can print to PDF and hand over. Same
- * print-to-PDF approach as the résumé exporter: real selectable text, no images,
+ * print-to-PDF approach as the resume exporter: real selectable text, no images,
  * no raster — and no photo, so it never carries data an employer must not ask for.
  */
 export function profileCardHtml(preferences: FlexibleWorkPreferences, de: boolean): string {

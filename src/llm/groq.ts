@@ -381,7 +381,7 @@ function throwProviderError(
       dataSafe: true,
       available:
         'Waiting will not help, because the request itself is over the limit. ' +
-        'Use "Tailor without AI" to build this résumé now with no AI at all, or shorten the job description.',
+        'Use "Tailor without AI" to build this resume now with no AI at all, or shorten the job description.',
       action: { label: 'Continue without AI', kind: 'none' },
       technical,
     })
@@ -441,7 +441,7 @@ function providerErrorTechnical(
   if (error.type !== undefined) details.type = error.type
   if (error.code !== undefined) details.code = error.code
   if (error.failed_generation !== undefined) {
-    // Never surface résumé/job content in the UI's technical-detail panel.
+    // Never surface resume/job content in the UI's technical-detail panel.
     // The typed response still retains the payload for in-memory recovery.
     details.failed_generation_present = true
   }

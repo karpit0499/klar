@@ -1,5 +1,5 @@
 // ============================================================================
-// Client-side encryption for the stored résumé/profile at rest (feature 22).
+// Client-side encryption for the stored resume/profile at rest (feature 22).
 //
 // HONEST THREAT MODEL: this protects the data-at-rest in IndexedDB against a
 // casual look at the browser's storage, NOT against an attacker who controls

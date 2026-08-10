@@ -131,7 +131,7 @@ function labelledLine(label: string, value: string): Paragraph {
   })
 }
 
-/** Build the production DOCX for a tailored résumé in the requested language. */
+/** Build the production DOCX for a tailored resume in the requested language. */
 export function resumeDocxDocument(data: ResumeData, lang: ResumeLanguage): Document {
   const accent = resumeAccent(data)
   const headings = RESUME_TEMPLATE_HEADINGS[lang]
@@ -303,7 +303,7 @@ export function resumeDocxDocument(data: ResumeData, lang: ResumeLanguage): Docu
   return new Document({
     creator: 'Klar',
     title: `${data.contact.name} — CV`,
-    description: 'Klar cross-compatible résumé template',
+    description: 'Klar cross-compatible resume template',
     styles: wordSafeStyles({ font: BODY_FONT, size: BODY_SIZE }),
     numbering: {
       config: [{
@@ -391,23 +391,23 @@ function resumeTextValues(data: ResumeData): (string | undefined)[] {
   ]
 }
 
-/** True when this résumé would produce a DOCX Word cannot open. */
+/** True when this resume would produce a DOCX Word cannot open. */
 export function resumeHasDocxUnsafeText(data: ResumeData): boolean {
   return resumeTextValues(data).some(
     (value) => typeof value === 'string' && hasDocxUnsafeText(value),
   )
 }
 
-/** Browser: pack the résumé into a Word-compatible DOCX Blob. */
+/** Browser: pack the resume into a Word-compatible DOCX Blob. */
 export async function resumeToDocxBlob(
   data: ResumeData,
   lang: ResumeLanguage,
 ): Promise<Blob> {
-  assertDocxSafeText('This résumé', resumeTextValues(data))
+  assertDocxSafeText('This resume', resumeTextValues(data))
   return Packer.toBlob(resumeDocxDocument(data, lang))
 }
 
-/** Browser: generate and download the tailored résumé as a DOCX file. */
+/** Browser: generate and download the tailored resume as a DOCX file. */
 export async function downloadResumeDocx(
   data: ResumeData,
   lang: ResumeLanguage,

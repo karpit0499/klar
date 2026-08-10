@@ -45,7 +45,7 @@ export function FlexibleSearch({
   const { locale, t } = useLocale()
   const de = locale === 'de'
   const { snapshot, running, usingFixtures, page, setPage, start, stop } = useFlexibleSearch(preferences, { auto: true })
-  // v2.5: which opportunity the résumé-free prepare drawer is open for.
+  // v2.5: which opportunity the resume-free prepare drawer is open for.
   const [preparing, setPreparing] = useState<NormalizedJob | null>(null)
   const [preparedMessage, setPreparedMessage] = useState<string | undefined>(undefined)
 

@@ -1,17 +1,17 @@
 // ============================================================================
-// Résumé → structured Profile via the LLM. Deterministic prompt building is
+// Resume → structured Profile via the LLM. Deterministic prompt building is
 // split out (buildProfilePrompt) so it can be unit-tested without a network call.
 // ============================================================================
 import type { Profile } from '../types'
 import { groqChat, extractJson } from '../llm/groq'
 import { PROFILE_OUTPUT } from '../llm/jsonSchemas'
 
-const SYSTEM = `You extract structured data from résumés. You never invent facts not present in the text. Reply with ONE JSON object and nothing else.`
+const SYSTEM = `You extract structured data from resumes. You never invent facts not present in the text. Reply with ONE JSON object and nothing else.`
 
 export function buildProfilePrompt(rawText: string, asOf = new Date()): string {
   const today = asOf.toISOString().slice(0, 10)
   return [
-    'Extract a candidate profile from this résumé text.',
+    'Extract a candidate profile from this resume text.',
     `Treat ${today} as today's date when a role ends in Present, Current, Heute, or Jetzt.`,
     'Return a JSON object with EXACTLY these keys:',
     'summary (string, 1-2 sentences), titles (array of {title, seniority?, years?}),',
@@ -21,7 +21,7 @@ export function buildProfilePrompt(rawText: string, asOf = new Date()): string {
     'For each title, calculate years from its own date range to one decimal place; do not confuse role tenure with total experience.',
     'Use empty arrays/nulls where information is missing. Do NOT guess.',
     '',
-    'RÉSUMÉ TEXT:',
+    'RESUME TEXT:',
     '"""',
     rawText.slice(0, 12000),
     '"""',

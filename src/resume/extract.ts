@@ -3,11 +3,11 @@ import { normalizeResume } from './canonical'
 import { groqChat, extractJson } from '../llm/groq'
 import { RESUME_EXTRACTION_OUTPUT } from '../llm/jsonSchemas'
 
-const SYSTEM = `You convert résumé text into structured JSON. Copy facts exactly as written. Never invent employers, dates, titles, tools, responsibilities, qualifications, or metrics. Leave absent fields empty. Reply with one JSON object only.`
+const SYSTEM = `You convert resume text into structured JSON. Copy facts exactly as written. Never invent employers, dates, titles, tools, responsibilities, qualifications, or metrics. Leave absent fields empty. Reply with one JSON object only.`
 
 export function buildResumeExtractionPrompt(rawText: string): string {
   return [
-    'Extract this résumé into a JSON object with exactly these keys:',
+    'Extract this resume into a JSON object with exactly these keys:',
     'contact: { name: string, email: string|null, phone: string|null, location: string|null, links: [{label: string, url: string}] },',
     'summary (string|null),',
     'experience: [{ title: string, company: string, city: string|null, start: string|null, end: string|null, current: boolean|null, bullets: string[] }],',
@@ -19,7 +19,7 @@ export function buildResumeExtractionPrompt(rawText: string): string {
     'Use MM/YYYY dates. Set current=true and end=null for an ongoing role.',
     'Preserve every dated role and every achievement bullet. Do not summarize away evidence.',
     'Every listed key is required. Use empty arrays or null for missing information. Do not guess.',
-    '', 'RÉSUMÉ TEXT:', '"""', rawText.slice(0, 14000), '"""',
+    '', 'RESUME TEXT:', '"""', rawText.slice(0, 14000), '"""',
   ].join('\n')
 }
 

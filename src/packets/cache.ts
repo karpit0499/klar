@@ -8,7 +8,7 @@ export type GenerationKind = 'resume' | 'letter' | 'message'
 export const GENERATION_CACHE_CONTRACT = 'klar-generation-cache-v2.6.0'
 
 /**
- * Content-addressed cache key. No résumé or posting text is stored in the key:
+ * Content-addressed cache key. No resume or posting text is stored in the key:
  * stableHash provides a deterministic fingerprint so raw text does not appear
  * in the key. It is non-cryptographic and is not a privacy or security boundary.
  */

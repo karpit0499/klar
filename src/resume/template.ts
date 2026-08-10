@@ -51,7 +51,7 @@ export function resumeHeadline(data: ResumeData): string {
 /**
  * v2.6.0.1 promotes one stable production base. The CRM and industrial colours
  * remain recorded reference tokens, but Klar does not guess a person's visual
- * category from résumé keywords. An explicit user-selected palette can be
+ * category from resume keywords. An explicit user-selected palette can be
  * added later without silently changing otherwise identical applications.
  */
 export function resumeAccent(_data: ResumeData): string {

@@ -39,7 +39,7 @@ const WORK_MODE_KEY = 'workspaceWorkModeV1'
 
 /**
  * Which surface the workspace is currently showing. This is a VIEW choice, not a
- * capability: from v2.4.1 both surfaces are always reachable, so a résumé no
+ * capability: from v2.4.1 both surfaces are always reachable, so a resume no
  * longer removes Flexible Work from the app.
  */
 export type WorkMode = 'career' | 'flexible'

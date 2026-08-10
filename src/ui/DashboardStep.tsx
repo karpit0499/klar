@@ -198,7 +198,7 @@ export function DashboardStep({
         )}
       </Card>
 
-      {/* A light touch of context pulled from the résumé/preferences, if present. */}
+      {/* A light touch of context pulled from the resume/preferences, if present. */}
       {!editing && (profile || prefs) && (
         <Card className="mt-4 p-4 sm:p-6">
           <h3 className="text-sm font-semibold text-ink">{t('dashboard.atAGlance')}</h3>

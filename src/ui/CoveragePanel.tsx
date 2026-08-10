@@ -3,11 +3,11 @@
 //
 // `coverageReport()` has computed covered/missing terms since v2.3, but the
 // number was buried in one sentence. This panel makes the loop visible and
-// actionable: what the posting asks for, what the résumé already proves, what it
+// actionable: what the posting asks for, what the resume already proves, what it
 // does not — and a button to re-run tailoring focused on the gaps.
 //
 // Honesty rules baked into the UI:
-//   • "missing" never means "add this". It means the résumé does not currently
+//   • "missing" never means "add this". It means the resume does not currently
 //     evidence it. The re-run only works terms in where the source supports them.
 //   • the re-run is USER-TRIGGERED. v2.5 deliberately does not fire an automatic
 //     second pass (ATS plan Risk R5: never ship the cost-doubler before the

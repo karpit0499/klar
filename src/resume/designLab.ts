@@ -293,8 +293,8 @@ export function resumeLabDocument(
   }
 
   return new Document({
-    creator: 'Klar résumé design lab',
-    title: `${data.contact.name} — ${preset} résumé lab`,
+    creator: 'Klar resume design lab',
+    title: `${data.contact.name} — ${preset} resume lab`,
     description: 'Internal v2.6 evaluation output. Not the production default.',
     styles: wordSafeStyles({ font: style.font, size: style.bodySize }),
     numbering: {

@@ -15,7 +15,7 @@
 //
 // What deliberately did NOT change (ATS plan §3 — this is WS4b, v2.6):
 //   project/thesis bullets, cross-section re-ranking, a projects-above-experience
-//   layout, and the automatic coverage second pass. All of those need résumé
+//   layout, and the automatic coverage second pass. All of those need resume
 //   schemaVersion 3 and a coordinated Dexie migration.
 // ============================================================================
 import type { NormalizedJob } from '../types'
@@ -79,7 +79,7 @@ export type AiTailoredResume = {
   /** 1 = first attempt succeeded, 2 = the single retry was used. */
   attempts: number
   unresolved: UnresolvedIssue[]
-  /** Convenience: the résumé with the current decisions applied. */
+  /** Convenience: the resume with the current decisions applied. */
   data: ResumeData
   /** Whole-document is preferred; chunked is the bounded oversized fallback. */
   strategy: 'whole' | 'chunked'
@@ -383,7 +383,7 @@ export function systemPrompt(language: ResumeLanguage): string {
   const languageName =
     language === 'de' ? 'German' : 'English'
 
-  return `You are an expert ATS résumé editor. Rebuild the supplied résumé for the exact job posting.
+  return `You are an expert ATS resume editor. Rebuild the supplied resume for the exact job posting.
 
 Write all generated prose in ${languageName}.
 
@@ -391,7 +391,7 @@ Rules:
 1. Rewrite the summary, supported experience bullets, and existing project summaries concisely.
 2. Lead with evidence that is most relevant to the job posting.
 3. Prefer action + scope + outcome phrasing.
-4. Mirror the job posting's terminology only when the source résumé supports it. The posting's key requirements are supplied as job.requirements — use that exact wording where, and only where, the source bullet already describes that work.
+4. Mirror the job posting's terminology only when the source resume supports it. The posting's key requirements are supplied as job.requirements — use that exact wording where, and only where, the source bullet already describes that work.
 5. The input explicitly labels every role with sourceIndex and every source bullet with sourceBulletIndex.
 6. Every rewritten bullet must cite one or more sourceBulletIndexes copied exactly from sourceBulletIndex values belonging to that SAME role.
 7. Never count, renumber, guess, or invent an index. Never use one-based numbering.
@@ -501,7 +501,7 @@ export function auditTailoringResponse(
   if (summaryFinding.status === 'blocked') {
     blockers.push({
       location: 'summary',
-      instruction: `The summary adds ${describeAdditions(summaryFinding)} that the résumé does not support. Rewrite it using only facts already present.`,
+      instruction: `The summary adds ${describeAdditions(summaryFinding)} that the resume does not support. Rewrite it using only facts already present.`,
       issue: { location: 'summary', code: summaryFinding.reasons[0], detail: describeAdditions(summaryFinding) },
     })
   }
@@ -596,12 +596,12 @@ export function estimateTailoringRequest(
 export function tooLargeError(cost: RequestCost, limit: number): AppError {
   return new AppError({
     category: 'validation',
-    message: 'This résumé and job description are too long for one AI request on your current plan.',
+    message: 'This resume and job description are too long for one AI request on your current plan.',
     dataSafe: true,
     available:
       `The request needs about ${cost.billedTokens.toLocaleString()} tokens and your plan allows ` +
       `${limit.toLocaleString()} at once, so waiting will not help. ` +
-      'Use "Tailor without AI" to build this résumé now, or shorten the job description.',
+      'Use "Tailor without AI" to build this resume now, or shorten the job description.',
     action: { label: 'Continue without AI', kind: 'none' },
     technical: `estimated ${cost.billedTokens} billed tokens (input ${cost.inputTokens} + reserved ${cost.reservedTokens}) vs limit ${limit}`,
   })
@@ -622,9 +622,9 @@ export function estimateRoleChunkRequest(
   roleIndex: number,
 ): TailoringChunkRequest {
   const role = projectResumeForPrompt(source).experience[roleIndex]
-  if (!role) throw new Error(`Unknown résumé role ${roleIndex}.`)
+  if (!role) throw new Error(`Unknown resume role ${roleIndex}.`)
   const languageName = language === 'de' ? 'German' : 'English'
-  const system = `You are an evidence-bound résumé editor. Rewrite exactly one supplied experience role in ${languageName}.
+  const system = `You are an evidence-bound resume editor. Rewrite exactly one supplied experience role in ${languageName}.
 Use only facts, tools, numbers, scope, and cadence present in that role's source bullets.
 Keep the sourceIndex and sourceBulletIndexes exactly as supplied. Never add seniority.
 Return compact JSON only: {"sourceIndex":0,"title":"string","bullets":[{"text":"string","sourceBulletIndexes":[0]}]}.`

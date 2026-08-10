@@ -3,7 +3,7 @@
 // Microsoft Word compatibility check for every DOCX Klar produces.
 //
 // LibreOffice renders many packages that Word either refuses to open or opens
-// with different metrics. A résumé or cover letter that reflows in Word is a
+// with different metrics. A resume or cover letter that reflows in Word is a
 // failed deliverable even when the LibreOffice PDF looked perfect, so this
 // check runs against the produced bytes and is part of the release gate.
 //

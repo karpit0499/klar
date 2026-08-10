@@ -16,7 +16,7 @@ import { compositeScore, DEFAULT_WEIGHTS } from '../src/match/weights'
 import { buildSearchDiagnostics } from '../src/search/diagnostics'
 import type { GatherResult } from '../src/sources'
 
-// Regression fixture derived from the user-supplied résumé. It deliberately
+// Regression fixture derived from the user-supplied resume. It deliberately
 // includes strong data skills: those skills must never override the requested
 // account-management role or its email/digital-marketing market.
 const profile: Profile = {

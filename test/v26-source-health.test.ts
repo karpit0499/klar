@@ -74,7 +74,7 @@ const allowListed = await recordOperationalEvent({
   outcome: 'error',
   sourceFamily: 'https://private.example/resume?candidate=secret',
   at: 'Synthetic private timeline content must never be stored.',
-  content: 'Synthetic private résumé content must never be stored.',
+  content: 'Synthetic private resume content must never be stored.',
 } as never)
 const rawOperationalSetting = await db.settings.get('operationalEvents.v26')
 const rawOperationalRows = rawOperationalSetting?.value as Record<string, unknown>[]

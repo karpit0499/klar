@@ -86,7 +86,7 @@ export function ResumeDesignLab({ resume, enabled }: { resume: ResumeData; enabl
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="text-xl font-semibold text-ink">
-            {de ? 'Internes Lebenslauf-Designlabor' : 'Internal résumé design lab'}
+            {de ? 'Internes Lebenslauf-Designlabor' : 'Internal resume design lab'}
           </h2>
           <p className="mt-1 max-w-2xl text-base leading-relaxed text-muted">
             {de

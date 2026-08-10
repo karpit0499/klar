@@ -2,9 +2,9 @@
 //
 // v2.4.3 · The regression that makes the reported incident impossible again.
 //
-// A student could not generate a tailored résumé at all: a single request was
+// A student could not generate a tailored resume at all: a single request was
 // larger than her whole per-minute token allowance, so retrying never helped.
-// The last block of this file walks a grid of résumé shapes and posting lengths
+// The last block of this file walks a grid of resume shapes and posting lengths
 // and asserts that every one of them now fits — and it asserts the OLD payload
 // did NOT fit, so the test still means something in a year's time.
 //
@@ -145,8 +145,8 @@ function legacyUserPrompt(source: ResumeData, job: NormalizedJob): string {
   const normal = estimateTailoringOutputTokens({ bulletCount: 9, roleCount: 3, projectsWithSummary: 1 })
   const huge = estimateTailoringOutputTokens({ bulletCount: 200, roleCount: 30, projectsWithSummary: 10 })
 
-  ok(tiny === BUDGET.minReservedTokens, 'reserve: a tiny résumé still gets room for valid JSON')
-  ok(normal > tiny && normal < 2000, `reserve: a normal résumé reserves far less than 4096 (${normal})`)
+  ok(tiny === BUDGET.minReservedTokens, 'reserve: a tiny resume still gets room for valid JSON')
+  ok(normal > tiny && normal < 2000, `reserve: a normal resume reserves far less than 4096 (${normal})`)
   ok(huge === BUDGET.maxReservedTokens, 'reserve: never exceeds the old 4096 ceiling')
   ok(normal < 4096, 'reserve: the flat 4096 is gone')
 
@@ -250,7 +250,7 @@ function legacyUserPrompt(source: ResumeData, job: NormalizedJob): string {
   const letter = estimateLetterRequest(resume, job)
   ok(letter.cost.billedTokens < 4010, `letter: cheaper than v2.4.2 (${letter.cost.billedTokens} < 4010)`)
   ok(canAfford(letter.cost, BUDGET.assumedTpm).ok, 'letter: fits the per-minute allowance')
-  ok(buildCoverLetterPrompt(resume, job).includes('VERIFIED RÉSUMÉ EVIDENCE'), 'letter: the rules are unchanged')
+  ok(buildCoverLetterPrompt(resume, job).includes('VERIFIED RESUME EVIDENCE'), 'letter: the rules are unchanged')
   ok(!buildCoverLetterPrompt(resume, job).includes('+49 30 1234'), 'letter: no contact details are sent')
 
   const profile: Profile = {
