@@ -2,10 +2,17 @@ import type { DocRecord } from "../lib/docs";
 
 function statusClass(status: string): string {
   const value = status.toLowerCase();
-  if (value.includes("current") || value.includes("approved")) return "current";
-  if (value.includes("target") || value.includes("planned")) return "target";
-  if (value.includes("deprecated")) return "deprecated";
-  if (value.includes("historical") || value.includes("archived")) return "historical";
+  const allowed = new Set([
+    "current",
+    "approved",
+    "target",
+    "planned",
+    "draft",
+    "deprecated",
+    "historical",
+    "archived",
+  ]);
+  if (allowed.has(value)) return value;
   return "draft";
 }
 

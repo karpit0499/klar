@@ -17,7 +17,7 @@ export function isCacheable(job: NormalizedJob): boolean {
 
 /** A vacancy is expired when its employer-published validThrough has passed. */
 export function isExpiredVacancy(job: NormalizedJob, now = Date.now()): boolean {
-  if (job.kind === 'open_entry') return false // open-entry never "expires" as a vacancy
+  if (job.kind === 'open_entry' || job.kind === 'official_search') return false
   if (!job.validThrough) return false
   const ends = new Date(job.validThrough).getTime()
   return Number.isFinite(ends) && ends < now
@@ -42,7 +42,9 @@ export function preserveFreshness(
   return incoming.map((job) => ({
     ...job,
     fetched_at: seenAt.get(job.id) ?? job.fetched_at,
-    lastVerifiedAt: stamp,
+    lastVerifiedAt: job.kind === 'open_entry' || job.kind === 'official_search'
+      ? job.lastVerifiedAt
+      : stamp,
   }))
 }
 

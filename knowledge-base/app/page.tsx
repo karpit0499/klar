@@ -3,10 +3,11 @@ import Link from "next/link";
 import { SiteFooter } from "../components/SiteFooter";
 import { SiteHeader } from "../components/SiteHeader";
 import { allDocs, groupedDocs } from "../lib/docs";
+import { SITE_URL } from "../lib/site";
 
 export const metadata: Metadata = {
-  alternates: { canonical: "/" },
-  openGraph: { url: "/" },
+  alternates: { canonical: SITE_URL },
+  openGraph: { url: SITE_URL },
 };
 
 export default function Home() {
@@ -17,7 +18,7 @@ export default function Home() {
       <SiteHeader />
       <main id="main">
         <section className="hero">
-          <div className="eyebrow"><span /> PUBLIC KNOWLEDGE BASE · v2.6.0.1 BASELINE</div>
+          <div className="eyebrow"><span /> PUBLIC KNOWLEDGE BASE · v2.6.1</div>
           <h1>Understand Klar.<br /><em>Build it with confidence.</em></h1>
           <p className="hero-copy">Public, governed documentation for everyone who uses, teaches, supports, evaluates, or reviews Klar. No sign-in and no application-data uploads.</p>
           <div className="hero-actions">

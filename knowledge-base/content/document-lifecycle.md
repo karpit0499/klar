@@ -6,10 +6,10 @@ order: 30
 audience: ["Documentation contributors", "Page owners", "Reviewers"]
 status: "current"
 classification: "public"
-applicable_version: "2.6.0.1"
+applicable_version: "2.6.1"
 owner: "Klar Documentation"
-last_verified: "2026-08-10"
-next_review: "2026-11-10"
+last_verified: "2026-08-11"
+next_review: "2026-11-11"
 tags: ["governance", "lifecycle", "review"]
 ---
 
@@ -75,6 +75,7 @@ Review a page immediately when any of the following changes:
 - a connector route, third-party contract, credential flow, or provider model;
 - an encryption, origin, allowlist, redaction, or secret-handling control;
 - a release gate, deployment path, signing state, or recovery procedure;
+- the KB host, base path, search-index format, mobile navigation, sitemap/canonical policy, or PDF generator/verifier;
 - an owner, classification, legal basis, or support boundary;
 - a test reveals the documented statement is false or incomplete.
 

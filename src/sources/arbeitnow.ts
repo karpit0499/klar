@@ -9,6 +9,7 @@ import type { Adapter } from './types'
 import { getJson } from '../lib/http'
 import { looksRemote, makeJob, toISO } from './normalize'
 import { stripHtml } from '../lib/html'
+import { parseAtsLocation } from './ats/location'
 
 type ArbeitnowResponse = {
   data?: ArbeitnowJob[]
@@ -41,25 +42,22 @@ export const fetchArbeitnow: Adapter = async (_q: SearchQuery, opts = {}) => {
 
   const jobs = all
     .filter((j) => j.slug)
-    .map((j) =>
-      makeJob({
+    .map((j) => {
+      const parsed = parseAtsLocation({ locationText: j.location, remote: Boolean(j.remote) })
+      return makeJob({
         source: 'arbeitnow',
         source_id: j.slug,
         title: j.title,
         company: j.company_name || 'Unknown company',
-        location: {
-          city: j.location || undefined,
-          country: 'Deutschland',
-          remote: Boolean(j.remote) || looksRemote(j.title, j.location),
-        },
+        location: { ...parsed.location, remote: parsed.location.remote || looksRemote(j.title, j.location) },
         description: stripHtml(j.description || ''),
         url: j.url,
         posted_at: toISO(j.created_at),
         employment_type: (j.job_types && j.job_types[0]) || undefined,
         tags: j.tags ?? [],
         raw: j,
-      }),
-    )
+      })
+    })
 
   return { jobs }
 }

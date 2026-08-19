@@ -2,6 +2,8 @@
 // Pure tests for the translation layer (feature 20): key-set parity between DE
 // and EN, {placeholder} interpolation, and the English/raw-key fallback chain.
 import { translations, translate, type TranslationKey } from '../src/i18n/translations.ts'
+import { formatCurrency, formatDate, formatList, formatNumber, plural } from '../src/i18n/format.ts'
+import { germanKeysEqual, normalizeKey } from '../src/lib/hash.ts'
 
 let passed = 0, failed = 0
 const ok = (c: boolean, m: string) => { c ? passed++ : (failed++, console.error('  ✗', m)) }
@@ -49,6 +51,18 @@ ok(
   translate('en', 'search.near').includes('{city}'),
   'missing param leaves {city} placeholder intact',
 )
+
+// ---- v2.6.1 locale behavior -----------------------------------------------
+ok(germanKeysEqual('Straße', 'Strasse'), 'German ß matches its ss search form')
+ok(germanKeysEqual('München', 'Muenchen'), 'German ü matches its ue search form')
+ok(normalizeKey('Düsseldorf') === normalizeKey('Dusseldorf'), 'base normalization remains accent-insensitive')
+ok(!germanKeysEqual('München', 'Munster'), 'German aliases do not collapse unrelated names')
+ok(formatDate('2026-08-11T12:00:00Z', 'de', { dateStyle: 'medium', timeZone: 'UTC' }) === '11.08.2026', 'de: date formatting')
+ok(formatCurrency(1234, 'EUR', 'de').includes('1.234'), 'de: currency uses German grouping')
+ok(formatNumber(12.5, 'en', { minimumFractionDigits: 2 }) === '12.50', 'en: hourly decimal uses a point')
+ok(formatNumber(12.5, 'de', { minimumFractionDigits: 2 }) === '12,50', 'de: hourly decimal uses a comma')
+ok(formatList(['Berlin', 'München'], 'de') === 'Berlin und München', 'de: list conjunction')
+ok(plural(1, 'de', { one: 'Treffer', other: 'Treffer' }) === 'Treffer', 'de: plural selection')
 
 // ---- fallback --------------------------------------------------------------
 // An unknown key returns the key itself (readable degradation).

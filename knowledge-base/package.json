@@ -1,6 +1,6 @@
 {
   "name": "klar-knowledge-base",
-  "version": "0.1.0",
+  "version": "2.6.1",
   "private": true,
   "engines": {
     "node": ">=22.13.0"
@@ -8,44 +8,41 @@
   "scripts": {
     "content:build": "node scripts/build-content.mjs",
     "predev": "npm run content:build",
-    "dev": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vinext dev",
+    "dev": "next dev",
     "prebuild": "npm run content:build",
-    "build": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vinext build",
-    "pdf:build": "python3 scripts/export-handbooks.py",
+    "build": "next build",
+    "pdf:build": "python3 scripts/export-handbooks.py --generated-on 2026-08-11",
+    "pdf:repro": "npm run content:build && python3 scripts/check-reproducible-handbooks.py",
     "pdf:verify": "python3 scripts/verify-handbooks.py",
-    "start": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vinext start",
-    "test": "npm run build && node --test tests/rendered-html.test.mjs",
-    "lint": "eslint . --ignore-pattern dist --ignore-pattern .next"
+    "start": "next dev",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test tests/rendered-html.test.mjs",
+    "lint": "eslint . --ignore-pattern out --ignore-pattern .next",
+    "qa": "npm run content:build && npm run typecheck && npm run lint && npm run build && npm test"
   },
   "dependencies": {
     "gray-matter": "4.0.3",
     "markdown-it": "14.3.0",
     "markdown-it-anchor": "9.2.0",
+    "next": "16.3.0",
     "react": "19.2.8",
     "react-dom": "19.2.8"
   },
   "devDependencies": {
-    "@cloudflare/vite-plugin": "1.51.1",
     "@eslint/js": "9.39.4",
-    "@next/eslint-plugin-next": "16.2.6",
+    "@next/eslint-plugin-next": "16.3.0",
     "@tailwindcss/postcss": "4.2.1",
     "@types/node": "22.19.19",
     "@types/react": "19.2.18",
     "@types/react-dom": "19.2.4",
-    "@vitejs/plugin-react": "6.0.5",
-    "@vitejs/plugin-rsc": "0.5.34",
     "eslint": "9.39.4",
     "eslint-plugin-jsx-a11y": "6.10.2",
     "eslint-plugin-react": "7.37.5",
     "eslint-plugin-react-hooks": "7.1.1",
     "globals": "16.4.0",
-    "react-server-dom-webpack": "19.2.8",
     "tailwindcss": "4.2.1",
     "typescript": "5.9.3",
-    "typescript-eslint": "8.59.3",
-    "vinext": "1.0.0-beta.5",
-    "vite": "8.2.1",
-    "wrangler": "4.120.0"
+    "typescript-eslint": "8.59.3"
   },
   "type": "module"
 }

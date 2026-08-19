@@ -8,11 +8,11 @@
 //   • open_entry       → the official "apply any time" route card(s).
 //   • official_search  → a single official search-destination route card.
 //
-// Route cards are open_entry opportunities so the UI labels them honestly as a
-// route, never as a scraped vacancy.
+// Open applications and official searches remain distinct opportunity kinds;
+// neither is represented as a scraped vacancy.
 // ============================================================================
 import type { NormalizedJob } from '../../types'
-import { makeOpenEntry } from '../opportunity'
+import { makeOfficialSearch, makeOpenEntry } from '../opportunity'
 import { applyClassification } from '../taxonomy'
 import { fabricSourceId } from './types'
 import type { ConnectorConfig, ConnectorContext, ConnectorResult, FlexibleQuery } from './types'
@@ -32,12 +32,20 @@ export function baEmployerSearchUrl(employer: string): string {
 
 function routeCard(
   config: ConnectorConfig,
-  opts: { programName: string; url: string; cities: string[]; note?: string },
+  opts: {
+    kind: 'open_entry' | 'official_search'
+    programName: string
+    url: string
+    cities: string[]
+    note?: string
+    verifiedAt?: string
+  },
 ): NormalizedJob {
   const now = new Date().toISOString()
   const cities = opts.cities.length ? opts.cities : ['']
   const city = cities[0] || undefined
-  const base = makeOpenEntry({
+  const makeRoute = opts.kind === 'open_entry' ? makeOpenEntry : makeOfficialSearch
+  const base = makeRoute({
     source_id: fabricSourceId(config.id, `fallback:${normalizeKey(opts.programName)}`),
     connectorId: config.id,
     employerFamily: config.employerFamily,
@@ -47,13 +55,14 @@ function routeCard(
     location: { city, country: 'Deutschland', remote: false },
     description: opts.note ?? '',
     url: opts.url,
+    lastVerifiedAt: opts.verifiedAt,
     programName: opts.programName,
     cityAvailability: opts.cities,
     language: 'de',
     workplaces: config.workplaces,
     fieldProvenance: {
-      title: { method: 'api', source: config.id, observedAt: now },
-      employer: { method: 'api', source: config.id, observedAt: now },
+      title: { method: 'visible_text', source: config.id, observedAt: opts.verifiedAt ?? now },
+      employer: { method: 'visible_text', source: config.id, observedAt: opts.verifiedAt ?? now },
     },
   })
   return applyClassification(base, { source: config.id })
@@ -72,10 +81,12 @@ export async function buildFallback(
     return {
       opportunities: [
         routeCard(config, {
+          kind: 'open_entry',
           programName: fb.programName,
           url: fb.officialUrl,
           cities: fb.cities.length ? fb.cities : cities,
           note: fb.note,
+          verifiedAt: fb.verifiedAt,
         }),
       ],
       note: `Open application · ${config.employerFamily}`,
@@ -85,7 +96,13 @@ export async function buildFallback(
 
   if (fb.kind === 'official_search') {
     return {
-      opportunities: [routeCard(config, { programName: fb.label, url: fb.url, cities })],
+      opportunities: [routeCard(config, {
+        kind: 'official_search',
+        programName: fb.label,
+        url: fb.url,
+        cities,
+        verifiedAt: fb.verifiedAt,
+      })],
       note: `Official search · ${config.employerFamily}`,
       usedFallback: true,
     }
@@ -94,9 +111,11 @@ export async function buildFallback(
   // api_employer
   const vacancies = apiRunner ? await apiRunner(fb.employer, query, ctx).catch(() => []) : []
   const route = routeCard(config, {
+    kind: 'official_search',
     programName: `${config.employerFamily} — official job search`,
     url: fb.officialSearchUrl ?? baEmployerSearchUrl(fb.employer),
     cities,
+    verifiedAt: fb.verifiedAt,
   })
   return {
     opportunities: [...vacancies, route],

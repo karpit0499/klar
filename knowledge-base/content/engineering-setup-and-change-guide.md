@@ -6,10 +6,10 @@ order: 310
 audience: ["Engineering", "New contributors", "Reviewers", "Release engineering"]
 status: "current"
 classification: "public"
-applicable_version: "2.6.0.1"
+applicable_version: "2.6.1"
 owner: "Klar Engineering"
-last_verified: "2026-08-10"
-next_review: "2026-11-10"
+last_verified: "2026-08-11"
+next_review: "2026-11-11"
 tags: ["engineering", "setup", "development", "change-control", "contribution"]
 ---
 
@@ -23,12 +23,12 @@ This guide provides the minimum reproducible setup and the review path for chang
 
 Always inspect the Klar repository root directly before designing a release or build guide. Do not reconstruct current behavior from older guides or roadmap prose. Record the current commit, `package.json` release values, worktree state, and the exact evidence used.
 
-Current release metadata has two deliberate representations:
+Current release metadata is aligned:
 
-- npm/electron package version: `2.6.0-1`;
-- product release: `2.6.0.1`.
+- npm/electron package version: `2.6.1`;
+- product release: `2.6.1`.
 
-Use `klarRelease` for product documentation and emitted `version.json`; packaging tools may use the semver-compatible package version.
+Use `klarRelease` for product documentation and emitted `version.json`; keep every visible version, package manifest, desktop compatibility decision, KB page, and generated handbook deliberate and testable.
 
 ## Prerequisites
 
@@ -114,6 +114,8 @@ See [Resume and Application Generation](/docs/resume-and-application-generation)
 - Update ranking/requirements/explanation versions when feature meaning or weighting changes.
 - Test input-order invariance, stable hashes, source failure, missing fields, hard mismatches, and unbounded visible results.
 - Compare against the frozen 2.5.5 baseline and use only eligible bilingual human evidence for release claims.
+- Keep the top-level deterministic result and nested `aiAssessment` separate. Test the v2.6.0 merge regression explicitly: provider score/verdict/factors must survive unchanged inside the nested object while the outer Klar score remains authoritative.
+- Include provider, normalized endpoint, selected model/fast choice, prompt/schema, scorer, locale, and inputs in assessment cache identity; reject partial or invented AI provenance.
 
 See [Career Discovery and Ranking](/docs/career-discovery-and-ranking).
 
@@ -122,8 +124,10 @@ See [Career Discovery and Ranking](/docs/career-discovery-and-ranking).
 - Verify official ownership and permitted public retrieval behavior.
 - Set a finite host/path allowlist, parser version, query/pagination contract, timeout, retry eligibility, content type, byte cap, cache/freshness, fallback, and kill switch.
 - Capture licensed or safe fixtures for inventory, zero inventory, malformed, timeout, blocked, removal, redirect, and duplicate cases.
-- Preserve per-field provenance and distinguish candidate from verified support.
-- Update both client registry and Worker allowlist tests.
+- Preserve per-field provenance and distinguish active, healthy empty, quarantined, retired, candidate, official search, and open entry.
+- Never default a missing ATS country to Germany or store a free-form location as a normalized city. Test remote, unknown, multi-city, DACH, and non-DACH rows before regional publication.
+- Generate exact client/Worker allowlist parity from one reviewed manifest.
+- For ATS expansion, refresh through scheduled Worker ingestion and a bounded cache; a browser request must never fan out across all tenants.
 - Prove one connector cannot delay the session past its deadline or erase earlier valid batches.
 
 See [Flexible Work and Source Fabric](/docs/flexible-work-and-source-fabric) and [Worker API and Network Security](/docs/worker-api-and-network-security).
@@ -148,6 +152,16 @@ See [AI, Provider, Prompt, and Evidence Architecture](/docs/ai-provider-prompt-a
 - Revalidate every redirect and keep untrusted upstream content out of logs.
 - Run Worker type, allowlist/security tests, generated-types check, and dry run.
 - Deploy Worker configuration separately from static Pages and verify the production origin list.
+- For public feedback, keep the repository and labels fixed; verify strict shape/size/origin, server-side redaction, Turnstile action/hostname, rate limit, honeypot, stable report ID, no automatic retry, no-store responses, and the private security-report escape route.
+
+## Knowledge-base or Pages change
+
+- Use the Next static export under `/klar/kb/`; do not restore the retired Sites/Vinext/Vite hosting layer or ChatGPT Sites canonical.
+- Build the application and KB from the same commit into one GitHub Pages artifact. Prefix logical document, asset, download, canonical, sitemap, and Open Graph paths exactly once.
+- Keep application service-worker scope from intercepting `/klar/kb/`, and delete only caches owned by Klar.
+- Test a fresh checkout so ignored or untracked build plugins cannot be dependencies.
+- Crawl exported routes and fragments; test 320, 360, 390, 768, 860, 861, 1024, 1180, 1181, and 1440 CSS-pixel viewports; test keyboard search, 200% zoom, dark mode, and reduced motion.
+- Render every generated PDF page, reject blank or clipped pages and relative production links, compare output/public hashes, and retain the explicit untagged-PDF accessibility HOLD.
 
 ## Electron or model-package change
 

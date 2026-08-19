@@ -52,9 +52,9 @@ export type FieldCoverage = {
  * baseline; they never gate it.
  */
 export type FallbackSpec =
-  | { kind: 'api_employer'; employer: string; officialSearchUrl?: string }
-  | { kind: 'open_entry'; programName: string; officialUrl: string; cities: string[]; note?: string }
-  | { kind: 'official_search'; label: string; url: string }
+  | { kind: 'api_employer'; employer: string; officialSearchUrl?: string; verifiedAt?: string }
+  | { kind: 'open_entry'; programName: string; officialUrl: string; cities: string[]; note?: string; verifiedAt?: string }
+  | { kind: 'official_search'; label: string; url: string; verifiedAt?: string }
 
 /** Type-specific settings, discriminated by `type`. */
 export type FeedSpec = { url: string; format: 'rss' | 'atom' }
@@ -154,6 +154,8 @@ export type ConnectorResult = {
   note?: string
   /** True when the primary path failed and the fallback route was used instead. */
   usedFallback: boolean
+  /** Empty is healthy zero inventory; error is a degraded primary path. */
+  fallbackReason?: 'empty' | 'error'
   error?: AppErrorData
 }
 

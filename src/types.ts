@@ -123,7 +123,7 @@ export type NormalizedJob = {
   /** Stable, content-free identity for records merged as the same vacancy. */
   duplicateFamily?: string
   /** Forward-compatible Flexible Work fields. All are optional in v2.3. */
-  kind?: 'vacancy' | 'open_entry'
+  kind?: 'vacancy' | 'open_entry' | 'official_search'
   canonicalEmployer?: string
   brand?: string
   roleFamilies?: FlexibleRoleFamily[]
@@ -299,7 +299,40 @@ export type RankingSnapshot = {
   explanation: RankingExplanationSnapshot
 }
 
-/** LLM scoring result for one job against the profile+prefs. */
+/**
+ * Advisory assessment returned by the configured AI engine. It is deliberately
+ * nested below MatchResult so provider output can never masquerade as the
+ * deterministic value Klar uses for ordering.
+ */
+export type AiMatchAssessment = {
+  schemaVersion: 1
+  promptVersion: string
+  fitScore: number
+  verdict: 'strong' | 'good' | 'stretch' | 'weak'
+  rationale: string
+  matchedSkills: string[]
+  missingSkills: string[]
+  salaryFit?: 'above' | 'in-range' | 'below' | 'unknown'
+  locationFit?: 'exact' | 'commutable' | 'remote' | 'mismatch'
+  seniorityFit?: 'under' | 'match' | 'over'
+  redFlags: string[]
+  factors?: ScoreWeights
+  confidence?: number
+  scoredAt: string
+  modelVersion: string
+  provenance: AiAssessmentProvenance
+}
+
+export type AiAssessmentProvenance = {
+  scorerVersion: string
+  promptVersion: string
+  responseSchemaVersion: string
+  engineHost: string
+  cacheStatus: 'fresh' | 'cached'
+  locale: 'en' | 'de'
+}
+
+/** One deterministic ranking result, with optional advisory AI assessment. */
 export type MatchResult = {
   jobId: string
   fitScore: number                 // 0–100
@@ -319,6 +352,10 @@ export type MatchResult = {
   modelVersion: string
   /** v2.6: reproducible local ranking inputs, features, and explanation. */
   ranking?: RankingSnapshot
+  /** v2.6.1: the provider score is visible, but never silently replaces rank. */
+  aiAssessment?: AiMatchAssessment
+  /** Internal transit metadata; merge removes it from the public assessment row. */
+  aiProvenance?: AiAssessmentProvenance
 }
 
 /** A job the user has saved into the tracker. */

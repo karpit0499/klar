@@ -6,10 +6,10 @@ order: 210
 audience: ["Klar users", "Product support"]
 status: "current"
 classification: "public"
-applicable_version: "2.6.0.1"
+applicable_version: "2.6.1"
 owner: "Klar Product Support"
-last_verified: "2026-08-10"
-next_review: "2026-11-10"
+last_verified: "2026-08-11"
+next_review: "2026-11-11"
 tags: ["user-guide", "career-roles", "search", "ranking"]
 ---
 
@@ -25,7 +25,7 @@ Before searching, you need:
 - career preferences with target titles and a selected region;
 - a current network connection for live sources;
 - Adzuna credentials only if you want Adzuna results or salary benchmarks;
-- under the default private deterministic-matching setting, an AI-provider key only for an explicit AI explanation or writing action. Turning off that Developer Preview setting permits automatic AI enrichment of up to 40 top-priority jobs during a search when a key is available.
+- under the default private deterministic-matching setting, an AI-provider key only for an explicit AI assessment or writing action. Turning off that Developer Preview setting permits automatic AI assessment of up to 40 top-priority jobs during a search when a key is available.
 
 ## Configure the search foundation
 
@@ -39,7 +39,7 @@ During Career Roles setup, keep these concepts separate:
 - **Must-haves and dealbreakers:** supporting preferences and hard conflicts.
 - **German and visa settings:** optionally hide jobs above the selected German level or jobs that state they do not sponsor visas.
 
-Klar v2.6.0.1 does not expose a complete post-onboarding career-preference editor in the main Settings page. Do not delete the workspace simply to change a preference; this is a current interface gap. Preserve a backup and track the gap through the reporting workflow.
+Klar v2.6.1 does not expose a complete post-onboarding career-preference editor in Settings. Resume maintenance has moved to its own Dashboard-linked page, but career preferences remain onboarding-owned. Do not delete the workspace simply to change a preference; preserve a backup and track the gap through Support.
 
 ## Understand source coverage
 
@@ -49,7 +49,7 @@ The active region determines which source families may run:
 - Austria, Switzerland, and the Netherlands: Arbeitnow, optional Adzuna, and the configured ATS registry.
 - Luxembourg and Liechtenstein: Arbeitnow and the configured ATS registry; Adzuna is not configured for these regions.
 
-Actual execution also depends on the Klar Worker configuration, credentials, source availability, and employer routes. The ATS registry is DACH-focused and contains both verified and candidate routes; failed companies are isolated and shown in source status rather than failing the entire search.
+Actual execution also depends on the Klar Worker configuration, credentials, source availability, and employer routes. Klar v2.6.1 publishes only ATS tenants whose response contract and regional inventory passed the dated verifier. The Worker refreshes the active tenant cache on a schedule; the browser reads bounded cached pages rather than fanning out to every employer board. Candidate, quarantined, and retired tenants do not run in user searches.
 
 ## Run a search
 
@@ -77,13 +77,14 @@ Open a job to review:
 
 - title, employer, location, source, salary when published, and employment type;
 - original description and link;
-- final score and whether the explanation is local or AI-enriched;
+- deterministic **Klar score**, which controls order, and any separately labelled advisory **AI opinion**;
+- the signed point difference between those scores, with provenance, model, prompt/schema version, time, and cache status for a valid AI assessment;
 - ranking version, rank, core fit, bounded preference effect, and posting confidence;
 - evidenced or partly evidenced requirements;
 - missing required items, uncertain facts, and known hard conflicts;
 - source confidence, fetch date, and merged-source information.
 
-The score is a local sorting aid. It is not a probability of interview or employment. Unknown facts remain unknown rather than being treated as confirmed matches.
+The Klar score is a local sorting aid. It is not a probability of interview or employment. The AI opinion is a second assessment, not a replacement for the Klar score and not proof that either method is correct. Unknown facts remain unknown rather than being treated as confirmed matches.
 
 ## Use Search diagnostics
 

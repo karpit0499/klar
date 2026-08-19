@@ -6,10 +6,10 @@ order: 250
 audience: ["Klar users", "Product support"]
 status: "current"
 classification: "public"
-applicable_version: "2.6.0.1"
+applicable_version: "2.6.1"
 owner: "Klar Product Support"
-last_verified: "2026-08-10"
-next_review: "2026-11-10"
+last_verified: "2026-08-11"
+next_review: "2026-11-11"
 tags: ["user-guide", "tracker", "applications", "reminders"]
 ---
 
@@ -54,7 +54,7 @@ The badge means “verify the original posting,” not “this job is closed.”
 
 ## Preserve or replace a score
 
-A saved score retains the ranking contract and value that existed when it was stored. Klar does not silently apply a new Resume, preferences, or ranking model to historical records.
+A saved match retains the deterministic Klar score, ranking contract, and any independently validated nested AI assessment that existed when it was stored. Historical v2.6.0 rows that only carry an AI model label or rationale do not gain a fabricated AI score. Klar does not silently apply a new Resume, preferences, provider, prompt, or ranking model to historical records.
 
 Choose **Rescore with current profile** only when you want to replace the stored match using the current derived profile, current preferences, and ranking v2. This action requires a canonical Resume and is explicit and irreversible except through a broader workspace backup.
 

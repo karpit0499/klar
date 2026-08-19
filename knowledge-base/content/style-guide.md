@@ -6,10 +6,10 @@ order: 40
 audience: ["All Klar contributors", "Editors", "Translators"]
 status: "current"
 classification: "public"
-applicable_version: "2.6.0.1"
+applicable_version: "2.6.1"
 owner: "Klar Documentation"
-last_verified: "2026-08-10"
-next_review: "2026-11-10"
+last_verified: "2026-08-11"
+next_review: "2026-11-11"
 tags: ["governance", "style", "terminology", "resume"]
 ---
 
@@ -96,3 +96,5 @@ Use descriptive link text, such as [Backups and recovery](/docs/backups-and-reco
 ## Bilingual content
 
 The current Klar interface supports English and German. Public user guidance should preserve the same meaning in both languages when localized; one language must not make a stronger product or privacy claim than the other. Klar-owned engineering documentation is English-first unless an approved need requires otherwise.
+
+User-visible error/status values should be stable codes translated at render time. Use shared locale formatters for dates, relative time, counts, percentages, currencies, and plural forms. Search normalization may equate German `ß`/`ss` and umlaut/digraph forms, but displayed names and user-entered content remain unchanged.

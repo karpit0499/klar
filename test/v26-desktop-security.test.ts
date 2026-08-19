@@ -86,7 +86,7 @@ assert.match(
 )
 assert.doesNotMatch(productionBuilderConfig, /Klar Developer Preview/)
 assert.match(signingGuide, /release\/desktop\/mac-arm64\/Klar\.app/)
-assert.match(signingGuide, /release\\desktop\\Klar-2\.6\.0-1-win-x64\.exe/)
+assert.match(signingGuide, /release\\desktop\\Klar-Setup-2\.6\.1-win-x64\.exe/)
 assert.doesNotMatch(signingGuide, /mac-arm64\/Klar Developer Preview\.app/)
 assert.doesNotMatch(signingGuide, /Klar Developer Preview\.exe/)
 

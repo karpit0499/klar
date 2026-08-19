@@ -50,7 +50,6 @@ import {
   useSavedSearches,
 } from '../search/savedSearches'
 import { DEFAULT_APP_FLAGS, loadAppFlags, type AppFlags } from '../lib/appFlags'
-import { mergeAiExplanationWithLocal } from '../match/fallback'
 
 export function SearchStep({
   active,
@@ -77,7 +76,9 @@ export function SearchStep({
   const [matches, setMatches] = useState<Record<string, MatchResult>>({})
   const [status, setStatus] = useState<SourceStatus[]>([])
   const [phase, setPhase] = useState<'idle' | 'gathering' | 'matching' | 'done'>('idle')
-  const runInProgress = useRef(false)
+  const runGeneration = useRef(0)
+  const activeRun = useRef<{ generation: number; controller: AbortController } | null>(null)
+  const [runNotice, setRunNotice] = useState('')
   const [progress, setProgress] = useState<MatchProgress | null>(null)
   const [matchDiagnostics, setMatchDiagnostics] = useState<MatchRunDiagnostics | null>(null)
   const tracked = useTracked()
@@ -103,6 +104,11 @@ export function SearchStep({
   useEffect(() => {
     void getActiveRegion().then(setRegion)
     void loadAppFlags().then(setFlags)
+    return () => {
+      runGeneration.current += 1
+      activeRun.current?.controller.abort('unmounted')
+      activeRun.current = null
+    }
   }, [])
 
   const query: SearchQuery = useMemo(
@@ -138,10 +144,10 @@ export function SearchStep({
     } catch (caught) {
       setError(toAppError(caught, {
         category: 'storage',
-        message: 'Klar could not save this search.',
+        message: t('search.errorSave'),
         dataSafe: true,
-        available: 'The current results and workspace remain available.',
-        action: { label: 'Try saving again', kind: 'retry' },
+        available: t('search.errorSaveAvailable'),
+        action: { label: t('search.errorSaveAction'), kind: 'retry' },
       }))
     }
   }
@@ -156,18 +162,38 @@ export function SearchStep({
     } catch (caught) {
       setError(toAppError(caught, {
         category: 'storage',
-        message: 'Klar could not delete this saved search.',
+        message: t('search.errorDelete'),
         dataSafe: true,
-        available: 'Your current results and other saved searches remain available.',
-        action: { label: 'Try again', kind: 'retry' },
+        available: t('search.errorDeleteAvailable'),
+        action: { label: t('search.errorRetry'), kind: 'retry' },
       }))
     }
   }
 
+  function cancelRun() {
+    const current = activeRun.current
+    if (!current) return
+    runGeneration.current += 1
+    activeRun.current = null
+    current.controller.abort('cancelled')
+    setPhase('idle')
+    setProgress(null)
+    setRunNotice(t('search.cancelled'))
+  }
+
   async function run() {
-    if (runInProgress.current) return
-    runInProgress.current = true
+    if (activeRun.current) return
+    const current = {
+      generation: ++runGeneration.current,
+      controller: new AbortController(),
+    }
+    activeRun.current = current
+    const isCurrent = () =>
+      activeRun.current?.generation === current.generation &&
+      !current.controller.signal.aborted
+
     setError(null)
+    setRunNotice('')
     setProgress(null)
     setMatchDiagnostics(null)
     setPhase('gathering')
@@ -175,14 +201,18 @@ export function SearchStep({
     setNewJobIds(new Set())
     try {
       const adzunaKey = await loadAdzunaKey()
+      if (!isCurrent()) return
       const saved = activeSavedSearchId ? await getSavedSearch(activeSavedSearchId) : undefined
+      if (!isCurrent()) return
       const searchQuery = saved?.query ?? query
       const searchRegion = saved?.region ? (REGIONS[saved.region] ?? region) : region
 
       const gathered = await gatherJobs(searchQuery, {
         region: searchRegion,
         adzunaKey,
+        signal: current.controller.signal,
       })
+      if (!isCurrent()) return
       setStatus(gathered.status)
 
       const requestedHideTerms = saved?.hideList ?? hideCompanies.split(',')
@@ -224,7 +254,8 @@ export function SearchStep({
       // rows have no description, so enrich only the small role-relevant subset
       // and then verify the market again before saving or scoring anything.
       const preliminary = filterCareerRelevantJobs(filtered.jobs, profile, prefs)
-      await enrichBaDescriptions(preliminary.jobs)
+      await enrichBaDescriptions(preliminary.jobs, current.controller.signal)
+      if (!isCurrent()) return
       const relevant = filterCareerRelevantJobs(preliminary.jobs, profile, prefs)
       setJobs(relevant.jobs)
       setDiagnosticBase({
@@ -243,48 +274,66 @@ export function SearchStep({
             relevant.diagnostics.removedBy.seniority,
         },
       })
-      if (saved) {
-        const fresh = await recordRun(saved.id, relevant.jobs)
-        setNewJobIds(new Set(fresh.map((job) => job.id)))
-      }
 
       if (relevant.jobs.length === 0) {
-        setPhase('done')
+        if (saved) await recordRun(saved.id, relevant.jobs)
+        if (isCurrent()) setPhase('done')
         return
       }
 
       setPhase('matching')
+      const publishMatches = (snapshot: MatchResult[]) => {
+        if (!isCurrent()) return
+        const map: Record<string, MatchResult> = {}
+        for (const match of snapshot) map[match.jobId] = match
+        setMatches(map)
+      }
       const results = await runMatching(relevant.jobs, profile, prefs, apiKey, {
-        onProgress: setProgress,
-        onCandidates: setJobs,
-        onMatches: (snapshot) => {
-          const map: Record<string, MatchResult> = {}
-          for (const match of snapshot) map[match.jobId] = match
-          setMatches(map)
-        },
-        onDiagnostics: setMatchDiagnostics,
+        onProgress: (next) => { if (isCurrent()) setProgress(next) },
+        onCandidates: (next) => { if (isCurrent()) setJobs(next) },
+        onMatches: publishMatches,
+        onDiagnostics: (next) => { if (isCurrent()) setMatchDiagnostics(next) },
         rerankMode: flags.deterministicMatching ? 'off' : 'all',
         locale,
+        signal: current.controller.signal,
       })
-      const map: Record<string, MatchResult> = {}
-      for (const m of results) map[m.jobId] = m
-      setMatches(map)
+      if (!isCurrent()) return
+      publishMatches(results)
+      if (saved) {
+        const fresh = await recordRun(saved.id, relevant.jobs)
+        if (!isCurrent()) return
+        setNewJobIds(new Set(fresh.map((job) => job.id)))
+      }
       setPhase('done')
-    } catch (e) {
-      setError(toAppError(e, {
-        message: 'Klar could not complete this search.',
+    } catch (caught) {
+      if (!isCurrent()) return
+      setError(toAppError(caught, {
+        message: t('search.errorRun'),
         dataSafe: true,
-        available: 'Saved jobs and your workspace remain available.',
-        action: { label: 'Review diagnostics and retry', kind: 'retry' },
+        available: t('search.errorRunAvailable'),
+        action: { label: t('search.errorRunAction'), kind: 'retry' },
       }))
       setPhase('idle')
     } finally {
-      runInProgress.current = false
+      if (activeRun.current?.generation === current.generation) {
+        activeRun.current = null
+      }
     }
   }
 
   async function save(job: NormalizedJob) {
-    await addToTracker(job, matches[job.id])
+    setError(null)
+    try {
+      await addToTracker(job, matches[job.id])
+    } catch (caught) {
+      setError(toAppError(caught, {
+        category: 'storage',
+        message: t('search.errorTrack'),
+        dataSafe: true,
+        available: t('search.errorTrackAvailable'),
+        action: { label: t('search.errorTrackAction'), kind: 'retry' },
+      }))
+    }
   }
 
   // Ranking v2 owns the order. Soft preferences are already bounded inside the
@@ -349,6 +398,10 @@ export function SearchStep({
           .filter((entry): entry is [string, number] => typeof entry[1] === 'number' && entry[1] > 0)
           .map(([category, count]) => `${category}: ${count}`)
         : [],
+      aiComparedCount: matchDiagnostics?.aiComparedCount ?? 0,
+      aiExactAgreementCount: matchDiagnostics?.aiExactAgreementCount ?? 0,
+      aiMeanAbsoluteDelta: matchDiagnostics?.aiMeanAbsoluteDelta ?? null,
+      aiSuspiciousEquality: matchDiagnostics?.aiSuspiciousEquality ?? false,
       finalCount: phase === 'matching' || finished || matchDiagnostics
         ? view.withScore.length
         : diagnosticBase.filters.finalCount,
@@ -378,15 +431,22 @@ export function SearchStep({
               {region ? ` · ${t(regionLabelKey(region.code))}` : ''}
             </p>
           </div>
-          <Button onClick={run} disabled={searchBusy}>
-            {phase === 'gathering' ? (
-              <Spinner label={t('search.gathering')} />
-            ) : phase === 'matching' ? (
-              <Spinner label={t('search.matching')} />
-            ) : (
-              t('search.run')
+          <div className="flex flex-wrap items-center gap-2">
+            <Button onClick={run} disabled={searchBusy}>
+              {phase === 'gathering' ? (
+                <Spinner label={t('search.gathering')} />
+              ) : phase === 'matching' ? (
+                <Spinner label={t('search.matching')} />
+              ) : (
+                t('search.run')
+              )}
+            </Button>
+            {searchBusy && (
+              <Button variant="ghost" onClick={cancelRun}>
+                {t('search.cancel')}
+              </Button>
             )}
-          </Button>
+          </div>
         </div>
 
         {flags.deterministicMatching && (
@@ -468,6 +528,7 @@ export function SearchStep({
               : `${progress.phase}…`}
           </p>
         )}
+        {runNotice && <p className="mt-2 text-sm text-muted" role="status">{runNotice}</p>}
         {error && <div className="mt-3"><ErrorNotice error={error} /></div>}
         {partial && (
           <p className="mt-2 text-sm text-muted">
@@ -572,8 +633,13 @@ export function SearchStep({
               const existing = current[next.jobId]
               return {
                 ...current,
+                // `explainMatchWithAi` already returns the deterministic row
+                // with its provider result nested under `aiAssessment`. Keep
+                // the current ranking snapshot, but never merge that separated
+                // result a second time: doing so would relabel the outer local
+                // score as the provider assessment again.
                 [next.jobId]: existing?.ranking
-                  ? mergeAiExplanationWithLocal(existing, next)
+                  ? { ...next, ranking: existing.ranking }
                   : next,
               }
             })

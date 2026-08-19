@@ -6,10 +6,10 @@ order: 50
 audience: ["Documentation owners", "Approvers", "Leadership", "Release owners"]
 status: "current"
 classification: "public"
-applicable_version: "2.6.0.1"
+applicable_version: "2.6.1"
 owner: "Klar Documentation"
-last_verified: "2026-08-10"
-next_review: "2026-11-10"
+last_verified: "2026-08-11"
+next_review: "2026-11-11"
 tags: ["governance", "ownership", "classification", "controls"]
 ---
 
@@ -105,6 +105,8 @@ Automated checks should reject:
 - the prohibited accented English spelling of Resume;
 - `status: current` pages that describe an unreleased target as present;
 - public pages that expose or depend on non-public evidence as if readers can access it.
+
+The publication pipeline must additionally reject a fresh-checkout build dependency on ignored files, a ChatGPT Sites canonical, broken `/klar/kb/` paths or fragments, embedded full-corpus search data on every page, unstable sitemap dates, stale PDF copies, blank handbook pages, relative published PDF links, and missing PDF language/display-title metadata.
 
 ## Exceptions
 

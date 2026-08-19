@@ -20,6 +20,18 @@ const workerFromEnv =
 export const WORKER_URL: string = (workerFromEnv || '').replace(/\/$/, '')
 
 /**
+ * Public Knowledge Base root. The default is absolute so packaged desktop
+ * builds never resolve a leading slash against file://. Self-hosted builds can
+ * replace it with their own absolute VITE_KB_URL.
+ */
+const kbFromEnv =
+  viteEnv?.VITE_KB_URL ??
+  (globalThis as { VITE_KB_URL?: string }).VITE_KB_URL
+export const KB_URL: string = (
+  kbFromEnv || 'https://karpit0499.github.io/klar/kb'
+).replace(/\/$/, '')
+
+/**
  * Groq (LLM) — the DEFAULT engine. When VITE_WORKER_URL is configured, its
  * requests use Klar's fixed browser-safe relay; otherwise self-hosted builds
  * retain the direct-browser fallback.

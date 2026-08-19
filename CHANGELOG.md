@@ -4,6 +4,60 @@ This file records Klar’s product history from the newest release to the origin
 
 ---
 
+## v2.6.1 — Stability, source integrity, and Knowledge Base migration
+
+### Honest scoring and resilient journeys
+
+- Preserved Klar's deterministic score and the AI provider's advisory score as
+  independent values with separate rationale, factors, provenance, cache state,
+  diagnostics, and a visible delta. Deterministic ranking remains authoritative.
+- Added dedicated Resume and Help & feedback workspaces, stable hash deep links,
+  accessible focus and dirty-navigation handling, and a useful Resume empty
+  state for Flexible-only workspaces. Settings no longer contains Resume tools.
+- Added abortable Career searches with stale-run guards, visible cancellation,
+  recovery-oriented storage errors, safer interactive markup, and deterministic
+  browser regression coverage.
+- Expanded German dictionaries, error/filter copy, locale-aware formatting, and
+  umlaut/digraph and ß/ss search equivalence. Klar-owned English text now uses
+  only the spelling “Resume”; German continues to use “Lebenslauf”.
+
+### Feedback and source integrity
+
+- Added an in-app public bug/suggestion form with local privacy preview,
+  server-side redaction, Turnstile validation, rate limiting, fixed-repository
+  GitHub issue creation, stable report IDs, and best-effort duplicate receipts.
+  Security reports still use GitHub's private vulnerability route.
+- Removed 141 hard-dead guessed ATS routes from runtime, retained tombstones,
+  quarantined 21 reachable candidates pending ownership/schema/location review,
+  and retained the 47 verified direct boards.
+- Added 100 newly verified Greenhouse, Lever, and Ashby boards behind scheduled
+  Worker ingestion and one bounded cached search endpoint. Unknown locations no
+  longer default to Germany; only explicit DACH/worldwide-remote evidence is
+  admitted.
+- Enforced verified-only Flexible connectors, disabled production fixtures and
+  33 unverified candidates, corrected fallback health/provenance semantics, and
+  added a lazy directory of 98 official-search routes plus two true open-entry
+  programs without presenting them as vacancy APIs.
+
+### Knowledge Base and release assurance
+
+- Replaced the ChatGPT Sites/vinext deployment with a fresh-checkout-safe Next
+  static export at `/klar/kb/` inside the repository's single GitHub Pages
+  artifact.
+- Fixed mobile overflow/navigation/contents, keyboard search, contrast, reduced
+  motion, status rendering, canonical/sitemap/404 behavior, service-worker
+  interference, and the per-page embedded search-corpus performance defect.
+- Rebuilt the three handbooks with absolute links, controlled metadata,
+  reproducible bytes, no blank pages, readable wide tables, and verified public
+  copies. PDFs remain supplementary and untagged; responsive HTML is the
+  accessible authority.
+- Extended the root release gate with repository-wide terminology, browser E2E,
+  Worker/cache/feedback/source regressions, reproducible PDF checks, and the
+  combined Pages build. Human ranking/writing, tagged-PDF, signed-desktop, and
+  comprehensive assistive-technology evidence remain explicit HOLDs.
+
+---
+
 ## v2.6.0.1 — Resume format and Bundesagentur continuity hotfix
 
 ### Production resume format

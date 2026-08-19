@@ -6,10 +6,10 @@ order: 290
 audience: ["Klar users", "Product support"]
 status: "current"
 classification: "public"
-applicable_version: "2.6.0.1"
+applicable_version: "2.6.1"
 owner: "Klar Product Support"
-last_verified: "2026-08-10"
-next_review: "2026-11-10"
+last_verified: "2026-08-11"
+next_review: "2026-11-11"
 tags: ["user-guide", "troubleshooting", "recovery", "support"]
 ---
 
@@ -80,17 +80,19 @@ Expand source details. Other sources remain usable because failures are isolated
 
 - Adzuna requires both values from the same account and a working Klar Worker route.
 - BA list search depends on an undocumented public-web v6 contract and may change without compatibility notice.
-- ATS status may report candidate employer routes as skipped.
-- Use **Report source** to open the prefilled source-report context in Settings.
+- ATS status distinguishes active, healthy empty, quarantined, retired, and skipped candidate tenants. Healthy empty means the board contract worked but returned no current regional jobs.
+- Use **Report source** to open prefilled synthetic source context in Support.
 
 Retry after checking the source URL and connectivity; repeated retries do not repair an upstream contract change.
 
-## Flexible Work is partial, limited, or shows samples
+## Flexible Work is partial or limited
 
 - Partial means some sources did not finish; inspect source status and retry later.
 - Limited means available sources returned no matching jobs; add cities, employment types, or workplaces.
-- Sample-results notice means the build has no live source service configured.
+- An **Official search** card opens a verified employer search page; it is not a specific vacancy. An **Open entry** card is used only for a genuine verified general-application route.
 - Stop checking preserves already published results.
+
+A public production build does not fall back to fixtures when its Worker is missing. If a production page ever labels or resembles sample data, stop relying on the results and report a deployment defect through Support.
 
 An inferred tag is Klar's classification, not employer-published confirmation. Verify the official route.
 
@@ -103,6 +105,12 @@ An inferred tag is Klar's classification, not employer-published confirmation. V
 - An empty or malformed provider response is treated as a recoverable error and is not saved as real content.
 
 Local search, Tracker, backup, and no-AI Resume tailoring remain available without AI.
+
+## Klar score and AI opinion look identical
+
+In v2.6.1 the two values are stored and labelled separately. Equality can occur, but the details must show independent provenance and a zero-point difference. If every job is equal or the AI model/rationale appears without an AI opinion, include a synthetic job title, release version, provider/model names, and reduced diagnostics in a Support report. Do not include the Resume or full job description.
+
+Historical results created by v2.6.0.1 may contain an AI-looking model label or rationale without an independent provider score because that release overwrote the provider score during merge. Rescore deliberately under v2.6.1 if a new comparison is needed.
 
 ## Packet export is disabled
 
@@ -127,6 +135,8 @@ Reload when Klar offers a new-version notice. If an installed PWA remains stale,
 
 ## Report the problem
 
-In Settings, choose the category, provide a concise synthetic description and reproduction steps, optionally include reduced diagnostics, and inspect the exact privacy preview. Privacy/security concerns go to private GitHub vulnerability reporting; other categories open a public issue composer. Klar never submits automatically.
+Open **Support** from the Dashboard, choose an ordinary category, provide a concise synthetic description and reproduction steps, optionally include reduced diagnostics, and inspect the exact privacy preview. Confirm the preview and complete the anti-abuse check to submit one public GitHub issue. Klar returns the issue link and report ID.
 
-The automatic redactor catches known secret, email, path, URL-query, and embedded-data patterns, but it cannot identify every personal sentence. You remain responsible for the final review.
+Privacy/security concerns, exposed secrets, personal data, and abuse reports go to private GitHub vulnerability reporting and never through public submission. The Support form does not accept screenshots or files.
+
+Client and Worker redactors catch known secret, email, path, URL-query, and embedded-data patterns, but they cannot identify every personal sentence. You remain responsible for the final review.

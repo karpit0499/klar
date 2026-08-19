@@ -49,6 +49,7 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - run: npx playwright install chromium
       - run: npm run qa
       - run: npm run audit:production
       - run: node desktop/tools/install-runtime.mjs ${{ matrix.runtime }}

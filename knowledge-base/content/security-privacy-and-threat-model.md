@@ -1,15 +1,15 @@
 ---
 title: "Security, Privacy, and Threat Model"
-description: "Assets, trust boundaries, adversaries, controls, residual risks, privacy behavior, and secure-reporting rules for Klar 2.6.0.1."
+description: "Assets, trust boundaries, adversaries, controls, residual risks, privacy behavior, and secure-reporting rules for Klar 2.6.1."
 section: "Security and Privacy"
 order: 300
 audience: ["Security", "Engineering", "Privacy reviewers", "Operations", "Leadership"]
 status: "current"
 classification: "public"
-applicable_version: "2.6.0.1"
+applicable_version: "2.6.1"
 owner: "Klar Security"
-last_verified: "2026-08-10"
-next_review: "2026-11-10"
+last_verified: "2026-08-11"
+next_review: "2026-09-11"
 tags: ["security", "privacy", "threat-model", "controls", "risk"]
 ---
 
@@ -50,6 +50,7 @@ The material boundaries are detailed in [System Context and Runtime Topology](/d
 - document file into renderer parser;
 - renderer into IndexedDB or session storage;
 - renderer through Worker to source/provider;
+- Support preview through the protected Worker feedback route to public GitHub Issues;
 - untrusted source/provider response into domain state;
 - renderer across preload IPC into Electron main;
 - Electron main into the local runtime and model package;
@@ -86,7 +87,7 @@ The material boundaries are detailed in [System Context and Runtime Topology](/d
 
 **Threats:** key in source control, logs, URL, prompt, browser persistence, public report, malicious endpoint, quota theft.
 
-**Controls:** credential helpers, separate credential vault, session-only option, Worker deployment secrets, authorization headers, stripped Adzuna query credentials, atomic pair selection, diagnostics redaction, explicit custom endpoint configuration.
+**Controls:** credential helpers, separate credential vault, session-only option, Worker deployment secrets, authorization headers, stripped Adzuna query credentials, atomic pair selection, diagnostics redaction, explicit custom endpoint configuration. GitHub and Turnstile secrets exist only in Worker bindings, never the renderer.
 
 **Residual:** custom endpoints can observe all data intentionally sent to them. Browser-origin policy is not a complete abuse-control boundary, and provider-side retention, quotas, and account security remain external responsibilities.
 
@@ -94,7 +95,7 @@ The material boundaries are detailed in [System Context and Runtime Topology](/d
 
 **Threats:** relay misuse, unsafe redirect or destination handling, oversized responses, high request volume, and upstream secret leakage.
 
-**Controls:** finite routes, fixed or allowlisted destinations, HTTPS reconstruction, redirect revalidation, private-network screening, bounded high-risk operations, safe errors, and an explicit production origin policy.
+**Controls:** finite routes, fixed or allowlisted destinations, HTTPS reconstruction, redirect revalidation, private-network screening, bounded high-risk operations, safe errors, and an explicit production origin policy. The feedback route additionally enforces strict shape/size, honeypot, server-side redaction, Turnstile action/hostname, rate limit, fixed repository/labels, stable report IDs, no automatic retry, and no-store responses.
 
 **Residual:** origin policy alone cannot prevent non-browser misuse; resource and client-level abuse controls are not yet uniform across every relay; and destination validation needs further defense in depth. The fixed host catalog reduces but does not eliminate server-side request-forgery risk.
 
@@ -102,9 +103,17 @@ The material boundaries are detailed in [System Context and Runtime Topology](/d
 
 **Threats:** broken parser, changed third-party schema, stale/removed vacancy, aggregator impersonation, duplicate conflict, synthetic test data in production.
 
-**Controls:** normalization, per-source isolation, provenance, cache expiry/revalidation, circuit breaker, kill switch, official-route preference, diagnostics, honest partial state.
+**Controls:** normalization, verified-only execution, per-tenant scheduled ATS cache, provenance, cache expiry/revalidation, circuit breaker, kill switch, official-search/open-entry distinction, production fixture assertion, diagnostics, honest partial state.
 
-**Residual:** third-party availability and truth are not controlled by Klar. Candidate connectors currently run before full verification, and deterministic fixtures can back the UI when a Worker URL is absent. See [Known Gaps and Risk Register](/docs/known-gaps-and-risk-register).
+**Residual:** third-party availability and truth are not controlled by Klar. Verification proves a dated route/contract observation, not future inventory, employer endorsement, or completeness. Official search routes do not become vacancies merely because they return HTTP 200. See [Known Gaps and Risk Register](/docs/known-gaps-and-risk-register).
+
+### Public feedback abuse or disclosure
+
+**Threats:** bot-created issues, duplicate issues, public personal data, secret exposure, malicious links, label/repository manipulation, token theft, or an attempted public vulnerability disclosure.
+
+**Controls:** local preview and explicit confirmation, restricted categories, field/byte limits, client and server redaction, empty honeypot, server-side Turnstile validation, rate limit, stable report ID, fixed public repository and labels, Worker-only GitHub token, content-safe logging, no screenshots/files, and a private-security escape route.
+
+**Residual:** automated redaction cannot understand every personal sentence; GitHub receives and retains a confirmed public issue; Turnstile, KV, and GitHub availability are external dependencies. The 30-day KV replay record prevents ordinary repeated report IDs but is not a transactional exactly-once queue, so an ambiguous network outcome still requires a report-ID check before retry. The person must review the exact preview. Klar provides no promise of issue response time.
 
 ### Backup tampering or destructive import
 
@@ -131,7 +140,8 @@ The material boundaries are detailed in [System Context and Runtime Topology](/d
 | AI Resume extraction or writing | Yes for configured cloud provider; the experimental local path is separate | Only the bounded prompt projection should be sent; provider terms apply |
 | Worker health | Yes | No career content required |
 | Create backup or document | No until the user moves/shares it | Downloaded copy is outside the vault |
-| Prepare issue report | No automatic submission | Klar creates a redacted preview and opens a destination only after confirmation |
+| Submit ordinary bug or suggestion | Yes, only after preview and confirmation | Redacted structured data goes through the Worker to a public GitHub issue; GitHub retention applies |
+| Report security or privacy concern | Yes, after the person follows the private route | Klar does not send it through the public feedback API |
 | Clear Klar data | No | Does not delete downloaded files or provider/source records |
 
 Klar currently has no account analytics or central content telemetry. Browser operational events are content-free, local, and capped at 100. Desktop diagnostics are memory-only and capped at 200. Limited telemetry improves privacy but reduces fleet-wide detection and incident reconstruction.
@@ -142,7 +152,7 @@ Suspected authentication, encryption, secret-handling, sandbox escape, code exec
 
 [Public GitHub issues](https://github.com/karpit0499/klar/issues/new/choose) are appropriate for ordinary defects only after replacing names, emails, phone numbers, employer-private text, paths, query strings, identifiers, and documents with synthetic examples. Never attach a real Resume, cover letter, application, key, password, token, private signing key, or unredacted diagnostic archive.
 
-The in-app tool does not submit either report automatically. Follow [Operations Runbooks](/docs/operations-runbooks) for triage and containment.
+The in-app Support tool submits only an ordinary public report after preview, confirmation, and abuse checks. It never submits security/privacy reports, screenshots, or arbitrary attachments. Follow [Operations Runbooks](/docs/operations-runbooks) for triage and containment.
 
 ## Review triggers
 

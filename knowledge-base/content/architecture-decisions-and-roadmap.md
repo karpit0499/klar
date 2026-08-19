@@ -6,10 +6,10 @@ order: 350
 audience: ["Leadership", "Architecture", "Engineering", "Product", "Documentation owners"]
 status: "current"
 classification: "public"
-applicable_version: "2.6.0.1"
+applicable_version: "2.6.1"
 owner: "Klar Architecture"
-last_verified: "2026-08-10"
-next_review: "2026-09-10"
+last_verified: "2026-08-11"
+next_review: "2026-09-11"
 tags: ["adr", "decisions", "roadmap", "current", "target", "v3"]
 ---
 
@@ -23,7 +23,7 @@ This page records consequential choices that shape Klar and reconciles planning 
 
 | Status | Meaning |
 | --- | --- |
-| Accepted/current | Decision is embodied in 2.6.0.1 code and remains governing |
+| Accepted/current | Decision is embodied in 2.6.1 code and remains governing |
 | Accepted/partial | Direction is accepted; some required controls or integrations are incomplete |
 | Target | Planned direction not yet authoritative product behavior |
 | Historical | Describes a superseded implementation or baseline |
@@ -37,17 +37,33 @@ This page records consequential choices that shape Klar and reconciles planning 
 | ADR-002 | Optional authenticated vault with separate content and credential envelopes | Protect selected at-rest data while allowing standard backups to exclude credentials | Passphrase is unrecoverable; settings and operational caches remain outside content ciphertext | Accepted/current | `src/crypto`, `src/backup` |
 | ADR-003 | Canonical Resume is the sole career-fact authority | Prevent drift between rich Resume and thin Profile models | Profile is derived; schema change requires coordinated migration and snapshot | Accepted/current | `src/resume`, Dexie v5 migration |
 | ADR-004 | One product, two first-class discovery modes | Career and Flexible Work share a workspace but have materially different inputs | Career is Resume-aware; Flexible Work is Resume-free and owns location/preferences | Accepted/current | `src/App.tsx`, onboarding and mode routing |
-| ADR-005 | Source Fabric, not a universal scraper | Source durability and permission vary by employer and platform | Finite connector contracts, allowlists, provenance, fallbacks, health, and kill switches | Accepted/partial | `src/flexible/connectors`, Worker Fabric route; verification gaps remain |
+| ADR-005 | Source Fabric, not a universal scraper | Source durability and permission vary by employer and platform | Only verified direct connectors run; official-search routes are labelled separately; finite provenance, fallback, health, and kill-switch contracts remain | Accepted/partial | `src/flexible/connectors`, route manifest, Worker Fabric route; immutable page ledger remains open |
 | ADR-006 | Bounded progressive Flexible Work sessions | One slow or broken source must not block useful results | 10–15-second attempts, two retries, 60-second hard deadline, independent batches, terminal states | Accepted/partial | Flexible session policy and tests; immutable page ledger/canary incomplete |
 | ADR-007 | Deterministic-first Career ranking | Ranking must be reproducible, explainable, and usable without provider tokens | AI attention cannot overwrite eligibility, posting confidence, or deterministic order | Accepted/current | `src/match`, ranking snapshots and tests |
 | ADR-008 | AI returns evidence-bound proposals, never automatic facts | Fluent generation can fabricate or overstate | Consumer schemas, evidence links, accept/reject/edit, repeated export gates, human review | Accepted/current | `src/llm`, `src/application`, packets/export |
-| ADR-009 | Worker is a finite allowlisted relay, not an application backend | Browser CORS/secrets require mediation without accepting arbitrary proxy risk | Fixed routes/hosts, bounded Fabric/Groq, no workspace persistence; abuse/SSRF residuals remain | Accepted/partial | `worker/src`, Wrangler config |
+| ADR-009 | Worker is a finite allowlisted relay, not an application backend | Browser CORS/secrets require mediation without accepting arbitrary proxy risk | Fixed routes/hosts, bounded Fabric/Groq/feedback, scheduled source cache, no workspace persistence; abuse/SSRF residuals remain | Accepted/partial | `worker/src`, Wrangler config |
 | ADR-010 | Desktop privilege separation and signed model-package trust | Local inference needs process/file authority that the renderer must not inherit | Narrow IPC, main validation, sandbox/CSP, ephemeral loopback, Ed25519 manifests, explicit fuses | Accepted/partial | `desktop/`, package and lifecycle tests; production signing remains HOLD |
 | ADR-011 | Explicit provider selection with no silent cloud/local fallback | Privacy and reproducibility require knowing where generation occurs | Provider-neutral registry fails rather than switching provider | Accepted/partial | `src/ai`; normal workflows still use production cloud-compatible client |
 | ADR-012 | Artifact-level version and provenance | Packets can contain artifacts generated at different times and contracts | Each Resume/letter/export retains its own format/generator provenance; old data remains historical | Accepted/current | `src/packets`, `src/export`, document contracts |
 | ADR-013 | Human evidence is a separate release class | Synthetic/model tests cannot establish human usefulness or truthfulness | Ranking/writing gates require independent bilingual humans and adjudication; missing evidence is HOLD | Accepted/current | `qa/ranking`, `qa/writing` |
 | ADR-014 | Current, target, and historical documentation never collapse | Roadmap prose must not be mistaken for executable reality | Code/config/tests lead; target language is explicit; old build guides are context only | Accepted/current | [Source of Truth](/docs/source-of-truth) |
-| ADR-015 | Canonical product term is Resume | One spelling reduces search, UI, schema, and documentation inconsistency | All Klar code-facing and documentation language uses Resume/resume; older source wording is not copied | Accepted/current documentation; target v2.7 plan entry | Product direction and [Documentation Style Guide](/docs/style-guide) |
+| ADR-015 | Canonical product term is Resume | One spelling reduces search, UI, schema, and documentation inconsistency | All English Klar UI, code-facing, tests, and documentation language uses Resume/resume; German UI uses Lebenslauf | Accepted/current | Terminology gate and [Documentation Style Guide](/docs/style-guide) |
+| ADR-016 | Deterministic Klar score and AI opinion are independent objects | A merge defect made distinct methods appear numerically identical | Outer deterministic score controls order; nested validated AI assessment retains its own score and provenance | Accepted/current | `src/match`, score UI, cache and regression tests |
+| ADR-017 | Application and KB share one GitHub Pages artifact | A ChatGPT Sites URL and separate hosting stack were inconsistent and caused fresh-build/mobile defects | Next static KB exports to `/klar/kb/`; one commit/artifact, subpath-safe links, service-worker exclusion | Accepted/current | Pages workflow, static crawl, KB regression suite |
+| ADR-018 | Ordinary public feedback is protected and explicit | Many users will not navigate GitHub Issues unaided, but a public token cannot live in the browser | Preview/confirm, Worker-held token, Turnstile/rate/redaction, stable report ID, 30-day replay record, no automatic retry; security reports remain private | Accepted/current | Support workspace, `POST /feedback`, security tests |
+| ADR-019 | Source expansion is evidence-gated and server-scheduled | Stale candidate fan-out harms stability and load; official pages are not APIs | Active/empty/quarantined/retired states, scheduled ATS cache, 100 new verified boards, 100 labelled official Flexible routes | Accepted/current | dated manifests, verifier evidence, scheduled cache tests |
+
+## v2.6.1 change record — 11 August 2026
+
+| Area | Released change | Important boundary |
+| --- | --- | --- |
+| Matching | Fixed the overwrite defect; separate Klar score and AI opinion with delta and independent provenance | Deterministic order remains authoritative; human ranking gate is HOLD |
+| Navigation | Added Dashboard-linked Resume and Support workspaces; removed their dense forms from Settings | Four-item mobile primary navigation remains unchanged |
+| Language | Enforced Resume terminology and expanded German UI, error, normalization, date/number/currency coverage | User-entered content is not translated; complete bilingual human quality evidence remains HOLD |
+| Feedback | Added explicit protected public bug/suggestion submission through Worker and GitHub | No uploads; security/privacy reports use private vulnerability reporting |
+| Sources | Retired 141 dead ATS routes, blocked candidates, added 100 verified ATS boards through scheduled cache, and added 100 verified official Flexible routes | Dated reachability is not a future inventory guarantee; official search is not an API/vacancy |
+| Knowledge base | Migrated from ChatGPT Sites to the repository's GitHub Pages `/klar/kb/` export; fixed fresh-build, mobile, search, SEO, service-worker, and handbook defects | HTML is accessible authority; tagged PDF remains HOLD |
+| Stability and UX | Added stale-run guards, honest failure states, route/focus/unsaved-state handling, localized errors, and expanded regression checks | Public desktop signing/distribution and human quality graduation remain HOLD |
 
 ## Formal ADR template and workflow
 
@@ -68,7 +84,7 @@ A roadmap item is not an ADR. A shipped implementation can require a retrospecti
 
 ## Roadmap source qualification
 
-The available planning source is dated 23 July 2026 and was written against a 2.2 baseline with a revised 2.3 foundation. It is valuable for intent but predates the verified 2.6.0.1 repository. It also predates the canonical Resume terminology rule. Therefore:
+The available planning source is dated 23 July 2026 and was written against a 2.2 baseline with a revised 2.3 foundation. It is valuable for intent but predates the verified 2.6.0.1 baseline and the v2.6.1 change record. It also predates the canonical Resume terminology rule. Therefore:
 
 - use it to explain target direction and original exit criteria;
 - use current code/configuration/tests to say what exists;
@@ -77,9 +93,9 @@ The available planning source is dated 23 July 2026 and was written against a 2.
 
 ## Roadmap reconciliation
 
-| Roadmap milestone | Original intent | Verified 2.6.0.1 position | Classification |
+| Roadmap milestone | Original intent | Verified 2.6.1 position | Classification |
 | --- | --- | --- | --- |
-| 2.4 — Flexible Work and Source Fabric | Resume-free mode, opportunity/provenance model, connector catalog, progressive 60-second sessions, taxonomy, cache/health/fallback, saved searches | Core mode, registry, connectors, session, taxonomy, provenance, cache/health, fallback, and saved searches are implemented. Candidate connectors execute without full release verification; strict frozen-page ledger, canary, and central operator switch are incomplete. | Partially current; unmet gates remain open |
+| 2.4 — Flexible Work and Source Fabric | Resume-free mode, opportunity/provenance model, connector catalog, progressive 60-second sessions, taxonomy, cache/health/fallback, saved searches | Core mode and bounded session exist. Candidate execution is disabled and 100 verified official routes are labelled separately. Strict frozen-page ledger, direct-connector canary, and central operator switch remain incomplete. | Partially current; unmet gates remain open |
 | 2.5 — Application Quality | Evidence-bound Resume tailoring, bilingual artifacts, DOCX/PDF, persistent packets, recovery, Flexible Work lightweight preparation | Canonical evidence proposals, packets, bilingual workspaces, document/ZIP export, provenance, and recovery are current. Human writing evidence remains HOLD, so application quality is not graduated. | Core current; quality graduation HOLD |
 | 2.6 — Trust, Reliability, Validation | Explainable ranking, source health/provenance, advanced dedup, backup, budgets, contract/canary tests, student testing without content analytics | Deterministic ranking, source health/provenance, dedup, backup, byte budgets, and extensive contracts exist. Human ranking/writing, full connector verification, live canary model, comprehensive accessibility/performance evidence, broad student testing, and public desktop distribution are incomplete or not evidenced. | Substantially current; graduation incomplete |
 | 2.7 — Daily Workspace | Saved Searches 2.0, progressive refresh, inbox, compare, history, pipeline/follow-ups, daily/weekly views, focus mode; no closed-app search claim | Existing saved searches, tracker, dashboard, and mounted active sessions are precursors. The named 2.7 workspace is not current. Canonical Resume terminology is effective in the KB now and is intended for the 2.7 plan. | Target |
@@ -93,10 +109,10 @@ Use these rules in every plan, release note, KB page, UI claim, and issue:
 
 | If evidence shows… | Write… | Do not write… |
 | --- | --- | --- |
-| Code/config and proportionate tests implement behavior | “Klar 2.6.0.1 does…” with the applicable limitation | A stronger guarantee than the test or boundary supports |
+| Code/config and proportionate tests implement behavior | “Klar 2.6.1 does…” with the applicable limitation | A stronger guarantee than the test or boundary supports |
 | Foundation exists but normal workflow does not use it | “Foundation/preview capability exists; integration is incomplete” | “Klar runs this workflow locally” |
 | Machine tests pass but human gate is absent | “Automated gate passed; human release gate is HOLD” | “Quality is validated” |
-| Registry entry is candidate or fallback-only | “Configured candidate/fallback” | “Verified direct integration” |
+| Registry entry is candidate, official-search, or fallback-only | Use that exact state | “Verified direct integration” or “vacancy” |
 | Roadmap names a future release | “Target for 2.7/2.8/…” | Present-tense support language |
 | Behavior belonged to an earlier release | “Historical in version X” | An undated current instruction |
 | Evidence conflicts or is absent | “Unknown/open gap” and log it | A convenient assumption |

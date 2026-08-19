@@ -6,10 +6,10 @@ order: 320
 audience: ["Engineering", "QA", "Release engineering", "Security", "Product owners"]
 status: "current"
 classification: "public"
-applicable_version: "2.6.0.1"
+applicable_version: "2.6.1"
 owner: "Klar Quality Engineering"
-last_verified: "2026-08-10"
-next_review: "2026-11-10"
+last_verified: "2026-08-11"
+next_review: "2026-09-11"
 tags: ["testing", "quality", "release", "ci", "human-gate", "deployment"]
 ---
 
@@ -38,29 +38,32 @@ Klar's release process combines deterministic automation with evidence that code
 | Persistence/crypto | fake IndexedDB, vault transitions, wrong passphrase, backup round trips | Atomicity, authentication, compatibility, retention |
 | Source/session | source parsers, registry, Worker allowlist, retry/deadline, partial batches, diagnostics | Isolation, safety, honest coverage |
 | AI consumers | structured response recovery, invalid schemas, quota/budget, evidence, locale | Fail-closed generated-state behavior |
+| Localization | dictionary parity, prohibited Resume variants, selected German code-to-message paths, locale formatting, and unit cases for ß/ss plus umlaut/digraph search | Deterministic bilingual contracts; German and pseudo-long browser review remains manual |
 | Application/export | packet provenance, interruption, DOCX semantics, Word compatibility, ZIP readiness | Artifact integrity and recovery |
 | Desktop | IPC validation, package installer, runtime lifecycle, recovery, security, issue redaction | Privilege and local-runtime boundaries |
 | Release tooling | human-gate validators, model benchmark schemas, bundle check, notebook freshness | Evidence cannot be forged by the wrong evidence class |
 | Packaged QA | Electron smoke and fuse verification | Final archive preserves runtime and security configuration |
 
-The repository currently has 66 `test/*.test.ts` files. `scripts/run-tests.mjs` sorts filenames and executes each in a fresh Node process using `tsx`; any non-zero result stops the suite.
+`scripts/run-tests.mjs` sorts every `test/*.test.ts` file and executes each in a fresh Node process using `tsx`; any non-zero result stops the suite. The count is intentionally not a quality target: source-state, feedback, routing, German, scoring, and service-worker regressions added in v2.6.1 must remain even if files are reorganized.
 
 ## Complete automated gate
 
 `npm run qa` executes:
 
-1. service-worker syntax check;
-2. theme-bootstrap syntax check;
-3. generated Kaggle notebook freshness check;
-4. application TypeScript check;
-5. generated Worker binding type check;
-6. Worker TypeScript check;
-7. all repository tests;
-8. production web build;
-9. bundle-size check;
-10. desktop-relative renderer build;
-11. bundle-size check again; and
-12. Cloudflare Worker dry-run deployment.
+1. repository-wide terminology check, including untracked non-ignored files;
+2. service-worker syntax check;
+3. theme-bootstrap syntax check;
+4. generated Kaggle notebook freshness check;
+5. application TypeScript check;
+6. generated Worker binding type check;
+7. Worker TypeScript check;
+8. all repository tests;
+9. production web build;
+10. bundle-size check;
+11. deterministic Playwright browser E2E against the production preview;
+12. desktop-relative renderer build;
+13. bundle-size check again; and
+14. Cloudflare Worker dry-run deployment.
 
 The command creates or replaces generated build output. Run it from a worktree where that write is expected.
 
@@ -79,9 +82,24 @@ These are byte budgets, not Core Web Vitals, memory, accessibility, or runtime-i
 
 ## Web CI and deployment
 
-The “Verify and deploy Klar” workflow runs on pull requests and pushes to `main` using Node 22 and `npm ci`. It performs syntax, notebook, app/Worker type, full test, production build, bundle, and Worker dry-run checks. `VITE_WORKER_URL` is injected from repository configuration.
+The “Verify and deploy Klar” workflow runs on pull requests and pushes to `main` using Node 22, Python 3.12.13, lockfile installs, and an explicitly installed Playwright Chromium. It performs the complete root gate, dependency audits, a reproducible two-build PDF comparison followed by PDF verification, and the KB content/type/lint/static-build and artifact tests. `VITE_WORKER_URL` is injected from repository configuration.
 
-Pull requests verify but do not deploy. A non-pull-request run uploads the exact verified `dist` and the dependent deploy job publishes it to GitHub Pages. Concurrency cancels an older run for the same reference. A failed verify job must never be bypassed by manually publishing a different local build.
+Pull requests verify but do not deploy. A non-pull-request run assembles the application at `/klar/` and the KB at `/klar/kb/` into one artifact and publishes it to GitHub Pages. Concurrency cancels an older run for the same reference. A failed verify job must never be bypassed by manually publishing a different local build.
+
+## Knowledge-base QA gate
+
+The v2.6.1 KB gate verifies:
+
+- fresh-checkout dependency installation, content build, TypeScript, lint, static export, tests, and dependency audit;
+- every public route, asset, canonical, sitemap entry, document fragment, download, and lazy search-index path under `/klar/kb/`;
+- no ChatGPT Sites canonical, hosting manifest, missing ignored build plugin, or per-page embedded search corpus;
+- no horizontal overflow at 320, 360, 390, 768, 860, 861, 1024, 1180, 1181, and 1440 pixels;
+- accessible mobile navigation and in-article contents, visible active document section, 44-pixel targets, keyboard combobox behavior, high-density display, dark mode, and reduced motion; real 200% browser zoom remains a manual acceptance check;
+- exact status labels, readable contrast, stable sitemap dates, 404 no-index behavior, and application service-worker pass-through;
+- bounded HTML/search-index byte budgets. No Lighthouse/Core Web Vitals CI gate exists yet, so browser performance remains an explicit open evidence gap rather than an inferred pass; and
+- PDF output/public hash identity, expected page counts, no blank or clipped pages, absolute published links, language/display-title metadata, and visual render review.
+
+The handbooks remain untagged and have no structure tree. That is an explicit accessibility **HOLD**; the HTML site is the authoritative accessible surface.
 
 The Worker is deployed/configured separately. A passing Worker dry run does not prove live secrets, origins, routes, or third-party sources.
 
@@ -177,8 +195,10 @@ Before a public release, owners must also confirm:
 - signing/notarization where applicable; and
 - all high-priority open risks have an accepted disposition.
 
-## Dated authoring verification
+## Dated v2.6.1 evidence boundary
 
-During this KB baseline review on 10 August 2026, application type-check, Worker type-check, and the full 66-file regression suite completed successfully against the then-current workspace. The production build, bundle gate, Worker dry run, dependency audits, packaged desktop checks, live sources, and human gates were not rerun as part of the documentation-only task. This is supporting authoring evidence, not release approval.
+On 11 August 2026, the unchanged v2.6.0.1 repository baseline passed the complete root `npm run qa` gate and both dependency audits before v2.6.1 work began. The KB audit also exposed a fresh-checkout build dependency on an ignored Sites plugin, two standalone type errors, mobile layout/search/accessibility defects, oversized per-page search payloads, blank handbook pages, relative PDF links, and untagged PDFs. Those findings define regression tests; the old green baseline cannot approve the changed release.
+
+The 100 new ATS boards and 100 official Flexible Work routes carry dated HTTP evidence from 11 August 2026. This proves reachability and the recorded response class on that date, not future inventory or contractual support. Human ranking and writing, public desktop signing/distribution, comprehensive assistive-technology certification, and tagged PDF remain **HOLD** until their independent evidence is complete.
 
 Operational response and rollback are in [Operations Runbooks](/docs/operations-runbooks). Open qualifications are in [Known Gaps and Risk Register](/docs/known-gaps-and-risk-register).

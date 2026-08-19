@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { LayoutDashboard, ListChecks, Search, Settings, type LucideIcon } from 'lucide-react'
 import { SearchStep } from './ui/SearchStep'
@@ -14,6 +14,9 @@ import { SetupChecklist } from './ui/SetupChecklist'
 import { FlexibleWorkHome, type FlexibleLaunch } from './ui/FlexibleWorkHome'
 import { FlexibleSearch } from './ui/FlexibleSearch'
 import { WorkModeSwitch } from './ui/WorkModeSwitch'
+import { ResumeEmptyWorkspace, ResumeWorkspace } from './ui/ResumeWorkspace'
+import { SupportWorkspace } from './ui/SupportWorkspace'
+import { ConfirmDialog } from './ui/ConfirmDialog'
 import { useT } from './i18n/LocaleProvider'
 import type { TranslationKey } from './i18n/translations'
 import { loadGroqKey, resolveAvailableGroqKey } from './settings/keys'
@@ -32,21 +35,44 @@ import type { ResumeData } from './resume/types'
 import type { FlexibleWorkPreferences } from './types'
 import { shouldVisitFlexibleSearch } from './application/workspaceRouting'
 
-type Tab = 'dashboard' | 'search' | 'tracker' | 'settings'
+type PrimaryTab = 'dashboard' | 'search' | 'tracker' | 'settings'
+type Tab = PrimaryTab | 'resume' | 'support'
 type KeyRequest = { action: string; resolve: (key: string | null) => void }
+type PendingNavigation = { next: Tab; source: 'request' | 'history' }
+
+const TAB_HASH: Record<Tab, string> = {
+  dashboard: '#/dashboard',
+  search: '#/search',
+  tracker: '#/tracker',
+  settings: '#/settings',
+  resume: '#/resume',
+  support: '#/support',
+}
+
+function tabFromHash(): Tab {
+  const found = (Object.entries(TAB_HASH) as [Tab, string][])
+    .find(([, hash]) => hash === window.location.hash)
+  return found?.[0] ?? 'dashboard'
+}
 
 export default function App() {
   const [apiKey, setApiKey] = useState<string>()
-  const [tab, setTab] = useState<Tab>('dashboard')
+  const [tab, setTab] = useState<Tab>(() => tabFromHash())
   const [revision, setRevision] = useState(0)
   const [demo, setDemo] = useState(false)
   const [flexLaunch, setFlexLaunch] = useState<FlexibleLaunch | null>(null)
   const [flexSearchVisited, setFlexSearchVisited] = useState(false)
   const [onboardingTarget, setOnboardingTarget] = useState<'welcome' | 'resume' | 'flexible' | 'restore'>()
   const [keyRequest, setKeyRequest] = useState<KeyRequest | null>(null)
+  const [resumeDirty, setResumeDirty] = useState(false)
+  const [pendingNavigation, setPendingNavigation] = useState<PendingNavigation | null>(null)
+  const tabRef = useRef(tab)
+  const resumeDirtyRef = useRef(false)
+  const pendingNavigationRef = useRef<PendingNavigation | null>(null)
   // v2.4.1: which surface the workspace is showing. `undefined` = not chosen yet,
   // so we fall back to whatever the person actually has set up.
   const [workMode, setWorkMode] = useState<WorkMode>()
+  const t = useT()
   const vaultStatus = useLiveQuery(getVaultStatus, [revision], undefined)
   const setupState = useLiveQuery(
     async () => vaultStatus === 'locked' || vaultStatus === undefined ? undefined : detectLocalSetupState(),
@@ -79,17 +105,53 @@ export default function App() {
 
   useEffect(() => {
     const openSourceReport = () => {
-      window.scrollTo({ top: 0, left: 0, behavior: 'auto' })
-      setTab('settings')
+      changeTab('support')
     }
     window.addEventListener('klar:report-source', openSourceReport)
     return () => window.removeEventListener('klar:report-source', openSourceReport)
   }, [])
 
   useEffect(() => {
+    if (!Object.values(TAB_HASH).includes(window.location.hash)) {
+      history.replaceState(null, '', TAB_HASH[tabRef.current])
+    }
+    const restoreRoute = () => {
+      const next = tabFromHash()
+      if (
+        tabRef.current === 'resume' &&
+        resumeDirtyRef.current &&
+        next !== 'resume'
+      ) {
+        // popstate already moved the address bar. Push the Resume route back as
+        // the current entry; confirming then goes back once to the requested
+        // history entry. This preserves both Back and Forward semantics.
+        history.pushState(null, '', TAB_HASH.resume)
+        setPendingRoute({ next, source: 'history' })
+        return
+      }
+      tabRef.current = next
+      setTab(next)
+      window.scrollTo({ top: 0, left: 0, behavior: 'auto' })
+    }
+    window.addEventListener('popstate', restoreRoute)
+    return () => window.removeEventListener('popstate', restoreRoute)
+  }, [])
+
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => {
+      const root = document.querySelector<HTMLElement>(`[data-page="${tab}"]:not([hidden])`)
+      const target = root?.querySelector<HTMLElement>('h1, h2') ?? root
+      if (!target) return
+      if (!target.hasAttribute('tabindex')) target.tabIndex = -1
+      target.focus({ preventScroll: true })
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [setupState?.kind, tab])
+
+  useEffect(() => {
     if (canonical === undefined) return
     if (shouldVisitFlexibleSearch({
-      tab,
+      tab: tab === 'resume' || tab === 'support' ? 'dashboard' : tab,
       hasCareer: Boolean(canonical),
       workMode,
     })) {
@@ -112,9 +174,41 @@ export default function App() {
     keyRequest?.resolve(key); setKeyRequest(null)
   }
   function refresh() { setRevision((value) => value + 1) }
-  function changeTab(next: Tab) {
+  function setPendingRoute(next: PendingNavigation | null) {
+    pendingNavigationRef.current = next
+    setPendingNavigation(next)
+  }
+  function updateResumeDirty(next: boolean) {
+    resumeDirtyRef.current = next
+    setResumeDirty(next)
+  }
+  function commitTab(next: Tab, mode: 'push' | 'replace' = 'push') {
     window.scrollTo({ top: 0, left: 0, behavior: 'auto' })
+    if (window.location.hash !== TAB_HASH[next]) {
+      if (mode === 'replace') history.replaceState(null, '', TAB_HASH[next])
+      else history.pushState(null, '', TAB_HASH[next])
+    }
+    tabRef.current = next
     setTab(next)
+  }
+  function changeTab(next: Tab) {
+    if (next === tabRef.current) return
+    if (tabRef.current === 'resume' && resumeDirtyRef.current && next !== 'resume') {
+      setPendingRoute({ next, source: 'request' })
+      return
+    }
+    commitTab(next)
+  }
+  function cancelPendingNavigation() {
+    setPendingRoute(null)
+  }
+  function confirmPendingNavigation() {
+    const pending = pendingNavigationRef.current
+    if (!pending) return
+    updateResumeDirty(false)
+    setPendingRoute(null)
+    if (pending.source === 'history') history.back()
+    else commitTab(pending.next)
   }
 
   if (vaultStatus === undefined) return null
@@ -188,22 +282,27 @@ export default function App() {
       }}
       onEdit={() => void editFlexible()}
       onAddResume={hasCareer ? undefined : () => void addResume()}
+      onSupport={() => changeTab('support')}
       switcher={switcher}
     />
   )
 
   return <>
     <Shell tab={tab} setTab={changeTab}>
-      {tab === 'dashboard' && (showFlexible
-        ? flexibleHome
-        : <div className="page-container">
-            {switcher && <div className="mb-4">{switcher}</div>}
-            <SetupChecklist resume={canonical!.data} preferences={preferences} onProfile={() => changeTab('settings')} onPreferences={() => changeTab('settings')} onAdzuna={() => changeTab('settings')} onAddResume={() => void addResume()} />
-            <DashboardStep profile={profile!} prefs={preferences} />
-          </div>)}
+      {tab === 'dashboard' && (
+        <div data-page="dashboard">
+          {showFlexible
+            ? flexibleHome
+            : <div className="page-container">
+                {switcher && <div className="mb-4">{switcher}</div>}
+                <SetupChecklist resume={canonical!.data} preferences={preferences} onProfile={() => changeTab('resume')} onPreferences={() => changeTab('settings')} onAdzuna={() => changeTab('settings')} onAddResume={() => void addResume()} />
+                <DashboardStep profile={profile!} prefs={preferences} onResume={() => changeTab('resume')} onSupport={() => changeTab('support')} />
+              </div>}
+        </div>
+      )}
 
       {/* Career search stays mounted so a long run is not thrown away on tab change. */}
-      <div hidden={tab !== 'search' || showFlexible}>{hasCareer
+      <div data-page="search" hidden={tab !== 'search' || showFlexible}>{hasCareer
         ? <SearchStep active={tab === 'search' && !showFlexible} resume={canonical!.data} profile={profile!} prefs={preferences} apiKey={apiKey} requireGroq={requireGroq} switcher={switcher} />
         : null}</div>
 
@@ -211,7 +310,7 @@ export default function App() {
           and navigation can hide it without discarding a live run, results,
           pagination, or an open preparation drawer. */}
       {flexSearchVisited && (
-        <div hidden={tab !== 'search' || !showFlexible}>
+        <div data-page="search" hidden={tab !== 'search' || !showFlexible}>
           {flexiblePreferences && (
             <FlexibleSearch
               active={tab === 'search' && showFlexible}
@@ -225,32 +324,62 @@ export default function App() {
           )}
         </div>
       )}
-      {tab === 'search' && showFlexible && !flexiblePreferences && flexibleHome}
+      {tab === 'search' && showFlexible && !flexiblePreferences && (
+        <div data-page="search">{flexibleHome}</div>
+      )}
 
       {tab === 'tracker' && (
-        <TrackerBoard
-          profile={profile ?? undefined}
-          prefs={preferences}
+        <div data-page="tracker">
+          <TrackerBoard
+            profile={profile ?? undefined}
+            prefs={preferences}
+          />
+        </div>
+      )}
+      {tab === 'settings' && (
+        <div data-page="settings">
+          <SettingsStep
+            onReset={refresh}
+            apiKey={apiKey}
+            onEditFlexible={() => void editFlexible()}
+            hasFlexible={Boolean(preferences.flexibleWork)}
+          />
+        </div>
+      )}
+      {tab === 'resume' && canonical && (
+        <ResumeWorkspace
+          resume={canonical.data}
+          apiKey={apiKey}
+          requireGroq={requireGroq}
+          onSave={saveResume}
+          onReplace={replaceResume}
+          onChanged={refresh}
+          onDirtyChange={updateResumeDirty}
+          onBack={() => changeTab('dashboard')}
         />
       )}
-      {tab === 'settings' && <SettingsStep
-        onReset={refresh}
-        apiKey={apiKey}
-        requireGroq={requireGroq}
-        resume={canonical?.data}
-        onSaveResume={canonical ? saveResume : undefined}
-        onReplaceResume={canonical ? replaceResume : undefined}
-        onResumeChanged={canonical ? refresh : undefined}
-        onEditFlexible={() => void editFlexible()}
-        hasFlexible={Boolean(preferences.flexibleWork)}
-        onAddResume={!canonical ? () => void addResume() : undefined}
-      />}
+      {tab === 'resume' && !canonical && (
+        <ResumeEmptyWorkspace
+          onAdd={() => void addResume()}
+          onBack={() => changeTab('dashboard')}
+        />
+      )}
+      {tab === 'support' && <SupportWorkspace onBack={() => changeTab('dashboard')} />}
     </Shell>
     {keyRequest && <GroqKeyPrompt action={keyRequest.action} onReady={(key) => finishKey(key)} onCancel={() => finishKey(null)} />}
+    <ConfirmDialog
+      open={Boolean(pendingNavigation && resumeDirty)}
+      title={t('route.unsavedTitle')}
+      description={t('route.unsavedBody')}
+      confirmLabel={t('route.discardAndLeave')}
+      cancelLabel={t('route.keepEditing')}
+      onConfirm={confirmPendingNavigation}
+      onCancel={cancelPendingNavigation}
+    />
   </>
 }
 
-const TABS: { id: Tab; labelKey: TranslationKey; icon: LucideIcon }[] = [
+const TABS: { id: PrimaryTab; labelKey: TranslationKey; icon: LucideIcon }[] = [
   { id: 'dashboard', labelKey: 'nav.dashboard', icon: LayoutDashboard },
   { id: 'search', labelKey: 'nav.search', icon: Search },
   { id: 'tracker', labelKey: 'nav.tracker', icon: ListChecks },
@@ -258,10 +387,11 @@ const TABS: { id: Tab; labelKey: TranslationKey; icon: LucideIcon }[] = [
 ]
 
 function Wordmark({ onDashboard }: { onDashboard: () => void }) {
+  const t = useT()
   return (
     <button
       type="button"
-      aria-label="Klar — Dashboard"
+      aria-label={t('shell.wordmarkDashboard')}
       className="min-h-tap rounded-md px-1 text-left font-display text-2xl font-bold leading-none tracking-[-0.04em] text-ink transition hover:text-accent sm:text-[28px]"
       onClick={onDashboard}
     >
@@ -272,6 +402,7 @@ function Wordmark({ onDashboard }: { onDashboard: () => void }) {
 
 function Shell({ children, tab, setTab, minimal }: { children: React.ReactNode; tab: Tab; setTab: (tab: Tab) => void; minimal?: boolean }) {
   const t = useT()
+  const primaryTab: PrimaryTab = tab === 'resume' || tab === 'support' ? 'dashboard' : tab
   if (minimal) return <div className="min-h-[100dvh] bg-bg text-ink"><header className="border-b border-border bg-surface"><div className="mx-auto flex max-w-[1200px] items-center px-4 py-4 sm:px-6"><Wordmark onDashboard={() => setTab('dashboard')} /></div></header><main id="main" className="mx-auto max-w-[1200px]">{children}</main></div>
-  return <div className="min-h-[100dvh] bg-bg text-ink"><a href="#main" className="skip-link sr-only">{t('shell.skipToContent')}</a><aside aria-label={t('nav.aria')} className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-sidebar-border bg-sidebar sm:flex"><div className="px-5 py-3"><Wordmark onDashboard={() => setTab('dashboard')} /></div><nav className="flex flex-1 flex-col gap-1 px-3">{TABS.map((item) => { const active = tab === item.id; const Icon = item.icon; return <button key={item.id} onClick={() => setTab(item.id)} aria-current={active ? 'page' : undefined} className={`flex min-h-tap items-center gap-3 rounded-md px-3 py-2 text-base font-medium transition ${active ? 'bg-accent-tint text-accent' : 'text-muted hover:bg-surface-2 hover:text-ink'}`}><Icon aria-hidden="true" size={20} strokeWidth={2} className="shrink-0" />{t(item.labelKey)}</button> })}</nav><div className="border-t border-sidebar-border p-3"><PreferenceControls stack /></div></aside><main id="main" className="pt-[calc(env(safe-area-inset-top)+57px)] pb-[calc(env(safe-area-inset-bottom)+5.5rem)] sm:pl-64 sm:pt-0 sm:pb-0">{children}</main><nav aria-label={t('nav.ariaMobile')} className="fixed inset-x-0 bottom-0 z-40 border-t border-sidebar-border bg-sidebar pb-[env(safe-area-inset-bottom)] sm:hidden"><div className="mx-auto grid max-w-[1200px] grid-cols-4">{TABS.map((item) => { const active = tab === item.id; const Icon = item.icon; return <button key={item.id} onClick={() => setTab(item.id)} aria-current={active ? 'page' : undefined} className={`flex min-h-[56px] flex-col items-center justify-center gap-1 py-2 text-xs font-medium ${active ? 'text-accent' : 'text-muted'}`}><Icon aria-hidden="true" size={22} strokeWidth={2} />{t(item.labelKey)}</button> })}</div></nav><div className="fixed inset-x-0 top-0 z-20 border-b border-border bg-surface pt-[env(safe-area-inset-top)] sm:hidden"><div className="flex h-14 items-center justify-between gap-2 px-4"><Wordmark onDashboard={() => setTab('dashboard')} /><PreferenceControls compact /></div></div></div>
+  return <div className="min-h-[100dvh] bg-bg text-ink"><a href="#main" className="skip-link sr-only">{t('shell.skipToContent')}</a><aside aria-label={t('nav.aria')} className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-sidebar-border bg-sidebar sm:flex"><div className="px-5 py-3"><Wordmark onDashboard={() => setTab('dashboard')} /></div><nav className="flex flex-1 flex-col gap-1 px-3">{TABS.map((item) => { const active = primaryTab === item.id; const Icon = item.icon; return <button key={item.id} onClick={() => setTab(item.id)} aria-current={active ? 'page' : undefined} className={`flex min-h-tap items-center gap-3 rounded-md px-3 py-2 text-base font-medium transition ${active ? 'bg-accent-tint text-accent' : 'text-muted hover:bg-surface-2 hover:text-ink'}`}><Icon aria-hidden="true" size={20} strokeWidth={2} className="shrink-0" />{t(item.labelKey)}</button> })}</nav><div className="border-t border-sidebar-border p-3"><PreferenceControls stack /></div></aside><main id="main" className="pt-[calc(env(safe-area-inset-top)+57px)] pb-[calc(env(safe-area-inset-bottom)+5.5rem)] sm:pl-64 sm:pt-0 sm:pb-0">{children}</main><nav aria-label={t('nav.ariaMobile')} className="fixed inset-x-0 bottom-0 z-40 border-t border-sidebar-border bg-sidebar pb-[env(safe-area-inset-bottom)] sm:hidden"><div className="mx-auto grid max-w-[1200px] grid-cols-4">{TABS.map((item) => { const active = primaryTab === item.id; const Icon = item.icon; return <button key={item.id} onClick={() => setTab(item.id)} aria-current={active ? 'page' : undefined} className={`flex min-h-[56px] flex-col items-center justify-center gap-1 py-2 text-xs font-medium ${active ? 'text-accent' : 'text-muted'}`}><Icon aria-hidden="true" size={22} strokeWidth={2} />{t(item.labelKey)}</button> })}</div></nav><div className="fixed inset-x-0 top-0 z-20 border-b border-border bg-surface pt-[env(safe-area-inset-top)] sm:hidden"><div className="flex h-14 items-center justify-between gap-2 px-4"><Wordmark onDashboard={() => setTab('dashboard')} /><PreferenceControls compact /></div></div></div>
 }

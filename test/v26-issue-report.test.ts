@@ -18,7 +18,7 @@ const draft = {
 }
 
 const report = prepareIssueReport(draft, {
-  appVersion: '2.6.0',
+  appVersion: '2.6.1',
   environment: 'desktop',
   locale: 'en',
   online: true,
@@ -111,7 +111,10 @@ assert.match(component, /browser denied clipboard access/)
 assert.match(component, /recordOperationalEvent\(\{[\s\S]*?\}\)\.catch\(\(\) => undefined\)/)
 assert.match(component, /if \(screenshotUrl\.current\) URL\.revokeObjectURL\(screenshotUrl\.current\)/)
 assert.match(component, /useEffect\(\(\) => \(\) => \{[\s\S]*?URL\.revokeObjectURL/)
-assert.match(component, /setDraft\(emptyIssueReport\(\)\)\s+clearScreenshot\(\)/)
+assert.match(
+  component,
+  /setDraft\(emptyIssueReport\(\)\)\s+reportId\.current = crypto\.randomUUID\(\)\s+clearScreenshot\(\)/,
+)
 assert.match(component, /setOpen\(false\)[\s\S]*?setReviewed\(false\)[\s\S]*?clearScreenshot\(\)/)
 assert.match(component, /function chooseScreenshot\(file\?: File\) \{\s+revokeScreenshotUrl\(\)\s+setScreenshot\(undefined\)/)
 

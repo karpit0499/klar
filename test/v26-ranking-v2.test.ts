@@ -310,11 +310,15 @@ const exact = job('exact', {
     ranking: undefined,
   }
   const merged = mergeAiExplanationWithLocal(local, ai)
-  assert.equal(merged.rationale, 'Provider prose explanation.')
-  assert.equal(merged.modelVersion, 'cloud-test')
+  assert.equal(merged.rationale, local.rationale)
+  assert.equal(merged.modelVersion, local.modelVersion)
   assert.equal(merged.fitScore, local.fitScore)
   assert.equal(merged.ranking?.inputHash, local.ranking?.inputHash)
-  assert.ok(merged.redFlags.includes('Provider warning'))
+  assert.deepEqual(merged.redFlags, local.redFlags)
+  assert.equal(merged.aiAssessment?.fitScore, 100)
+  assert.equal(merged.aiAssessment?.rationale, 'Provider prose explanation.')
+  assert.equal(merged.aiAssessment?.modelVersion, 'cloud-test')
+  assert.ok(merged.aiAssessment?.redFlags.includes('Provider warning'))
 }
 
 {

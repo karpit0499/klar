@@ -6,10 +6,10 @@ order: 275
 audience: ["Schools", "Universities", "Career services", "Educators", "Workshop facilitators", "Students and job seekers"]
 status: "current"
 classification: "public"
-applicable_version: "2.6.0.1"
+applicable_version: "2.6.1"
 owner: "Klar Product Support"
-last_verified: "2026-08-10"
-next_review: "2026-11-10"
+last_verified: "2026-08-11"
+next_review: "2026-11-11"
 tags: ["schools", "universities", "career-services", "workshops", "shared-devices", "privacy"]
 ---
 
@@ -17,7 +17,7 @@ tags: ["schools", "universities", "career-services", "workshops", "shared-device
 
 ## Purpose
 
-Schools, universities, career services, libraries, and community programs can use Klar to demonstrate a structured job-search workflow or help an individual manage their own search. This page defines a safe facilitation model for Klar v2.6.0.1 without implying institutional accounts, central oversight, or permission to copy or redeploy the software.
+Schools, universities, career services, libraries, and community programs can use Klar to demonstrate a structured job-search workflow or help an individual manage their own search. This page defines a safe facilitation model for Klar v2.6.1 without implying institutional accounts, central oversight, or permission to copy or redeploy the software.
 
 The safest default is to demonstrate Klar with its synthetic **Explore Klar** workspace. A participant who wants to use real career data should use their own trusted device and browser profile, make their own provider choices, and control their own backups and deletion decisions.
 
@@ -79,7 +79,7 @@ Klar can demonstrate several useful workflows without an AI credential. Explore 
 AI processing occurs only for the actions that require it under the current configuration. Important examples include:
 
 - choosing a Resume file reads it locally, but structuring the extracted text invokes the configured provider;
-- requesting an AI explanation or generated application writing sends the bounded input needed for that action;
+- requesting an AI assessment or generated application writing sends the bounded input needed for that action;
 - the default Groq configuration uses Klar's restricted Worker relay when it is configured; and
 - a custom OpenAI-compatible endpoint is contacted directly and can observe the information intentionally sent to it.
 
@@ -103,13 +103,13 @@ The vault protects selected browser data at rest. It is not a substitute for dev
 
 The current interface supports English and German and is designed for current desktop and mobile browsers. Changing the interface language does not translate participant-entered Resume content or existing Application Packet text. English and German packet content and review states remain independent.
 
-Klar v2.6.0.1 does not carry a comprehensive accessibility certification, and the release evidence does not yet include complete assistive-technology coverage. Before relying on Klar in a required program, test the actual browser and devices with the participants' needs in mind, including keyboard navigation, zoom, screen-reader use, file selection, downloads, and print output. Provide an accessible alternative process when a required task cannot be completed reliably.
+Klar v2.6.1 adds automated mobile reflow, selected keyboard, reduced-motion, high-density-display, and contrast regression checks, but it does not automate real browser zoom or carry a comprehensive accessibility certification. Before relying on Klar in a required program, manually test the actual browser and devices with the participants' needs in mind, including keyboard navigation, 200% zoom, screen-reader use, file selection, downloads, and print output. Provide an accessible alternative process when a required task cannot be completed reliably.
 
 Manual Resume creation and pasted text can provide alternatives when PDF or DOCX extraction is unreliable. Facilitators should allow extra review time for scanned or OCR-dependent documents and should never infer ability, language proficiency, or employability from a parsing problem.
 
 ## Institutional capabilities Klar does not provide
 
-Klar v2.6.0.1 has no:
+Klar v2.6.1 has no:
 
 - institutional or participant account system;
 - single sign-on or identity-provider integration;
@@ -124,9 +124,9 @@ An institution therefore cannot use Klar as an applicant tracking system, studen
 
 ## Support and security reporting
 
-Use [Troubleshooting](/docs/troubleshooting) for safe diagnosis. Settings can prepare a report and show a privacy preview, but Klar does not submit it automatically.
+Use [Troubleshooting](/docs/troubleshooting) for safe diagnosis. Support can preview and explicitly submit an ordinary redacted public report through protected Worker controls.
 
-- Ordinary product and documentation problems may be reported through [Klar's public GitHub Issues](https://github.com/karpit0499/klar/issues) using synthetic details.
+- Ordinary product and documentation problems may be submitted from Support or through [Klar's public GitHub Issues](https://github.com/karpit0499/klar/issues) using synthetic details.
 - Suspected vulnerabilities, exposed secrets, or privacy incidents should use [GitHub private vulnerability reporting](https://github.com/karpit0499/klar/security/advisories/new), not a public issue.
 
 Remove names, contact details, Resume text, application content, API keys, private paths, query parameters, institutional identifiers, and unredacted diagnostics before reporting. Do not ask a participant to provide sensitive evidence publicly.

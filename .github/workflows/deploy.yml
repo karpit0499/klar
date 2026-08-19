@@ -24,20 +24,47 @@ jobs:
         with:
           node-version: 22
           cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            knowledge-base/package-lock.json
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12.13"
       - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm ci
+        working-directory: knowledge-base
+      - run: python -m pip install --require-hashes -r knowledge-base/requirements-pdf.txt
       - run: node --check public/sw.js
       - run: node --check public/theme-bootstrap.js
       - run: node model/experiments/build-kaggle-notebook.mjs --check
-      - run: npm run typecheck
-      - run: npm run worker:types:check
-      - run: npm run worker:check
-      - run: npm test
-      # Bake your Worker URL into the build (set it as a repo variable or secret).
+      - run: npm run qa
+        env:
+          VITE_WORKER_URL: ${{ vars.VITE_WORKER_URL }}
+          VITE_TURNSTILE_SITE_KEY: ${{ vars.VITE_TURNSTILE_SITE_KEY }}
+      - run: npm run audit:production
+      - run: npm run audit:build-tools
       - run: npm run build
         env:
           VITE_WORKER_URL: ${{ vars.VITE_WORKER_URL }}
+          VITE_TURNSTILE_SITE_KEY: ${{ vars.VITE_TURNSTILE_SITE_KEY }}
       - run: npm run bundle:check
-      - run: npm run worker:dry-run
+      - run: npm run pdf:repro
+        working-directory: knowledge-base
+      - run: npm run pdf:verify
+        working-directory: knowledge-base
+      - run: npm run qa
+        working-directory: knowledge-base
+        env:
+          NEXT_PUBLIC_KB_BASE_PATH: /klar/kb
+          NEXT_PUBLIC_KB_SITE_URL: https://karpit0499.github.io/klar/kb
+      - name: Assemble one GitHub Pages artifact
+        run: |
+          mkdir -p dist/kb
+          cp -R knowledge-base/out/. dist/kb/
+          touch dist/.nojekyll
+          if grep -R "chatgpt.site" dist/kb; then exit 1; fi
+      - uses: actions/configure-pages@v5
       - if: github.event_name != 'pull_request'
         uses: actions/upload-pages-artifact@v5
         with:

@@ -40,6 +40,7 @@ export type SourceState = {
   /** v2.4.2: how many of this source's results the relevance gate dropped. */
   filteredOut?: number
   note?: string
+  fallbackReason?: 'empty' | 'error'
   error?: AppErrorData
   latencyMs?: number
   fetchedAt?: string
@@ -196,6 +197,7 @@ export class SearchSessionModel {
       state.count = accepted.length
       state.filteredOut = droppedHere
       state.note = result.note
+      state.fallbackReason = result.fallbackReason
       state.latencyMs = latencyMs
       state.fetchedAt = new Date().toISOString()
       if (result.error) state.error = result.error
@@ -239,8 +241,8 @@ export class SearchSessionModel {
    * frozen afterwards because everything later is appended.
    */
   private promoteVacancies(): void {
-    const vacancies = this.ordered.filter((job) => job.kind !== 'open_entry')
-    const routes = this.ordered.filter((job) => job.kind === 'open_entry')
+    const vacancies = this.ordered.filter((job) => job.kind !== 'open_entry' && job.kind !== 'official_search')
+    const routes = this.ordered.filter((job) => job.kind === 'open_entry' || job.kind === 'official_search')
     if (vacancies.length === 0 || routes.length === 0) return
     this.ordered = [...vacancies, ...routes]
     this.keyIndex.clear()
@@ -287,7 +289,9 @@ export class SearchSessionModel {
     } else {
       // A source that errored, timed out, or was cut off by the deadline "did
       // not finish" — that is partial (limited) coverage, not a clean complete.
-      const anyUnfinished = sources.some((s) => s.status === 'error' || s.status === 'timeout' || s.status === 'skipped')
+      const anyUnfinished = sources.some((s) => (
+        s.status === 'fallback' || s.status === 'error' || s.status === 'timeout' || s.status === 'skipped'
+      ))
       phase = this.ordered.length === 0 ? 'limited' : anyUnfinished ? 'partial' : 'complete'
     }
 

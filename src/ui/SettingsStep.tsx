@@ -1,57 +1,38 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Button, Card, Field, TextInput } from './atoms'
 import { PreferenceControls } from './PreferenceControls'
-import { ResumeReupload } from './ResumeReupload'
-import { ResumeEditor } from './ResumeEditor'
-import { ResumeHistory } from './ResumeHistory'
 import { SafetyCenter } from './SafetyCenter'
 import { EngineSettingsCard, FeatureFlagsCard } from './EngineSettings'
 import { BudgetNotice } from './BudgetNotice'
 import { ErrorNotice } from './ErrorNotice'
-import { IssueReportCard } from './IssueReportCard'
-import { ResumeDesignLab } from './ResumeDesignLab'
 import { DesktopCapabilityPanel } from './DesktopCapabilityPanel'
+import { ConfirmDialog } from './ConfirmDialog'
 import { wipeAllData } from '../db/db'
 import { clearGroqKey } from '../settings/keys'
 import { clearAdzunaKey, loadAdzunaKey, saveAdzunaKey } from '../settings/adzunaKey'
 import { REGIONS, getActiveRegion, setActiveRegion, DEFAULT_REGION_CODE } from '../regions'
-import { useLocale, useT } from '../i18n/LocaleProvider'
+import { useT } from '../i18n/LocaleProvider'
 import type { TranslationKey } from '../i18n/translations'
-import type { ResumeData } from '../resume/types'
 import { testAdzunaConnection } from '../settings/adzunaConnection'
 import { toAppError, type AppErrorData } from '../errors/appError'
 import { lockVault } from '../crypto/vault'
 import { APP_VERSION } from '../lib/version'
-import { DEFAULT_APP_FLAGS, loadAppFlags } from '../lib/appFlags'
 
 export function SettingsStep({
   onReset,
   apiKey,
-  requireGroq,
-  resume,
-  onSaveResume,
-  onReplaceResume,
-  onResumeChanged,
   onEditFlexible,
   hasFlexible,
-  onAddResume,
 }: {
   onReset: () => void
   apiKey?: string
-  requireGroq: (action: string) => Promise<string | null>
-  resume?: ResumeData
-  onSaveResume?: (resume: ResumeData) => void | Promise<void>
-  onReplaceResume?: (resume: ResumeData) => void | Promise<void>
-  onResumeChanged?: () => void
   onEditFlexible?: () => void
   /** v2.4.1: false when no flexible search exists yet — the card invites setup. */
   hasFlexible?: boolean
-  onAddResume?: () => void
 }) {
   const t = useT()
-  const { locale } = useLocale()
-  const de = locale === 'de'
   const [message, setMessage] = useState('')
+  const [wipeConfirmOpen, setWipeConfirmOpen] = useState(false)
   const [regionCode, setRegionCode] = useState(DEFAULT_REGION_CODE)
   const [adzunaAppId, setAdzunaAppId] = useState('')
   const [adzunaAppKey, setAdzunaAppKey] = useState('')
@@ -59,13 +40,6 @@ export function SettingsStep({
   const [adzunaMessage, setAdzunaMessage] = useState('')
   const [adzunaTesting, setAdzunaTesting] = useState(false)
   const [adzunaError, setAdzunaError] = useState<AppErrorData | null>(null)
-  const [resumeDraft, setResumeDraft] = useState<ResumeData | null>(() => resume ? structuredClone(resume) : null)
-  const [resumeSaved, setResumeSaved] = useState('')
-  const [resumeLabEnabled, setResumeLabEnabled] =
-    useState(DEFAULT_APP_FLAGS.resumeDesignLab)
-  const updateFlags = useCallback((flags: typeof DEFAULT_APP_FLAGS) => {
-    setResumeLabEnabled(flags.resumeDesignLab)
-  }, [])
 
   useEffect(() => {
     void getActiveRegion().then((region) => setRegionCode(region.code))
@@ -83,12 +57,6 @@ export function SettingsStep({
         action: { label: 'Enter a complete pair', kind: 'open_settings' },
       })))
   }, [])
-
-  useEffect(() => { setResumeDraft(resume ? structuredClone(resume) : null) }, [resume])
-
-  useEffect(() => {
-    void loadAppFlags().then(updateFlags)
-  }, [updateFlags])
 
   async function changeRegion(code: string) {
     setRegionCode(code)
@@ -136,7 +104,7 @@ export function SettingsStep({
   }
 
   async function wipe() {
-    if (!confirm(t('settings.deleteConfirm'))) return
+    setWipeConfirmOpen(false)
     await wipeAllData()
     lockVault()
     await clearGroqKey()
@@ -144,8 +112,9 @@ export function SettingsStep({
   }
 
   return (
-    <div className="page-container">
-      <div className="reading-container">
+    <>
+      <div className="page-container">
+        <div className="reading-container">
         <Card className="p-4 sm:p-6">
           <h1 className="font-display text-display-md font-semibold text-ink">
             {t('settings.title')}
@@ -155,7 +124,7 @@ export function SettingsStep({
             {t('settings.dataWarning')}
           </div>
           <div className="mt-4 flex flex-wrap gap-3">
-            <Button variant="danger" onClick={wipe}>
+            <Button variant="danger" onClick={() => setWipeConfirmOpen(true)}>
               {t('settings.deleteAll')}
             </Button>
           </div>
@@ -164,21 +133,18 @@ export function SettingsStep({
 
         <SafetyCenter apiKey={apiKey} />
 
-        <IssueReportCard />
-
         <DesktopCapabilityPanel />
 
-        {(onEditFlexible || onAddResume) && (
+        {onEditFlexible && (
           <Card className="mt-4 p-4 sm:p-6">
-            <h2 className="text-xl font-semibold text-ink">{de ? 'Flexible Arbeit' : 'Flexible Work'}</h2>
+            <h2 className="text-xl font-semibold text-ink">{t('flexible.home.eyebrow')}</h2>
             <p className="mt-1 text-base text-muted">{hasFlexible
-              ? (de ? 'Passe Orte, Arbeitsarten und Verfügbarkeit an oder ergänze einen Lebenslauf für Karrierejobs.' : 'Adjust locations, work types, and availability, or add a resume for career roles.')
-              : (de ? 'Minijobs, Teilzeit und Wochenendarbeit nach Ort und Arbeitsart suchen. Ein Lebenslauf ist dafür nicht nötig.' : 'Search minijobs, part-time and weekend work by place and work type. A resume is not needed for this.')}</p>
+              ? t('settings.flexibleExistingIntro')
+              : t('settings.flexibleSetupIntro')}</p>
             <div className="mt-4 flex flex-wrap gap-3">
-              {onEditFlexible && <Button onClick={onEditFlexible}>{hasFlexible
-                ? (de ? 'Flexible Suche bearbeiten' : 'Edit flexible search')
-                : (de ? 'Flexible Suche einrichten' : 'Set up flexible search')}</Button>}
-              {onAddResume && <Button variant="ghost" onClick={onAddResume}>{de ? 'Lebenslauf hinzufügen' : 'Add resume'}</Button>}
+              <Button onClick={onEditFlexible}>
+                {t(hasFlexible ? 'flexible.home.edit' : 'flexible.home.setUp')}
+              </Button>
             </div>
           </Card>
         )}
@@ -239,36 +205,6 @@ export function SettingsStep({
           {adzunaError && <div className="mt-3"><ErrorNotice error={adzunaError} /></div>}
         </Card>
 
-        {resumeDraft && onSaveResume && <Card className="mt-4 p-4 sm:p-6">
-          <h2 className="text-xl font-semibold text-ink">{t('settings.resumeTitle')}</h2>
-          <p className="mt-1 text-base leading-relaxed text-muted">{t('settings.resumeIntro')}</p>
-          <div className="mt-4">
-            <ResumeEditor
-              value={resumeDraft}
-              onChange={setResumeDraft}
-              onSave={() => void (async () => {
-                await onSaveResume(resumeDraft)
-                setResumeSaved(de ? 'Gespeichert' : 'Saved')
-                setTimeout(() => setResumeSaved(''), 1500)
-              })()}
-            />
-            {resumeSaved && <p className="mt-2 text-sm text-success">{resumeSaved}</p>}
-          </div>
-        </Card>}
-
-        {onReplaceResume && <Card className="mt-4 p-4 sm:p-6">
-          <h2 className="text-xl font-semibold text-ink">{de ? 'Lebenslauf ersetzen' : 'Replace resume'}</h2>
-          <p className="mt-1 text-base leading-relaxed text-muted">{de ? 'Prüfe jeden Abschnitt vor dem vollständigen Ersetzen. Klar speichert die aktuelle Version automatisch.' : 'Preview every section before a full replacement. Klar saves the current version automatically.'}</p>
-          <div className="mt-4">
-            <ResumeReupload apiKey={apiKey} requireGroq={requireGroq} onReplace={onReplaceResume} />
-          </div>
-        </Card>}
-
-        {onResumeChanged && <Card className="mt-4 p-4 sm:p-6">
-          <h2 className="text-xl font-semibold text-ink">{de ? 'Lebenslauf-Verlauf' : 'Resume history'}</h2>
-          <div className="mt-4"><ResumeHistory onRestored={onResumeChanged} /></div>
-        </Card>}
-
         {/* v2.5 · WS3 — the configurable OpenAI-compatible engine. */}
         <EngineSettingsCard apiKey={apiKey} />
         <div className="mt-4">
@@ -276,9 +212,7 @@ export function SettingsStep({
         </div>
 
         {/* v2.5 · R10 — per-feature kill switches for the new application-quality work. */}
-        <FeatureFlagsCard onChange={updateFlags} />
-
-        {resume && <ResumeDesignLab resume={resume} enabled={resumeLabEnabled} />}
+        <FeatureFlagsCard />
 
         <Card className="mt-4 p-4 sm:p-6">
           <h2 className="text-xl font-semibold text-ink">{t('settings.regionTitle')}</h2>
@@ -303,8 +237,18 @@ export function SettingsStep({
         <p className="mt-5 text-center text-sm text-faint" data-testid="app-version">
           Klar v{APP_VERSION}
         </p>
+        </div>
       </div>
-    </div>
+      <ConfirmDialog
+        open={wipeConfirmOpen}
+        title={t('settings.deleteDialogTitle')}
+        description={t('settings.deleteConfirm')}
+        confirmLabel={t('settings.deleteDialogConfirm')}
+        cancelLabel={t('settings.deleteDialogCancel')}
+        onConfirm={() => void wipe()}
+        onCancel={() => setWipeConfirmOpen(false)}
+      />
+    </>
   )
 }
 

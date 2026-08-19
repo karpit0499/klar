@@ -6,10 +6,10 @@ order: 140
 audience: ["Users", "Product", "Support", "Design"]
 status: "current"
 classification: "public"
-applicable_version: "2.6.0.1"
+applicable_version: "2.6.1"
 owner: "Klar Product"
-last_verified: "2026-08-10"
-next_review: "2026-11-10"
+last_verified: "2026-08-11"
+next_review: "2026-11-11"
 tags: ["product", "career-roles", "flexible-work", "routing"]
 ---
 
@@ -24,7 +24,7 @@ Klar has two discovery modes. They share one local workspace and top-level navig
 | Primary purpose | Find career jobs and assess fit against experience and preferences | Find practical, location- and schedule-oriented work |
 | Resume required | Yes | No |
 | Discovery inputs | Target titles, job market/field, seniority, location, radius, salary, language, work authorization, must-haves, dealbreakers | Locations, radius, employment arrangements, workplaces, optional role families, schedule, language comfort, physical-work preference, transport, start date |
-| Matching | Relevance gates plus local deterministic ranking; optional per-job AI explanation | Deterministic query and relevance classification; no Resume ranking |
+| Matching | Relevance gates plus local deterministic Klar score; optional separate per-job AI opinion | Deterministic query and relevance classification; no Resume ranking |
 | Results | Ranked job cards with evidence, score, diagnostics, and application tools | Progressive vacancy or open-entry cards with source status and official routes |
 | Preparation | Per-language Application Packet with tailored Resume, cover letter, and recruiter message | Deterministic employer message, availability summary, and printable profile card |
 | External action | Opens original posting or application route | Opens official vacancy or employer route |
@@ -40,16 +40,16 @@ On first use, Klar offers Career Roles, Flexible Work, backup restore, or a temp
 
 When a canonical Resume exists, the Career Roles/Flexible Work switch appears on discovery surfaces. The last selected view is saved locally. Switching modes does not delete either mode's saved preferences, saved-search definitions and baselines, packets, or Tracker records.
 
-When no Resume exists, Flexible Work is the active mode by definition. The user can add a Resume later from Flexible Work or Settings to enable Career Roles.
+When no Resume exists, Flexible Work is the active mode by definition. The user can add a Resume later from Flexible Work or the Dashboard-linked Resume page to enable Career Roles.
 
 ## Shared surfaces
 
 Both modes use the same top-level Dashboard, Search, Tracker, and Settings navigation.
 
-- **Dashboard:** Career Roles shows the personal dashboard and career context. Flexible Work shows its search launcher and saved Flexible Work searches.
+- **Dashboard:** Career Roles shows the personal dashboard and career context; Flexible Work shows its search launcher and saved Flexible Work searches. It also links to the secondary Resume and Support workspaces.
 - **Search:** renders the active mode's discovery workflow and preserves a visited search while navigating elsewhere.
 - **Tracker:** stores Career Roles opportunities saved to the local application workflow. Flexible Work supports saved searches and preparation tools, but its current result cards do not provide a save-to-Tracker action.
-- **Settings:** manages language, appearance, region, data, security, connections, mode setup, Resume, and optional AI configuration.
+- **Settings:** manages language, appearance, region, data, security, connections, mode setup, and optional AI configuration.
 
 ## Capability rule
 

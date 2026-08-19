@@ -9,7 +9,7 @@
   "asOf": "",
   "baselineCommit": "fd9589edf42a7086e6745a90d9dfa854231298aa",
   "baselineVersion": "v2.5.5-prefilter-frozen-1",
-  "rankingVersion": "ranking-v2.6.0",
-  "requirementVersion": "requirements-v2.6.0",
+  "rankingVersion": "ranking-v2.6.1",
+  "requirementVersion": "requirements-v2.6.1",
   "scenarios": []
 }

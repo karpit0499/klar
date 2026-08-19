@@ -10,13 +10,14 @@ import { makeOpenEntry } from '../../opportunity'
 import { applyClassification } from '../../taxonomy'
 import { fabricSourceId } from '../types'
 import type { Connector, ConnectorConfig, ConnectorContext, ConnectorResult, FlexibleQuery } from '../types'
-import { normalizeKey } from '../../../lib/hash'
+import { germanKeysEqual, normalizeKey } from '../../../lib/hash'
 
 /** Cities the programme serves that also match the user's requested cities. */
 function relevantCities(programmeCities: string[], query: FlexibleQuery): string[] {
   if (query.cities.length === 0) return programmeCities
-  const wanted = new Set(query.cities.map((c) => normalizeKey(c.city)))
-  const matched = programmeCities.filter((city) => wanted.has(normalizeKey(city)))
+  const matched = programmeCities.filter((city) => (
+    query.cities.some((wanted) => germanKeysEqual(city, wanted.city))
+  ))
   // If the programme is nationwide (empty list) or none match, still offer it
   // for the requested cities — open-entry routes accept applications anywhere.
   return matched.length ? matched : query.cities.map((c) => c.city)
@@ -42,7 +43,7 @@ export function makeOpenEntryConnector(config: ConnectorConfig): Connector {
           location: { city, country: 'Deutschland', remote: false },
           description: spec.note ?? '',
           url: spec.officialUrl,
-          lastVerifiedAt: spec.verifiedAt ?? now,
+          lastVerifiedAt: spec.verifiedAt,
           programName: spec.programName,
           cityAvailability: cities,
           language: 'de',

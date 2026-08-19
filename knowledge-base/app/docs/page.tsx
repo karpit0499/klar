@@ -1,15 +1,17 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { DocsFrame } from "../../components/DocsFrame";
 import { groupedDocs } from "../../lib/docs";
+import { absoluteSiteUrl, withBasePath } from "../../lib/site";
 
 export const metadata: Metadata = {
   title: "Documentation",
   description: "The complete Klar knowledge-base table of contents.",
-  alternates: { canonical: "/docs" },
+  alternates: { canonical: absoluteSiteUrl("/docs") },
   openGraph: {
     title: "Documentation · Klar Knowledge Base",
     description: "The complete public Klar knowledge-base table of contents.",
-    url: "/docs",
+    url: absoluteSiteUrl("/docs"),
   },
 };
 
@@ -18,17 +20,17 @@ export default function DocumentationIndex() {
     {
       title: "Product and User Handbook",
       detail: "Public · product intent and complete user guidance",
-      href: "/downloads/klar-kb-product-user-v2.6.0.1.pdf",
+      href: withBasePath("/downloads/klar-kb-product-user-v2.6.1.pdf"),
     },
     {
       title: "Engineering and Architecture Handbook",
       detail: "Public · system, data, discovery, AI, platform, and change guidance",
-      href: "/downloads/klar-kb-engineering-architecture-v2.6.0.1.pdf",
+      href: withBasePath("/downloads/klar-kb-engineering-architecture-v2.6.1.pdf"),
     },
     {
       title: "Security, Operations, and Governance Handbook",
       detail: "Public · controls, release evidence, runbooks, decisions, and risks",
-      href: "/downloads/klar-kb-assurance-operations-v2.6.0.1.pdf",
+      href: withBasePath("/downloads/klar-kb-assurance-operations-v2.6.1.pdf"),
     },
   ];
 
@@ -64,11 +66,11 @@ export default function DocumentationIndex() {
             <div className="doc-index-heading"><span>{String(index + 1).padStart(2, "0")}</span><h2>{group.section}</h2></div>
             <div className="doc-index-grid">
               {group.docs.map((doc) => (
-                <a key={doc.slug} href={`/docs/${doc.slug}`}>
+                <Link key={doc.slug} href={`/docs/${doc.slug}`}>
                   <div><span>{doc.status}</span><span>{doc.audience}</span></div>
                   <h3>{doc.title}</h3>
                   <p>{doc.description}</p>
-                </a>
+                </Link>
               ))}
             </div>
           </section>

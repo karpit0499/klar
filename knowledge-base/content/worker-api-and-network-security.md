@@ -6,10 +6,10 @@ order: 270
 audience: ["Engineering", "Security", "Operations", "Source maintainers"]
 status: "current"
 classification: "public"
-applicable_version: "2.6.0.1"
+applicable_version: "2.6.1"
 owner: "Klar Engineering"
-last_verified: "2026-08-10"
-next_review: "2026-11-10"
+last_verified: "2026-08-11"
+next_review: "2026-09-11"
 tags: ["worker", "api", "cloudflare", "cors", "ssrf", "proxy", "security"]
 ---
 
@@ -32,9 +32,12 @@ Secrets such as Groq or Adzuna credentials are deployment secrets, not source-co
 | Health | GET | Worker health and capability response | No personal input; safe status only |
 | BA jobs | GET | BA Jobsuche API | Fixed upstream family, reconstructed request, no-store |
 | Adzuna jobs | GET | Adzuna jobs API | Fixed upstream family, atomic credential selection, incoming credential query fields removed |
-| Source Fabric | GET | Allowlisted source retrieval | Fixed host/path catalog, HTTPS, redirect revalidation, type and byte bounds |
+| ATS cache | GET | Bounded pages of scheduled, verified ATS inventory | Active tenants only, region/query validation, stable pagination, no-store client response |
+| Scheduled ATS ingestion | Scheduled event | Refresh verified Greenhouse, Lever, and Ashby tenants | Per-tenant timeout/circuit, schema/location checks, bounded cache writes; not caller-triggerable fan-out |
+| Source Fabric | GET | Allowlisted verified connector retrieval | Exact client/Worker allowlist parity, fixed host/path catalog, HTTPS, redirect revalidation, type and byte bounds |
 | AI model discovery | GET | Configured provider model discovery | Credential required, fixed upstream operation, bounded response |
 | AI generation | POST | Structured generation | JSON contract, request and response bounds, credential required, redirects rejected |
+| Feedback | POST | Create an ordinary public GitHub issue in the fixed Klar repository | Strict schema/size, origin, honeypot, Turnstile Siteverify, rate limit, server redaction, fixed labels, stable report ID, no-store |
 | Any known route | OPTIONS | CORS preflight | Origin policy and allowed header/method response |
 
 Unknown routes return 404. A non-GET method outside the Groq completion route returns 405.
@@ -74,7 +77,21 @@ Fabric uses a fixed hostname-to-path-prefix allowlist mirrored by tests against 
 
 The Worker allowlist materially limits server-side request-forgery reach. Network-destination validation still needs additional defense in depth across address formats, name resolution, and redirect handling; the fixed host catalog reduces but does not eliminate that risk.
 
-The roadmap also calls for stronger structured-data bounds, query validation, active-content sanitization, cache-key hardening, and client/session abuse controls. Not all of those are independently enforced at the Worker boundary in 2.6.0.1; downstream parsers and fixed routes provide partial defense.
+The v2.6.1 registry and Worker allowlist are generated from one reviewed source and checked for exact parity. Candidate and retired routes are excluded. Structured-data, query, active-content, cache-key, and abuse controls remain defense-in-depth review points; fixed routes do not make upstream content trusted.
+
+## ATS ingestion and cache
+
+Scheduled ingestion replaces browser fan-out to employer boards. Each active tenant has independent timeout, response/schema validation, regional inventory evidence, health, and a circuit breaker. Valid empty inventory records `empty` rather than failure. Repeated contract failures quarantine that tenant without disabling the ATS family. Browser requests read bounded, stable cached pages and never trigger a refresh of every tenant.
+
+The release manifest contains the 47 previously verified live tenants plus 100 newly verified tenants. The old catalog's 141 hard-dead routes are retired; 21 live former candidates remain non-runtime until full promotion evidence is recorded.
+
+## Protected public feedback
+
+The Support page prepares and locally previews an ordinary bug or suggestion. Submission is explicit: the browser sends only the confirmed structured payload, Turnstile token, honeypot field, and stable report ID to `POST /feedback`. The Worker verifies method, content type, exact production origin, field allowlist and byte limits, empty honeypot, Turnstile token/action/hostname, and rate budget before calling GitHub's create-issue API with a fixed repository and fixed `bug` or `enhancement` label.
+
+`GITHUB_ISSUES_TOKEN` and `TURNSTILE_SECRET` are Worker secrets. They never enter the static application, response, or log. The Worker repeats redaction even though the browser already provides a privacy preview. Prompts, Resume/application text, credentials, URLs with queries, local paths, and arbitrary attachments are rejected or redacted. Screenshots and file uploads are not supported.
+
+Privacy, security, exposed-secret, personal-data, and abuse reports are never submitted publicly. The UI points to GitHub private vulnerability reporting. A successful public response returns only the GitHub issue URL/number and a report ID. The Worker keeps a 30-day KV replay record so a repeated confirmed report ID returns the original issue instead of creating another. Errors are content-safe and are never auto-retried. Because KV is not a transactional exactly-once queue, an ambiguous network outcome should still be checked by report ID before a deliberate retry.
 
 ## Groq relay
 
@@ -82,7 +99,7 @@ Only model discovery and chat completions are exposed. Both require a bearer tok
 
 For chat completions, the Worker requires a bounded JSON object, constrains the upstream response, rejects redirects, and returns no-store responses. It does not provide a general OpenAI-compatible proxy, account store, or model-hosting service.
 
-The current Worker does not yet provide a complete identity-aware abuse-control layer for every relay. Production operations should combine provider-side controls with privacy-safe monitoring and must never log prompts, Resume content, job descriptions, or credentials.
+The feedback route has Turnstile and rate-limit abuse controls. Other public relays still do not have a complete identity-aware abuse-control layer. Production operations should combine provider-side controls with privacy-safe monitoring and must never log prompts, Resume content, job descriptions, credentials, or feedback bodies.
 
 ## Error and logging policy
 

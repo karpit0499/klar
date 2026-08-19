@@ -19,9 +19,27 @@ export function stableHash(input: string): string {
 export function normalizeKey(s: string): string {
   return (s || '')
     .toLowerCase()
+    .replace(/ß/g, 'ss')
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '') // strip diacritics
     .replace(/\b(gmbh|se|ag|inc|ltd|co|kg|mbh)\b/g, '') // company suffixes
     .replace(/[^a-z0-9]+/g, ' ')
     .trim()
+}
+
+/** German search aliases without converting ordinary English "ue/oe/ae" text. */
+export function germanKeyVariants(value: string): string[] {
+  const lower = (value || '').toLowerCase()
+  const base = normalizeKey(lower)
+  const digraph = normalizeKey(lower
+    .replace(/ä/g, 'ae')
+    .replace(/ö/g, 'oe')
+    .replace(/ü/g, 'ue')
+    .replace(/ß/g, 'ss'))
+  return [...new Set([base, digraph].filter(Boolean))]
+}
+
+export function germanKeysEqual(left: string, right: string): boolean {
+  const rightKeys = new Set(germanKeyVariants(right))
+  return germanKeyVariants(left).some((key) => rightKeys.has(key))
 }

@@ -19,6 +19,12 @@ function getStoredLocale(): Locale {
   } catch {
     // ignore
   }
+  try {
+    const languages = navigator.languages?.length ? navigator.languages : [navigator.language]
+    if (languages.some((language) => language.toLowerCase().startsWith('de'))) return 'de'
+  } catch {
+    // navigator is unavailable during non-browser tests
+  }
   return DEFAULT_LOCALE
 }
 

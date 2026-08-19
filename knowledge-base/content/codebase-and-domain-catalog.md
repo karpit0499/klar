@@ -6,10 +6,10 @@ order: 210
 audience: ["Engineering", "Reviewers", "Security", "New contributors"]
 status: "current"
 classification: "public"
-applicable_version: "2.6.0.1"
+applicable_version: "2.6.1"
 owner: "Klar Engineering"
-last_verified: "2026-08-10"
-next_review: "2026-11-10"
+last_verified: "2026-08-11"
+next_review: "2026-11-11"
 tags: ["codebase", "domains", "ownership", "catalog"]
 ---
 
@@ -32,9 +32,9 @@ This catalog explains why each major code area exists and which invariant it pro
 | `src/backup/` | Backup formats, integrity, migration, import/export modes | Credential inclusion is explicit and atomic import validates before replacement |
 | `src/resume/` | Canonical Resume schema, normalization, persistence, completeness, extraction, and design evaluation | Resume schema version 2 is the sole career-fact authority |
 | `src/parse/` | Client-side file text extraction and legacy parsing helpers | Files are parsed locally and untrusted content is bounded before downstream use |
-| `src/sources/` | Career source adapters, registry, normalization, acquisition, and source health | Individual source failure cannot collapse discovery; all rows normalize before use |
+| `src/sources/` | Career source adapters, active/empty/quarantined/retired tenant catalogs, normalization, acquisition, and source health | Candidate or retired tenants never run; individual source failure cannot collapse discovery; all rows normalize before use |
 | `src/search/` | Career saved-search identity and diagnostics coordination | “New” is based on durable identities; the first run establishes a baseline |
-| `src/match/` | Local filters, deterministic ranking, requirements, optional AI attention | Eligibility and rank are deterministic and reproducible; AI does not overwrite them |
+| `src/match/` | Local filters, deterministic ranking, requirements, and optional independent AI assessment | Eligibility and rank are deterministic and reproducible; the nested AI opinion does not overwrite them |
 | `src/regions/` | Supported market configuration and source availability | Market behavior is data-driven and explicit rather than inferred from the Resume |
 | `src/flexible/` | Resume-free session orchestration, taxonomy, relevance, deduplication, cache, resilience, and connector registry | Search terminates, unknown remains unknown, and provenance survives every transformation |
 | `src/flexible/connectors/` | Source Fabric connector execution and parsing | Retrieval obeys registry capabilities, bounds, validation, and fallback policy |
@@ -45,19 +45,19 @@ This catalog explains why each major code area exists and which invariant it pro
 | `src/llm/` | Current production provider client, prompt construction, extraction, matching, and tailoring | Structured responses are validated at the consumer; budgets and retry counts are bounded |
 | `src/settings/` | Provider settings and credential access | Credentials use session, local setting, or credential vault according to the selected retention mode |
 | `src/observability/` | Content-free product events and diagnostics | Operational records contain fixed safe fields, not Resume, job, prompt, or credential content |
-| `src/support/` | Redacted issue-report preparation | Reports are previewed and user-submitted; Klar does not silently transmit them |
+| `src/support/` | Redacted issue-report preparation and protected submission client | Ordinary reports require preview and explicit submission; security/privacy reports remain private |
 | `src/onboarding/` | Local setup-state and work-mode progression | Setup is recoverable and Flexible Work remains available without a Resume |
-| `src/dashboard/`, `src/tracker/` | Local activity summaries and application tracking | These views use local authoritative packet/tracker data |
+| `src/dashboard/`, `src/tracker/` | Local activity summaries, Resume/Support workspace links, and application tracking | These views use local authoritative packet/tracker data |
 | `src/i18n/` | English/German interface strings and locale mechanics | Locale changes presentation, not evidence or stored career facts |
 | `src/ui/` | Product surfaces and interaction orchestration | UI must preserve domain gates rather than reimplementing or weakening them |
-| `worker/src/` | Cloudflare relay routes and network enforcement | Worker is a finite allowlisted relay, never a general proxy |
+| `worker/src/` | Cloudflare relay, scheduled ATS cache, protected feedback route, and network enforcement | Worker is finite and bounded, never a general proxy or user-content backend |
 | `desktop/` | Electron main/preload, model trust, runtime lifecycle, packaging, and signing configuration | Privileged capabilities remain outside the renderer and packages execute only after trust verification |
 | `model/` | Model manifests, schemas, experiments, benchmark tools, and evidence | Experimental output is not release evidence; base and adapter claims require the defined gates |
 | `scripts/` | Release, registry, bundle, ranking, writing, and document QA automation | Automated gates must be deterministic and fail closed on invalid inputs |
 | `qa/` | Packaged desktop smoke and fuse verification | Packaged artifacts, not just source, must preserve the security posture |
-| `test/` | 66 repository test files executed by the custom sorted runner | New behavior needs a test at the closest contract boundary and a regression test for defects |
-| `.github/workflows/` | Web deployment and desktop-preview CI | Deployment follows the repository gates; local success alone is not release approval |
-| `knowledge-base/` | Governed corporate documentation website and content | Documentation distinguishes current, target, and historical statements |
+| `test/` | Repository test files executed by the custom sorted runner | New behavior needs a test at the closest contract boundary and a regression test for defects |
+| `.github/workflows/` | One app-and-KB GitHub Pages deployment plus desktop-preview CI | Deployment follows the repository gates; local success alone is not release approval |
+| `knowledge-base/` | Governed Markdown, Next static-export website, lazy search index, and PDF handbooks | `/klar/kb/` output distinguishes current, target, and historical statements and remains subpath-safe |
 
 ## Domain dependency direction
 
@@ -80,6 +80,7 @@ UI components may coordinate domain functions, but they must not become the only
 | `Preferences` | Current local row or vault content | Career and Flexible Work constraints, languages, markets, and optional contact data |
 | `NormalizedJob` | Source normalization output and local caches | Common vacancy/open-entry representation, including identities and provenance |
 | `RankingSnapshot` | Deterministic ranking pipeline | Reproducible score, features, constraints, explanation, hashes, and version metadata |
+| `AiMatchAssessment` | Validated provider response nested in a match | Advisory score and provenance shown separately; never controls deterministic order |
 | `SearchSession` | Flexible Work runtime state | One cancellable, deadline-bound query with independent connector attempt states |
 | `PacketRow` | Packet store or vault content | Per-job preparation workspace with job snapshot, languages, decisions, generation, and export history |
 | `CipherEnvelope` | Vault/backup boundary | Versioned AES-GCM authenticated ciphertext with salt and IV |
@@ -95,7 +96,8 @@ UI components may coordinate domain functions, but they must not become the only
 | `desktop/main.mjs` | Electron main | Create trusted window, validate IPC, manage runtime | Expose generic filesystem, shell, or process access |
 | `desktop/preload.mjs` | Isolated preload | Publish frozen narrow bridge and prevalidate payloads | Expose Electron IPC primitives or secrets |
 | `scripts/run-tests.mjs` | Node development/CI | Execute sorted repository tests | Stand in for production build, packaged smoke, human, or signing gates |
-| Vite build | Node development/CI | Type-check and produce static renderer assets | Prove third-party source health or human writing quality |
+| Vite application build | Node development/CI | Type-check and produce static application assets | Prove third-party source health or human writing quality |
+| Next KB export | Node development/CI | Validate content and emit static `/klar/kb/` routes, assets, search index, and metadata | Replace dated source checks, PDF visual review, or accessibility testing |
 
 ## Change-impact rules
 

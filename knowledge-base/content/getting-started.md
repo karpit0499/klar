@@ -6,10 +6,10 @@ order: 200
 audience: ["Klar users"]
 status: "current"
 classification: "public"
-applicable_version: "2.6.0.1"
+applicable_version: "2.6.1"
 owner: "Klar Product Support"
-last_verified: "2026-08-10"
-next_review: "2026-11-10"
+last_verified: "2026-08-11"
+next_review: "2026-11-11"
 tags: ["user-guide", "onboarding", "setup", "backup"]
 ---
 
@@ -83,6 +83,8 @@ Starting over is not the same as **Delete all local data** in Settings. The latt
 - **Dashboard:** local profile view or Flexible Work launcher, depending on the active mode.
 - **Search:** current Career Roles or Flexible Work search.
 - **Tracker:** saved opportunities and application follow-up.
-- **Settings:** data, encryption, reports, connections, Resume, engine, region, language, and appearance.
+- **Resume:** canonical Resume editing, replacement, completeness, history, and optional design experiments.
+- **Support:** privacy-reviewed bug and suggestion reporting.
+- **Settings:** data, encryption, connections, AI engine, region, language, and appearance.
 
 Klar can be installed from a supporting browser for an app-like window. The public browser/PWA is the supported user surface for this developer preview; desktop packages remain unsigned experimental builds that are not publicly distributed.

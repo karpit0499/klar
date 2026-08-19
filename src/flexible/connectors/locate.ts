@@ -4,15 +4,17 @@
 // cities against the item text; an unmatched item keeps `city: undefined` and
 // is reported as "could not be distance-checked" rather than being dropped.
 // ============================================================================
-import { normalizeKey } from '../../lib/hash'
+import { germanKeyVariants } from '../../lib/hash'
 import type { FlexibleQuery } from './types'
 
 /** Return the requested city named in `text`, or undefined. */
 export function detectCity(text: string, query: FlexibleQuery): string | undefined {
-  const haystack = ` ${normalizeKey(text)} `
+  const haystacks = germanKeyVariants(text).map((value) => ` ${value} `)
   for (const { city } of query.cities) {
-    const needle = normalizeKey(city)
-    if (needle && haystack.includes(` ${needle} `)) return city
+    const needles = germanKeyVariants(city)
+    if (needles.some((needle) => haystacks.some((haystack) => haystack.includes(` ${needle} `)))) {
+      return city
+    }
   }
   return undefined
 }

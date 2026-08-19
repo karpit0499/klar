@@ -1,15 +1,15 @@
 ---
 title: "Known Gaps and Risk Register"
-description: "Verified current limitations, control gaps, evidence holds, accepted boundaries, and closure criteria for Klar 2.6.0.1."
+description: "Verified current limitations, control gaps, evidence holds, accepted boundaries, and closure criteria for Klar 2.6.1."
 section: "Quality and Operations"
 order: 340
 audience: ["Leadership", "Engineering", "Security", "Product", "Release owners", "Operations"]
 status: "current"
 classification: "public"
-applicable_version: "2.6.0.1"
+applicable_version: "2.6.1"
 owner: "Klar Engineering"
-last_verified: "2026-08-10"
-next_review: "2026-09-10"
+last_verified: "2026-08-11"
+next_review: "2026-09-11"
 tags: ["risk", "known-gaps", "limitations", "hold", "technical-debt"]
 ---
 
@@ -17,7 +17,7 @@ tags: ["risk", "known-gaps", "limitations", "hold", "technical-debt"]
 
 ## Purpose
 
-This register prevents implemented foundations, roadmap intent, or passing machine tests from being mistaken for completed product or release claims. It records gaps verified during the 2.6.0.1 code review. Priority describes potential product impact, not a formal vulnerability score.
+This register prevents implemented foundations, roadmap intent, or passing machine tests from being mistaken for completed product or release claims. It records gaps verified for v2.6.1 and retains closure evidence for material defects fixed from v2.6.0.1. Priority describes potential product impact, not a formal vulnerability score.
 
 | Priority | Meaning |
 | --- | --- |
@@ -32,8 +32,6 @@ No item is closed by prose alone. Closure requires the named implementation/cont
 
 | ID | Priority | Area | Current state and impact | Current control | Closure evidence | Owner | Status |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| KG-001 | High | Source verification | Career acquisition fans out across 47 verified and 162 candidate ATS entries. Source Fabric marks only 3 of 36 enabled definitions verified; candidate status is not an execution gate. Configured coverage can be mistaken for verified support and can add load/failures. | Per-source isolation, bounded concurrency/session, fallbacks, provenance, health | Verification field enforced for production plans or a separately approved candidate channel; full connector release evidence and honest UI counts | Source Engineering | Open |
-| KG-002 | High | Flexible Work integrity | When no Worker URL exists, the live Flexible Work hook can return deterministic synthetic fixtures with `usingFixtures=true`. A misconfigured production build could present test opportunities as live. | Runtime marker and deterministic provenance available to UI/tests | Production build/deployment assertion prevents silent fixture mode; visible non-live label in permitted development/offline mode; deployment test | Platform Engineering | Open |
 | KG-003 | High | Human quality evidence | Human ranking and bilingual writing release gates are **HOLD**. Automated/synthetic tests cannot prove usefulness, sendability, or absence of every unsupported claim. | Strict evidence schemas and fail-closed gate tools | Eligible held-out corpora, two independent bilingual human reviews, adjudication, all frozen thresholds passed | Product Quality | Evidence hold |
 | KG-004 | High | Desktop distribution | Experimental artifacts are unsigned/ad hoc and are not publicly distributed; production signing/notarization is not complete. Precision/writer adapter packages and evidence remain **HOLD**. | CI does not publish experimental binaries; explicit fuses, trust package checks, smoke/hashes | Production keys and provenance, audits, signed/notarized exact artifacts, smoke/fuse/hash evidence, adapter evidence or scope exclusion, approval | Release Engineering | Evidence hold |
 | KG-005 | High | BA continuity | BA integration depends on separate undocumented public-web search and detail contracts that can change without a public compatibility guarantee. | Contract regressions, source isolation, source status, other sources/fallback | Supported durable interface or monitored contract with prompt kill/fallback and current live evidence | Source Engineering | Open/external dependency |
@@ -42,12 +40,24 @@ No item is closed by prose alone. Closure requires the named implementation/cont
 | KG-008 | Medium | Worker request-forgery defense | Destination validation needs additional defense in depth across address formats, name resolution, and redirect handling. | Fixed host/path allowlist, HTTPS reconstruction, redirect revalidation, public-network Worker setting | Reviewed destination-validation strategy with comprehensive private-network and redirect security tests | Platform Security | Open |
 | KG-009 | Medium | Backup trust | SHA-256 backup integrity is not author authentication, and import validation does not deeply validate every nested row. A self-consistent edited or malicious file can remain risky. | Format/version checks, encrypted AES-GCM authentication, primary structural validation, atomic replacement | Authenticated/signed origin option where required; comprehensive bounded schema/size/depth validation and hostile-import tests | Data Engineering | Open |
 | KG-010 | Medium | Flexible pagination | Roadmap promises frozen visible page assignments. Current session keeps stable append order and in-place merges but chunks the evolving ordered array rather than persisting an immutable page ledger. | No intentional re-sort after publish; duplicate enrichment in place; tests | Explicit published-page assignment state and regression tests for late high-score/duplicate batches, filters, back navigation | Discovery Engineering | Open |
-| KG-011 | Medium | Connector recovery | Breaker opens after four failures for five minutes, but persisted health has no distinct low-frequency canary state; post-cooldown requests are simply eligible. Fallback success can obscure direct-path failure in aggregate observation. | Cooldown, local kill switch, health ledger, fallbacks | Explicit half-open/canary state and metrics separating direct from fallback success | Source Engineering | Open |
+| KG-011 | Medium | Connector recovery | Direct Flexible connectors still lack a complete low-frequency half-open/canary rollout after quarantine. | Candidate runtime exclusion, per-tenant ATS circuits, separate fallback observations, local kill switch | Verified direct-connector canary state, rollback drill, and metrics separating direct from fallback success | Source Engineering | Open |
 | KG-012 | Medium | Operational control | Connector kill switches and feature flags are client-local/static; there is no centrally managed remote operator switch that can disable a bad connector across installed clients without a new deployment or user-local state. | Per-client health/kill state and redeployable configuration | Authenticated privacy-safe remote control or an explicitly accepted static-operation model with tested emergency rollout | Operations | Open |
 | KG-013 | Medium | Accessibility/performance evidence | The automated release gate enforces bundle bytes and many UI regressions, but does not run a comprehensive browser accessibility scan or Core Web Vitals/Lighthouse budget. | Semantic UI tests, render tests, manual review, byte ceilings | Defined supported-browser accessibility and performance budgets with deterministic CI and manual assistive-technology evidence | Quality Engineering | Open |
 | KG-014 | Medium | Observability | Browser events are local/content-free and desktop diagnostics are bounded/in-memory. This protects privacy but limits fleet-wide source/runtime incident detection; regex redaction is not formal DLP. | Fixed event schema, safe tokens, 100/200 limits, user preview before report | Approved privacy-preserving aggregate operations design or documented acceptance; adversarial redaction tests and review | Operations and Privacy | Open/accepted tradeoff |
-| KG-015 | Low | Ranking provenance | Outer match rows can still say `local-v2.3` while their deterministic snapshot says `ranking-v2.6.0`, which can confuse consumers. | Snapshot includes authoritative ranking/requirements/explanation versions and historical markers | Migrate/deprecate legacy label with cache compatibility tests and documentation | Discovery Engineering | Open |
+| KG-015 | Low | Ranking provenance | Outer match rows can still say `local-v2.3` while their deterministic snapshot says `ranking-v2.6.1`, which can confuse consumers. | Snapshot includes authoritative ranking/requirements/explanation versions and historical markers | Migrate/deprecate legacy label with cache compatibility tests and documentation | Discovery Engineering | Open |
 | KG-016 | Low | Schema documentation drift | `src/db/db.ts` header says six stores hold all state; schema version 7 defines 17 stores. | Executable schema and this KB are authoritative | Correct the stale comment and add a lightweight schema-catalog consistency check | Data Engineering | Open |
+| KG-017 | Medium | PDF accessibility | v2.6.1 handbooks have no audited blank pages or relative production links and include language/display-title metadata, but they are not tagged and have no structure tree. | The responsive HTML KB is the authoritative accessible surface; PDFs are labelled snapshots | Reliable tagged-PDF generator, semantic structure validation, and screen-reader review of all three handbooks | Documentation and Accessibility | Evidence hold |
+| KG-018 | Medium | German completeness | v2.6.1 expands German UI, codes, filters, normalization, and locale formatting, but user-entered Resume/packet text is not translated and complete bilingual human quality/assistive-technology evidence is absent. | Dictionary parity, locale/normalization unit cases, manual German and pseudo-long layout review, language-specific packet state, human review requirement | Independent bilingual critical-journey review, leakage-free UI audit, automated German/pseudo-long browser coverage, assistive-technology checks, and held writing/ranking gates | Product Quality | Evidence hold |
+| KG-019 | Medium | Career preference editing | Resume maintenance has a dedicated page, but the complete post-onboarding career-preference editor remains absent. | Onboarding retains the authority; Support captures the gap; backup avoids destructive reset | Dedicated reviewed editor with migration-free persistence, validation, unsaved guard, and journey tests | Product and Design | Open |
+
+## Closed in v2.6.1
+
+| Former ID | Defect | Closure evidence |
+| --- | --- | --- |
+| KG-001 | Candidate ATS/Flexible connectors executed as if supported, and browser ATS retrieval fanned out across tenants | Verification state is an execution gate; scheduled per-tenant cache; 141 dead routes retired; 100 new boards in dated manifest; candidate/empty/quarantined/retired tests |
+| KG-002 | Production without a Worker could present Flexible fixtures as live | Explicit test-only fixture flag plus build/deployment assertion and cache/provenance regression |
+| SCORING-2.6.0.1 | Merge order overwrote the provider score and factors with deterministic values while retaining AI-looking provenance | Nested `aiAssessment`, side-by-side UI/delta, incompatible-cache key, and regression fixtures with intentionally different scores |
+| KB-HOST-2.6.0.1 | KB depended on a ChatGPT Sites URL, an ignored build plugin, and mobile/PDF paths with system-breaking failures | Next static export under `/klar/kb/`, fresh-checkout gate, unified Pages artifact, responsive/search/path/PDF regression suite |
 
 ## Accepted product and threat boundaries
 

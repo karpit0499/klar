@@ -113,7 +113,8 @@ export type FlexibleMessageInput = {
 export function buildEmployerMessage({ preferences, job, de }: FlexibleMessageInput): string {
   const name = preferences.contact?.name?.trim()
   const employer = (job.employerFamily || job.company || '').trim()
-  const role = (job.kind === 'open_entry' ? job.programName || job.title : job.title).trim()
+  const route = job.kind === 'open_entry' || job.kind === 'official_search'
+  const role = (route ? job.programName || job.title : job.title).trim()
   const city = job.location?.city || preferences.locations[0]?.city || ''
   const employmentBits = preferences.employment.slice(0, 2).map((item) => employmentLabel(item, de))
 

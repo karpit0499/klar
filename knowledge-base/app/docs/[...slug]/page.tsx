@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { DocMeta } from "../../../components/DocMeta";
 import { DocsFrame } from "../../../components/DocsFrame";
 import { adjacentDocs, allDocs, docBySlug } from "../../../lib/docs";
-import { SOCIAL_IMAGE } from "../../../lib/site";
+import { absoluteSiteUrl, prefixRootRelativeHtml, SOCIAL_IMAGE } from "../../../lib/site";
 
 type PageProps = { params: Promise<{ slug: string[] }> };
 
@@ -12,11 +12,13 @@ export function generateStaticParams() {
   return allDocs().map((doc) => ({ slug: [doc.slug] }));
 }
 
+export const dynamicParams = false;
+
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params;
   const doc = docBySlug(slug.join("/"));
   if (!doc) return {};
-  const canonical = `/docs/${doc.slug}`;
+  const canonical = absoluteSiteUrl(`/docs/${doc.slug}`);
   return {
     title: doc.title,
     description: doc.description,
@@ -26,7 +28,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       description: doc.description,
       url: canonical,
       type: "article",
-      images: [{ url: SOCIAL_IMAGE, width: 1731, height: 909, alt: "Klar Knowledge Base" }],
+      images: [{ url: SOCIAL_IMAGE, width: 1200, height: 630, alt: "Klar Knowledge Base" }],
     },
     twitter: {
       card: "summary_large_image",
@@ -66,7 +68,17 @@ export default async function DocumentationPage({ params }: PageProps) {
         <h1>{doc.title}</h1>
         <p className="doc-description">{doc.description}</p>
         <DocMeta doc={doc} />
-        <div className="prose" dangerouslySetInnerHTML={{ __html: doc.html }} />
+        {doc.headings.length > 0 && (
+          <details className="mobile-page-toc">
+            <summary>On this page</summary>
+            <ol>{doc.headings.map((heading) => (
+              <li key={`${heading.id}-${heading.level}`} className={heading.level === 3 ? "nested" : ""}>
+                <a href={`#${heading.id}`}>{heading.text}</a>
+              </li>
+            ))}</ol>
+          </details>
+        )}
+        <div className="prose" dangerouslySetInnerHTML={{ __html: prefixRootRelativeHtml(doc.html) }} />
         <section className="document-control">
           <h2>Document control</h2>
           <dl>

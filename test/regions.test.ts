@@ -20,6 +20,7 @@ ok(REGIONS[DEFAULT_REGION_CODE] === regionDE, 'registry: default region is Germa
 ok(Object.keys(REGIONS).length === 6, 'registry: six regions registered')
 ok(regionDE.resolveLocation('Berlin').canonical === 'Berlin', 'de: resolves a known city')
 ok(regionDE.resolveLocation('Berlin').lat != null, 'de: known city has coordinates')
+ok(regionDE.resolveLocation('Muenchen').canonical === 'München', 'de: resolves an umlaut digraph alias')
 ok(regionDE.resolveLocation('Nowhere').canonical === 'Nowhere', 'de: unknown city passes through')
 ok(regionDE.adzunaCountry === 'de', 'de: adzuna slug is de')
 

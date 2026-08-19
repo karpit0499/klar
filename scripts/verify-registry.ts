@@ -6,9 +6,10 @@
 // into verified lines: run it, delete the dead entries, and move the green ones
 // up into ATS_VERIFIED_DE.
 //
-//   npx tsx scripts/verify-registry.ts              # probe candidates only
-//   npx tsx scripts/verify-registry.ts --all        # probe the whole registry
-//   npx tsx scripts/verify-registry.ts --emit        # print paste-ready lines
+//   npx tsx scripts/verify-registry.ts              # probe quarantined candidates
+//   npx tsx scripts/verify-registry.ts --all        # probe the direct runtime
+//   npx tsx scripts/verify-registry.ts --emit       # print reviewable promotion lines
+//   npx tsx scripts/verify-registry.ts --json       # JSON only; safe to redirect
 //
 // No key required — all three vendors expose an open, CORS-friendly board API.
 // Be polite: this runs with bounded concurrency and a per-request timeout.
@@ -19,7 +20,13 @@ import {
   type AtsEntry,
 } from '../src/sources/registry.de.ts'
 
-type Probe = { entry: AtsEntry; live: boolean; count: number; note: string }
+type Probe = {
+  entry: AtsEntry
+  state: 'active' | 'empty' | 'quarantined'
+  count: number
+  note: string
+  checkedAt: string
+}
 
 const TIMEOUT_MS = 12_000
 const CONCURRENCY = 6
@@ -54,19 +61,20 @@ async function probe(entry: AtsEntry): Promise<Probe> {
       headers: { accept: 'application/json' },
     })
     if (!res.ok) {
-      return { entry, live: false, count: 0, note: `HTTP ${res.status}` }
+      return { entry, state: 'quarantined', count: 0, note: `HTTP ${res.status}`, checkedAt: new Date().toISOString() }
     }
     const data = await res.json()
     const count = countJobs(entry, data)
     return {
       entry,
-      live: count > 0,
+      state: count > 0 ? 'active' : 'empty',
       count,
       note: count > 0 ? `${count} jobs` : 'reachable but 0 jobs',
+      checkedAt: new Date().toISOString(),
     }
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)
-    return { entry, live: false, count: 0, note: msg.slice(0, 60) }
+    return { entry, state: 'quarantined', count: 0, note: msg.slice(0, 60), checkedAt: new Date().toISOString() }
   } finally {
     clearTimeout(timer)
   }
@@ -88,26 +96,33 @@ async function pMap<T, R>(items: T[], limit: number, worker: (t: T) => Promise<R
 
 function verifiedLine(p: Probe): string {
   const { company, ats, slug } = p.entry
-  return `  { company: ${JSON.stringify(company)}, ats: '${ats}', slug: '${slug}' }, // ~${p.count} live jobs at verification`
+  return `  { company: ${JSON.stringify(company)}, ats: '${ats}', slug: '${slug}', state: 'active', delivery: 'worker_cache', verifiedAt: '${p.checkedAt.slice(0, 10)}' }, // ${p.count} live jobs`
 }
 
 async function main(): Promise<void> {
   const args = new Set(process.argv.slice(2))
   const target = args.has('--all') ? ATS_REGISTRY_DE : ATS_CANDIDATES_DACH
-  const label = args.has('--all') ? 'full registry' : 'candidates'
+  const label = args.has('--all') ? 'direct runtime' : 'quarantined candidates'
+  const json = args.has('--json')
 
-  console.log(`Probing ${target.length} entries (${label}) …\n`)
+  if (!json) console.log(`Probing ${target.length} entries (${label}) …\n`)
   const results = await pMap(target, CONCURRENCY, probe)
 
-  const live = results.filter((r) => r.live)
-  const dead = results.filter((r) => !r.live)
+  const live = results.filter((r) => r.state === 'active')
+  const empty = results.filter((r) => r.state === 'empty')
+  const quarantined = results.filter((r) => r.state === 'quarantined')
 
-  for (const r of results) {
-    const mark = r.live ? '✓' : '✗'
-    console.log(`  ${mark} ${r.entry.company.padEnd(28)} ${r.entry.ats.padEnd(11)} ${r.entry.slug.padEnd(24)} ${r.note}`)
+  if (json) {
+    console.log(JSON.stringify(results, null, 2))
+    return
   }
 
-  console.log(`\n${live.length} live, ${dead.length} dead.`)
+  for (const r of results) {
+    const mark = r.state === 'active' ? '✓' : r.state === 'empty' ? '○' : '✗'
+    console.log(`  ${mark} ${r.entry.company.padEnd(28)} ${r.entry.ats.padEnd(11)} ${r.entry.slug.padEnd(24)} ${r.state.padEnd(11)} ${r.note}`)
+  }
+
+  console.log(`\n${live.length} active, ${empty.length} healthy-empty, ${quarantined.length} quarantined.`)
 
   if (args.has('--emit')) {
     console.log('\n// ---- paste-ready verified lines (live only) ----')

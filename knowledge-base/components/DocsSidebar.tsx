@@ -1,13 +1,18 @@
 import Link from "next/link";
 import { groupedDocs } from "../lib/docs";
 
-export function DocsSidebar({ activeSlug }: { activeSlug?: string }) {
+export function DocsSidebar({
+  activeSlug,
+  collapsible = false,
+}: {
+  activeSlug?: string;
+  collapsible?: boolean;
+}) {
   return (
     <nav className="docs-sidebar" aria-label="Documentation table of contents">
       <Link className="docs-index-link" href="/docs">Documentation index</Link>
-      {groupedDocs().map((group) => (
-        <section key={group.section}>
-          <h2>{group.section}</h2>
+      {groupedDocs().map((group) => {
+        const links = (
           <ul>
             {group.docs.map((doc) => (
               <li key={doc.slug}>
@@ -17,8 +22,20 @@ export function DocsSidebar({ activeSlug }: { activeSlug?: string }) {
               </li>
             ))}
           </ul>
-        </section>
-      ))}
+        );
+        const active = group.docs.some((doc) => doc.slug === activeSlug);
+        return collapsible ? (
+          <details className="docs-sidebar-group" key={group.section} open={active}>
+            <summary>{group.section}</summary>
+            {links}
+          </details>
+        ) : (
+          <section key={group.section}>
+            <h2>{group.section}</h2>
+            {links}
+          </section>
+        );
+      })}
     </nav>
   );
 }

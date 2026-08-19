@@ -23,7 +23,7 @@ body:
     id: version
     attributes:
       label: Klar version
-      placeholder: 2.6.0
+      placeholder: 2.6.1
     validations:
       required: true
   - type: textarea

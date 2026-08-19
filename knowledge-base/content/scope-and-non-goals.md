@@ -1,15 +1,15 @@
 ---
 title: "Scope and Non-Goals"
-description: "What Klar v2.6.0.1 includes, explicitly excludes, and does not guarantee."
+description: "What Klar v2.6.1 includes, explicitly excludes, and does not guarantee."
 section: "Product"
 order: 120
 audience: ["Users", "Product", "Engineering", "Support"]
 status: "current"
 classification: "public"
-applicable_version: "2.6.0.1"
+applicable_version: "2.6.1"
 owner: "Klar Product"
-last_verified: "2026-08-10"
-next_review: "2026-11-10"
+last_verified: "2026-08-11"
+next_review: "2026-11-11"
 tags: ["product", "scope", "limitations", "non-goals"]
 ---
 
@@ -17,14 +17,14 @@ tags: ["product", "scope", "limitations", "non-goals"]
 
 ## In scope
 
-Klar v2.6.0.1 provides:
+Klar v2.6.1 provides:
 
 - browser-local career and Flexible Work workspaces;
 - structured Resume import, manual creation, editing, completeness checks, replacement, and history;
 - career preference capture and region-specific public job discovery;
 - role, market, seniority, employment, recency, company, distance, language, and visa-related filtering;
-- deterministic local ranking with versioned evidence-linked snapshots;
-- optional per-job AI explanation and application-writing actions;
+- deterministic local ranking with versioned evidence-linked snapshots and a separate optional AI opinion;
+- optional per-job AI assessment and application-writing actions;
 - progressive Flexible Work search across configured public and employer routes;
 - saved searches and “new since last run” detection;
 - persistent English and German Application Packets;
@@ -32,7 +32,10 @@ Klar v2.6.0.1 provides:
 - an application Tracker with status, contacts, reminders, follow-up nudges, and exports;
 - device-local dashboard details;
 - standard, complete encrypted, and explicitly confirmed readable exports;
-- optional vault encryption and privacy-reviewed issue preparation;
+- optional vault encryption and protected, privacy-previewed public bug/suggestion submission;
+- a dedicated Dashboard-linked Resume page and Support page;
+- verified-only source execution, scheduled ATS cache ingestion, 100 newly verified ATS boards, and 100 verified official Flexible Work routes;
+- a GitHub Pages knowledge base at `/klar/kb/` with mobile, search, path, SEO, and PDF QA gates;
 - an experimental unsigned desktop and managed local-model developer build that is not publicly distributed.
 
 ## Explicit non-goals
@@ -54,9 +57,9 @@ Klar does not:
 
 ## Current user-interface exclusions
 
-The repository contains support code for capabilities that are not exposed as complete v2.6.0.1 user workflows. In particular, a standalone interview-preparation flow and a standalone German net-salary calculator are not part of the reachable main application interface. They must not be documented as current user features until an interface, verification, and release decision exist.
+The repository contains support code for capabilities that are not exposed as complete v2.6.1 user workflows. In particular, a standalone interview-preparation flow and a standalone German net-salary calculator are not part of the reachable main application interface. They must not be documented as current user features until an interface, verification, and release decision exist.
 
-Career preferences cannot currently be edited after onboarding through a dedicated Settings form, even though the setup checklist can direct users to Settings. Flexible Work result cards also do not currently provide a save-to-Tracker action.
+Career preferences cannot currently be edited after onboarding through a complete dedicated form. The setup checklist now sends Resume work to the Resume page instead of Settings. Flexible Work result cards also do not currently provide a save-to-Tracker action.
 
 The experimental Resume design lab is disabled by default, is not exposed in the publicly distributed product, and exists for evaluation. Its variants do not change the production Resume exporter.
 

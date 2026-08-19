@@ -4,7 +4,7 @@ import {
   ndcgAtK,
   pairwiseAgreement,
 } from '../../src/match/evalMetrics.ts'
-import { rankCandidateSetV2 } from '../../src/match/rankingV2.ts'
+import { RANKING_MODEL_VERSION, rankCandidateSetV2 } from '../../src/match/rankingV2.ts'
 import {
   SYNTHETIC_RANKING_CORPUS,
   type SyntheticRankingScenario,
@@ -115,7 +115,7 @@ export function evaluateSyntheticCorpus(): RankingEvaluationReport {
   )
   return {
     schemaVersion: 1,
-    rankingVersion: 'ranking-v2.6.0',
+    rankingVersion: RANKING_MODEL_VERSION,
     corpusKind: 'synthetic_fixture',
     releaseEvidenceEligible: false,
     disclaimer:

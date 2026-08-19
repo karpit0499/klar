@@ -41,6 +41,7 @@ assert.match(app, /tab === 'search' && showFlexible/)
 assert.match(app, /onEditFlexible=\{\(\) => void editFlexible\(\)\}/)
 assert.match(app, /hasFlexible=\{Boolean\(preferences\.flexibleWork\)\}/)
 assert.match(settings, /hasFlexible/)
+assert.doesNotMatch(settings, /onAddResume|Add resume|Lebenslauf hinzufügen/)
 
 // The work-mode choice is persisted, so the surface survives a reload.
 assert.match(setupState, /export type WorkMode = 'career' \| 'flexible'/)

@@ -4,7 +4,8 @@
 // are cached on demand with stale-while-revalidate.
 // and NEVER touch the job APIs or the Groq/Worker calls — those must always be
 // live, and caching them would be both wrong and a privacy risk.
-const CACHE = 'klar-shell-v10'
+const CACHE = 'klar-shell-v11'
+const CACHE_PREFIX = 'klar-shell-'
 
 self.addEventListener('install', (event) => {
   event.waitUntil(self.skipWaiting())
@@ -14,7 +15,11 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(
     (async () => {
       const keys = await caches.keys()
-      await Promise.all(keys.filter((key) => key !== CACHE).map((key) => caches.delete(key)))
+      await Promise.all(
+        keys
+          .filter((key) => key.startsWith(CACHE_PREFIX) && key !== CACHE)
+          .map((key) => caches.delete(key)),
+      )
       await self.clients.claim()
 
       // Never navigate a page from inside activation. Waiting for that
@@ -32,6 +37,12 @@ self.addEventListener('fetch', (event) => {
   // Only handle GETs for our OWN origin's static assets. Everything cross-origin
   // (job APIs, Groq, the Worker) falls through to the network untouched.
   if (req.method !== 'GET' || url.origin !== self.location.origin) return
+
+  // The independently built static Knowledge Base shares the Pages origin but
+  // owns /klar/kb/. Let the browser and its normal HTTP cache handle it.
+  const appBase = new URL(self.registration.scope).pathname.replace(/\/$/, '')
+  const kbPrefix = `${appBase}/kb`
+  if (url.pathname === kbPrefix || url.pathname.startsWith(`${kbPrefix}/`)) return
 
   // Always ask the network for release metadata. Caching it would defeat the
   // app's visible "new release available" check.

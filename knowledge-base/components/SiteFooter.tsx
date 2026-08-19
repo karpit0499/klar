@@ -4,7 +4,7 @@ export function SiteFooter() {
   return (
     <footer className="site-footer">
       <div>
-        <p><strong>Klar Knowledge Base</strong> · Public documentation · Current implementation baseline v2.6.0.1</p>
+        <p><strong>Klar Knowledge Base</strong> · Public documentation · Current implementation baseline v2.6.1</p>
         <p>This site has no form for uploading application data, personal information, credentials, or secrets.</p>
       </div>
       <nav aria-label="Knowledge-base policies and reporting">

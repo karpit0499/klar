@@ -21,6 +21,7 @@ export function FlexibleWorkHome({
   onSearch,
   onEdit,
   onAddResume,
+  onSupport,
   switcher,
 }: {
   preferences: Preferences
@@ -28,6 +29,8 @@ export function FlexibleWorkHome({
   onEdit: () => void
   /** Omitted when the user already has a resume — there is nothing to add. */
   onAddResume?: () => void
+  /** Opens the shared Help & feedback workspace from every Dashboard mode. */
+  onSupport: () => void
   /** v2.4.1: the career/flexible segmented control, rendered above the panel. */
   switcher?: ReactNode
 }) {
@@ -35,6 +38,16 @@ export function FlexibleWorkHome({
   const de = locale === 'de'
   const flexible = preferences.flexibleWork
   const saved = useFlexibleSearches()
+
+  const supportCard = (
+    <Card className="mt-4 p-5 sm:p-6">
+      <h2 className="text-lg font-semibold text-ink">{t('dashboard.supportTitle')}</h2>
+      <p className="mt-1 text-sm text-muted">{t('dashboard.supportIntro')}</p>
+      <Button className="mt-4" variant="ghost" onClick={onSupport}>
+        {t('dashboard.openSupport')}
+      </Button>
+    </Card>
+  )
 
   if (!flexible) {
     return (
@@ -51,6 +64,7 @@ export function FlexibleWorkHome({
             )}
           </div>
         </Card>
+        {supportCard}
       </div>
     )
   }
@@ -76,6 +90,8 @@ export function FlexibleWorkHome({
           )}
         </div>
       </Card>
+
+      {supportCard}
 
       <Card className="mt-4 p-5 sm:p-6">
         <h2 className="text-lg font-semibold text-ink">{t('flexible.home.savedTitle')}</h2>

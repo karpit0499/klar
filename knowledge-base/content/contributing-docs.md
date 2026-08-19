@@ -6,10 +6,10 @@ order: 60
 audience: ["Documentation contributors", "Engineering", "Product", "Reviewers"]
 status: "current"
 classification: "public"
-applicable_version: "2.6.0.1"
+applicable_version: "2.6.1"
 owner: "Klar Documentation"
-last_verified: "2026-08-10"
-next_review: "2026-11-10"
+last_verified: "2026-08-11"
+next_review: "2026-11-11"
 tags: ["governance", "contribution", "workflow"]
 ---
 
@@ -38,10 +38,10 @@ order: 100
 audience: ["Named audience"]
 status: "draft"
 classification: "public"
-applicable_version: "2.6.0.1"
+applicable_version: "2.6.1"
 owner: "Accountable team or role"
-last_verified: "2026-08-10"
-next_review: "2026-11-10"
+last_verified: "2026-08-11"
+next_review: "2026-11-11"
 tags: ["topic"]
 ---
 ```
@@ -68,13 +68,18 @@ Before review, confirm:
 - English uses Resume/resume without accent marks;
 - current and target statements are visibly distinct;
 - procedures match the current interface and preserve safety warnings;
-- code or commands have been tested for the applicable version.
+- code or commands have been tested for the applicable version;
+- authored `/docs/<slug>` links and asset/download paths resolve after the `/klar/kb` export prefix is applied;
+- the lazy search index is not embedded in every page and search remains keyboard-operable; and
+- public PDFs have no blank content pages, broken internal-site URI links, stale public copies, or missing language/display-title metadata.
 
 ## Review and publication
 
 Request the reviewers defined in [Documentation governance](/docs/documentation-governance). Resolve substantive findings in the page or the product; do not weaken wording merely to hide a mismatch. Set `status: current` only when evidence and approvals are complete.
 
 The KB source is publicly readable in the Klar repository, but repository access does not grant rights to copy, modify, redistribute, translate, or independently deploy Klar. Review the current [Klar LICENSE](https://github.com/karpit0499/klar/blob/main/LICENSE) before proposing code or documentation reuse. Public documentation contributions and software-use rights are separate questions.
+
+The reviewed Next static export is published by the repository's GitHub Pages workflow under `/klar/kb/`. Do not add a separate hosting manifest, ChatGPT Sites URL, manual deployment, or second generated source of truth. The build transforms logical internal paths for the Pages base path and emits a lazy `search-index.json`.
 
 For a release change, the pull request should identify:
 

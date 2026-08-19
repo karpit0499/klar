@@ -50,7 +50,11 @@ export function useFlexibleSearch(
   preferences: FlexibleWorkPreferences,
   opts: { keywords?: string[]; auto?: boolean } = {},
 ): FlexibleSearchController {
-  const usingFixtures = !WORKER_URL
+  const usingFixtures = Boolean(
+    import.meta.env.DEV
+    && import.meta.env.VITE_ENABLE_SOURCE_FIXTURES === 'true'
+    && !WORKER_URL,
+  )
   const [snapshot, setSnapshot] = useState<SearchSessionSnapshot | null>(null)
   const [running, setRunning] = useState(false)
   const [page, setPage] = useState(0)
@@ -121,8 +125,9 @@ export function useFlexibleSearch(
         await Promise.all(
           final.sources
             .filter((s) => s.connectorId !== 'cache')
+            .filter((s) => s.status !== 'fallback' || s.fallbackReason === 'error')
             .map((s) => observe(s.connectorId, {
-              ok: s.status === 'ok' || s.status === 'fallback',
+              ok: s.status === 'ok',
               latencyMs: s.latencyMs,
             }).catch(() => undefined)),
         )

@@ -17,7 +17,7 @@ import { useLocale } from '../i18n/LocaleProvider'
 import { useScrollLock } from './useScrollLock'
 import type { TranslationKey } from '../i18n/translations'
 import { explainMatchWithAi } from '../match'
-import { isLocalMatch } from '../match/fallback'
+import { formatCurrency } from '../i18n/format'
 
 // Factor label → translation key. FACTOR_KEYS drives the set; the keys live in
 // the shared `factor.*` namespace so WeightsPanel and this drawer read the same
@@ -338,7 +338,14 @@ export function JobDrawer({
     try {
       const key = apiKey ?? await requireGroq(t('match.explainAction'))
       if (!key) return
-      onMatchUpdated(await explainMatchWithAi({ ...job, description }, profile, prefs, key))
+      onMatchUpdated(await explainMatchWithAi(
+        { ...job, description },
+        profile,
+        prefs,
+        key,
+        undefined,
+        locale,
+      ))
     } catch (caught) {
       setExplainError(caught instanceof Error ? caught.message : t('match.explainFailed'))
     } finally {
@@ -380,8 +387,10 @@ export function JobDrawer({
           {job.salary.min != null && (
             <Badge tone="neutral">
               <span className="font-display tabular-nums">
-                €{job.salary.min.toLocaleString()}
-                {job.salary.max ? `–${job.salary.max.toLocaleString()}` : '+'}
+                {formatCurrency(job.salary.min, job.salary.currency ?? 'EUR', locale)}
+                {job.salary.max
+                  ? `–${formatCurrency(job.salary.max, job.salary.currency ?? 'EUR', locale)}`
+                  : '+'}
               </span>
             </Badge>
           )}
@@ -393,9 +402,9 @@ export function JobDrawer({
             <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
               <span className="font-display text-3xl font-bold tabular-nums text-accent">{headline}</span>
               <span className="text-faint">{t('drawer.scoreOutOf')} · {match.verdict}</span>
-              {match.confidence != null && (
+              {match.aiAssessment?.confidence != null && (
                 <span className="w-full text-sm text-faint sm:ml-auto sm:w-auto">
-                  {t('drawer.confidence', { pct: Math.round(match.confidence * 100) })}
+                  {t('drawer.confidence', { pct: Math.round(match.aiAssessment.confidence * 100) })}
                 </span>
               )}
             </div>
@@ -405,18 +414,64 @@ export function JobDrawer({
                 <div className="h-1.5 rounded-full bg-accent" style={{ width: `${headline}%` }} />
               </div>
             )}
+            <p className="mt-2 text-xs font-medium text-faint">
+              {t('match.klarScore')} · {t('match.usedForOrder')}
+            </p>
             <p className="mt-2 wrap-anywhere text-base leading-relaxed text-muted">{match.rationale}</p>
             <div className="mt-3 flex flex-wrap items-center gap-2">
-              <Badge tone="outline">
-                {isLocalMatch(match) ? t('match.originLocal') : t('match.originAi')}
-              </Badge>
-              {isLocalMatch(match) && (
+              <Badge tone="outline">{t('match.originLocal')}</Badge>
+              {!match.aiAssessment && (
                 <Button size="sm" variant="ghost" onClick={() => void explainWithAi()} disabled={explainBusy}>
                   {explainBusy ? <Spinner label={t('match.explaining')} /> : t('match.explainAction')}
                 </Button>
               )}
             </div>
             {explainError && <p className="mt-2 text-sm text-danger" role="alert">{explainError}</p>}
+
+            {match.aiAssessment && (
+              <section className="mt-3 rounded-lg border border-border bg-surface p-3" aria-labelledby="ai-assessment-heading">
+                <div className="flex flex-wrap items-baseline justify-between gap-2">
+                  <div>
+                    <h3 id="ai-assessment-heading" className="font-semibold text-ink">{t('match.aiScore')}</h3>
+                    <p className="text-xs text-faint">{t('match.advisoryOnly')}</p>
+                  </div>
+                  <span className="font-display text-2xl font-bold tabular-nums text-ink">
+                    {match.aiAssessment.fitScore}/100
+                  </span>
+                </div>
+                <p className="mt-2 text-xs text-faint">
+                  {t('match.scoreDifference', {
+                    delta: `${match.aiAssessment.fitScore - match.fitScore > 0 ? '+' : ''}${match.aiAssessment.fitScore - match.fitScore}`,
+                  })}
+                  {' · '}{match.aiAssessment.modelVersion}
+                </p>
+                <p className="mt-1 break-words text-xs text-faint">
+                  {t('match.aiProvenance', {
+                    scorer: match.aiAssessment.provenance.scorerVersion,
+                    prompt: match.aiAssessment.provenance.promptVersion,
+                    schema: match.aiAssessment.provenance.responseSchemaVersion,
+                  })}
+                  <br />
+                  {t('match.aiDelivery', {
+                    host: match.aiAssessment.provenance.engineHost,
+                    cache: t(match.aiAssessment.provenance.cacheStatus === 'cached'
+                      ? 'match.cacheCached'
+                      : 'match.cacheFresh'),
+                    locale: match.aiAssessment.provenance.locale.toUpperCase(),
+                  })}
+                </p>
+                <p className="mt-2 wrap-anywhere text-base leading-relaxed text-muted">
+                  {match.aiAssessment.rationale}
+                </p>
+                {match.aiAssessment.factors && (
+                  <div className="mt-3 space-y-1.5">
+                    {FACTOR_KEYS.map((key) => (
+                      <FactorBar key={key} label={t(FACTOR_LABEL_KEY[key])} value={match.aiAssessment!.factors![key]} />
+                    ))}
+                  </div>
+                )}
+              </section>
+            )}
 
             {match.ranking ? (
               <RankingEvidencePanel match={match} locale={locale} />

@@ -26,7 +26,7 @@
 // positive evidence against it.
 // ============================================================================
 import type { FlexibleEmployment, NormalizedJob } from '../types'
-import { normalizeKey } from '../lib/hash'
+import { germanKeyVariants, normalizeKey } from '../lib/hash'
 import { classifyFlexible, isCareerTitle } from './taxonomy'
 import { publishedEmployment } from './opportunity'
 import type { FlexibleQuery } from './connectors/types'
@@ -57,13 +57,16 @@ export function payLooksCareer(job: NormalizedJob): boolean {
 
 /** Loose city comparison: "10115 Berlin", "Berlin-Mitte" and "Berlin" all match. */
 export function cityMatches(jobCity: string, wanted: string): boolean {
-  const a = normalizeKey(jobCity)
-  const b = normalizeKey(wanted)
-  if (!a || !b) return false
-  if (a === b) return true
-  // Word-aware containment in either direction, so "berlin" matches
-  // "berlin mitte" but "lauter" never matches "kaiserslautern".
-  return ` ${a} `.includes(` ${b} `) || ` ${b} `.includes(` ${a} `)
+  const actual = germanKeyVariants(jobCity)
+  const requested = germanKeyVariants(wanted)
+  if (!actual.length || !requested.length) return false
+  return actual.some((a) => requested.some((b) => (
+    a === b
+    // Word-aware containment in either direction, so "berlin" matches
+    // "berlin mitte" but "lauter" never matches "kaiserslautern".
+    || ` ${a} `.includes(` ${b} `)
+    || ` ${b} `.includes(` ${a} `)
+  )))
 }
 
 /** True when the opportunity is in (or near) one of the requested cities. */
@@ -93,7 +96,7 @@ export function hardEmploymentEvidence(job: NormalizedJob): FlexibleEmployment[]
  * field says so.
  */
 export function hasFlexibleSignal(job: NormalizedJob): boolean {
-  if (job.kind === 'open_entry') return true
+  if (job.kind === 'open_entry' || job.kind === 'official_search') return true
   if (publishedEmployment(job).length > 0) return true
   const titleOnly = classifyFlexible({ title: job.title })
   if (titleOnly.employment.length > 0) return true
@@ -112,7 +115,7 @@ export function hasFlexibleSignal(job: NormalizedJob): boolean {
 export function judgeOpportunity(job: NormalizedJob, query: FlexibleQuery): RelevanceVerdict {
   // Official routes and open-application programmes are curated destinations,
   // not scraped vacancies. They only face the location gate.
-  if (job.kind === 'open_entry') {
+  if (job.kind === 'open_entry' || job.kind === 'official_search') {
     return locationMatches(job, query) ? { keep: true } : { keep: false, reason: 'location' }
   }
   if (!locationMatches(job, query)) return { keep: false, reason: 'location' }

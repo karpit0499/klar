@@ -6,10 +6,10 @@ order: 280
 audience: ["Desktop engineering", "Security", "Release engineering", "AI engineering", "Operations"]
 status: "current"
 classification: "public"
-applicable_version: "2.6.0.1"
+applicable_version: "2.6.1"
 owner: "Klar Engineering"
-last_verified: "2026-08-10"
-next_review: "2026-11-10"
+last_verified: "2026-08-11"
+next_review: "2026-11-11"
 tags: ["electron", "desktop", "ipc", "llama-cpp", "model-trust", "signing"]
 ---
 
@@ -17,7 +17,7 @@ tags: ["electron", "desktop", "ipc", "llama-cpp", "model-trust", "signing"]
 
 ## Purpose
 
-The Electron build adds an isolated, verified local-model runtime without granting the web renderer general desktop privileges. The 2.6.0.1 desktop capability is experimental and its binaries are not publicly distributed; its security architecture is implemented and tested, but public signing, adapter evidence, and normal-workflow local-provider integration are not complete.
+The Electron build adds an isolated, verified local-model runtime without granting the web renderer general desktop privileges. The v2.6.1 desktop capability is experimental and its binaries are not publicly distributed; its security architecture is implemented and tested, but public signing, adapter evidence, and normal-workflow local-provider integration are not complete.
 
 ## Process and privilege model
 
@@ -108,7 +108,7 @@ This is a compatibility guard, not a guarantee of latency or output quality. Mod
 
 ## Diagnostics and privacy
 
-Desktop diagnostics are memory-only and capped at 200 events. Redaction removes known sensitive keys, credentials, emails, paths, and URL query/hash data and applies generic secret patterns. Diagnostics are operational aids, not a formally complete data-loss-prevention system. The issue-report flow shows a redacted preview and opens the external issue destination; it never submits automatically.
+Desktop diagnostics are memory-only and capped at 200 events. Redaction removes known sensitive keys, credentials, emails, paths, and URL query/hash data and applies generic secret patterns. Diagnostics are operational aids, not a formally complete data-loss-prevention system. Support shows a redacted preview before an explicit protected public submission; security/privacy reports remain private.
 
 ## Packaging and release state
 
@@ -123,7 +123,7 @@ Electron fuses are explicit. Packaged smoke and fuse verification test the artif
 
 ## Current product limitation
 
-The desktop runtime panel can install/verify, start/stop, generate/cancel, and inspect diagnostics through the provider-neutral foundation. Normal Resume extraction, tailoring, cover-letter, recruiter-message, and related application call sites still use the production cloud-compatible client. Klar 2.6.0.1 must not claim that ordinary application generation automatically stays on-device.
+The desktop runtime panel can install/verify, start/stop, generate/cancel, and inspect diagnostics through the provider-neutral foundation. Normal Resume extraction, tailoring, cover-letter, recruiter-message, and related application call sites still use the production cloud-compatible client. Klar v2.6.1 must not claim that ordinary application generation automatically stays on-device.
 
 ## Change checklist
 

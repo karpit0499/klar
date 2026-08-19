@@ -12,9 +12,16 @@ import {
   type IssueSeverity,
 } from '../support/issueReport'
 import { recordOperationalEvent } from '../observability/events'
+import {
+  directIssueSubmissionConfigured,
+  IssueSubmissionError,
+  submitPreparedIssue,
+  type IssueReceipt,
+} from '../support/submitIssue'
+import { TurnstileWidget } from './TurnstileWidget'
 
 export function IssueReportCard() {
-  const { locale } = useLocale()
+  const { locale, t } = useLocale()
   const de = locale === 'de'
   const [open, setOpen] = useState(false)
   const [preview, setPreview] = useState(false)
@@ -23,7 +30,14 @@ export function IssueReportCard() {
   const [screenshot, setScreenshot] = useState<{ name: string; url: string }>()
   const screenshotUrl = useRef<string>()
   const screenshotInput = useRef<HTMLInputElement>(null)
+  const reportId = useRef(crypto.randomUUID())
   const [message, setMessage] = useState('')
+  const [turnstileToken, setTurnstileToken] = useState('')
+  const [widgetKey, setWidgetKey] = useState(0)
+  const [submitting, setSubmitting] = useState(false)
+  const [receipt, setReceipt] = useState<IssueReceipt>()
+  const [website, setWebsite] = useState('')
+  const directConfigured = directIssueSubmissionConfigured()
   const errors = validateIssueReport(draft)
   const prepared = useMemo(
     () => prepareIssueReport(
@@ -39,6 +53,7 @@ export function IssueReportCard() {
       sessionStorage.removeItem('klar-source-report.v26')
       if (typeof source !== 'string' || !/^[a-z0-9_-]{1,32}$/i.test(source)) return
       clearScreenshot()
+      reportId.current = crypto.randomUUID()
       setOpen(true)
       setDraft({
         ...emptyIssueReport(),
@@ -58,10 +73,12 @@ export function IssueReportCard() {
   }, [])
 
   function update<K extends keyof IssueReportDraft>(key: K, value: IssueReportDraft[K]) {
+    reportId.current = crypto.randomUUID()
     setDraft((current) => ({ ...current, [key]: value }))
     setReviewed(false)
     setPreview(false)
     setMessage('')
+    setReceipt(undefined)
   }
 
   function revokeScreenshotUrl() {
@@ -113,6 +130,7 @@ export function IssueReportCard() {
       ? 'Der geprüfte Bericht wurde kopiert. Nichts wurde automatisch gesendet.'
       : 'The reviewed report was copied. Nothing was submitted automatically.')
     setDraft(emptyIssueReport())
+    reportId.current = crypto.randomUUID()
     clearScreenshot()
     setPreview(false)
     setReviewed(false)
@@ -150,6 +168,39 @@ export function IssueReportCard() {
             ? 'The report was also copied as a fallback.'
             : 'If no tab appears, manually copy the report that remains visible.'
         } Only you can submit it in GitHub.`)
+  }
+
+  async function submitDirect() {
+    if (draft.category === 'privacy_security' || !turnstileToken) return
+    setSubmitting(true)
+    setMessage('')
+    try {
+      const next = await submitPreparedIssue(prepared, {
+        requestId: reportId.current,
+        category: draft.category,
+        severity: draft.severity,
+        turnstileToken,
+        website,
+      })
+      setReceipt(next)
+      setMessage(de
+        ? `Issue #${next.issueNumber} wurde erstellt.`
+        : `Issue #${next.issueNumber} was created.`)
+      void recordOperationalEvent({
+        name: 'report_prepared',
+        outcome: 'ok',
+        documentKind: 'diagnostic',
+      }).catch(() => undefined)
+    } catch (caught) {
+      setMessage(directSubmissionMessage(
+        caught instanceof IssueSubmissionError ? caught.code : 'unknown',
+        t,
+      ))
+    } finally {
+      setSubmitting(false)
+      setTurnstileToken('')
+      setWidgetKey((value) => value + 1)
+    }
   }
 
   return (
@@ -339,11 +390,46 @@ export function IssueReportCard() {
               : 'I reviewed all of the text and will decide for myself whether to submit it in GitHub.'}</span>
           </label>
           <div className="mt-4 flex flex-wrap gap-3">
-            <Button disabled={!reviewed} onClick={() => void openGitHub()}>
-              {prepared.destination === 'private_advisory'
-                ? (de ? 'Private Meldung in GitHub öffnen' : 'Open private report in GitHub')
-                : (de ? 'Issue in GitHub öffnen' : 'Open issue in GitHub')}
-            </Button>
+            {prepared.destination === 'public_issue' && directConfigured && !receipt && (
+              <div className="w-full rounded-lg border border-border bg-surface p-3">
+                <label className="sr-only" aria-hidden="true">
+                  Website
+                  <input
+                    tabIndex={-1}
+                    autoComplete="off"
+                    value={website}
+                    onChange={(event) => setWebsite(event.target.value)}
+                  />
+                </label>
+                <TurnstileWidget key={widgetKey} onToken={setTurnstileToken} />
+                <Button
+                  className="mt-3"
+                  disabled={!reviewed || !turnstileToken || submitting}
+                  onClick={() => void submitDirect()}
+                >
+                  {submitting
+                    ? (de ? 'Wird übermittelt…' : 'Submitting…')
+                    : (de ? 'Direkt als öffentliches Issue senden' : 'Submit public issue directly')}
+                </Button>
+              </div>
+            )}
+            {receipt && (
+              <a
+                className="inline-flex min-h-tap items-center rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white"
+                href={receipt.issueUrl}
+                target="_blank"
+                rel="noreferrer"
+              >
+                {de ? `Issue #${receipt.issueNumber} öffnen` : `Open issue #${receipt.issueNumber}`}
+              </a>
+            )}
+            {(!receipt || prepared.destination === 'private_advisory') && (
+              <Button disabled={!reviewed} onClick={() => void openGitHub()}>
+                {prepared.destination === 'private_advisory'
+                  ? (de ? 'Private Meldung in GitHub öffnen' : 'Open private report in GitHub')
+                  : (de ? 'Issue in GitHub öffnen' : 'Open issue in GitHub')}
+              </Button>
+            )}
             <Button variant="ghost" disabled={!reviewed} onClick={() => void copy()}>
               {de ? 'Bericht kopieren' : 'Copy report'}
             </Button>
@@ -356,6 +442,30 @@ export function IssueReportCard() {
       {message && <p className="mt-4 text-sm text-muted" role="status">{message}</p>}
     </Card>
   )
+}
+
+function directSubmissionMessage(
+  code: string,
+  t: ReturnType<typeof useLocale>['t'],
+): string {
+  if (['turnstile_required', 'turnstile_failed', 'turnstile_hostname'].includes(code)) {
+    return t('feedback.error.challenge')
+  }
+  if (code === 'rate_limited' || code === 'github_rate_limited') {
+    return t('feedback.error.rate')
+  }
+  if (['report_too_large', 'invalid_title', 'invalid_report', 'github_rejected'].includes(code)) {
+    return t('feedback.error.report')
+  }
+  if ([
+    'feedback_not_configured',
+    'turnstile_unavailable',
+    'github_credentials',
+    'github_unavailable',
+    'feedback_unavailable',
+    'invalid_feedback_response',
+  ].includes(code)) return t('feedback.error.unavailable')
+  return t('feedback.error.unknown')
 }
 
 function ReportTextArea({

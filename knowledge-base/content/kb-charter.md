@@ -6,10 +6,10 @@ order: 10
 audience: ["Students and job seekers", "Schools, universities, and career services", "Developers and technical reviewers", "Privacy and security reviewers", "Klar contributors", "Product and operations teams"]
 status: "current"
 classification: "public"
-applicable_version: "2.6.0.1"
+applicable_version: "2.6.1"
 owner: "Klar Documentation"
-last_verified: "2026-08-10"
-next_review: "2026-11-10"
+last_verified: "2026-08-11"
+next_review: "2026-11-11"
 tags: ["governance", "charter", "knowledge-base"]
 ---
 
@@ -61,7 +61,15 @@ The KB contains distinct document families. They must not be blended in a way th
 
 ## Scope and boundaries
 
-The KB documents the authoritative repository state for Klar v2.6.0.1, including the browser/PWA application, Cloudflare Worker boundary, experimental Electron desktop build that is not publicly distributed, local persistence, source connectors, matching, application documents, and release controls.
+The KB documents the authoritative repository state for Klar v2.6.1, including the browser/PWA application, Cloudflare Worker boundary, experimental Electron desktop build that is not publicly distributed, local persistence, source connectors, matching, application documents, and release controls.
+
+## Publication and access
+
+The canonical public site is [https://karpit0499.github.io/klar/kb/](https://karpit0499.github.io/klar/kb/), the static GitHub Pages export at `/klar/kb/`. It is built from the same reviewed commit as the application and uploaded in one Pages artifact. The earlier ChatGPT Sites address is retired and must not appear in canonical links, metadata, handbooks, or release output. Markdown remains authoritative; the generated site and PDFs are derived artifacts.
+
+The application service worker excludes `/klar/kb/` requests and removes only Klar application caches that it owns. This prevents an installed application shell from intercepting documentation routes or deleting unrelated origin caches.
+
+The site must remain usable at 320 CSS pixels, 200% zoom, keyboard-only operation, dark mode, and reduced motion. Mobile navigation, an in-article contents disclosure, the active document section, and the search interface remain available instead of disappearing at desktop breakpoints.
 
 The KB does not replace:
 
@@ -85,6 +93,8 @@ A publishable page must be:
 - **privacy-safe:** examples are synthetic and contain no credentials or personal career data;
 - **maintainable:** one concept has one canonical page, with links instead of copied passages;
 - **accessible:** headings, link text, tables, and language remain usable without visual cues alone.
+
+PDF handbooks are offline public snapshots, not the accessibility authority. v2.6.1 removes audited blank pages and broken root-relative links and adds document language/display-title metadata. The PDFs are still untagged; accessible HTML remains the authoritative reading surface until a reliable tagged-PDF generator and assistive-technology verification are complete.
 
 ## Success measures
 

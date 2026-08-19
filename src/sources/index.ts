@@ -8,13 +8,13 @@ import type { SourceStatus } from './types'
 import { fetchBa } from './ba'
 import { fetchArbeitnow } from './arbeitnow'
 import { fetchAdzuna } from './adzuna'
-import { fetchAllAts } from './ats'
 import { dedupeJobs } from './dedup'
 import { WORKER_URL } from '../lib/config'
 import type { AdzunaKey } from '../settings/adzunaKey'
 import { AppError, serializeAppError, toAppError } from '../errors/appError'
 import { recordOperationalEvent } from '../observability/events'
 import { initialSourceStatus, persistCareerSourceHealth } from './health'
+import type { AtsMarketCode } from './ats/location'
 
 export type GatherOptions = {
   signal?: AbortSignal
@@ -65,7 +65,10 @@ export async function gatherJobs(q: SearchQuery, opts: GatherOptions = {}): Prom
           buckets.push(r.jobs)
           status.push(initialSourceStatus('ba', { ok: true, count: r.jobs.length, note: r.note }))
         })
-        .catch((e) => status.push(failedStatus('ba', e))),
+        .catch((e) => {
+          if (opts.signal?.aborted || isAbortError(e)) throw e
+          status.push(failedStatus('ba', e))
+        }),
     )
   }
   if (enable.arbeitnow) {
@@ -75,7 +78,10 @@ export async function gatherJobs(q: SearchQuery, opts: GatherOptions = {}): Prom
           buckets.push(r.jobs)
           status.push(initialSourceStatus('arbeitnow', { ok: true, count: r.jobs.length }))
         })
-        .catch((e) => status.push(failedStatus('arbeitnow', e))),
+        .catch((e) => {
+          if (opts.signal?.aborted || isAbortError(e)) throw e
+          status.push(failedStatus('arbeitnow', e))
+        }),
     )
   }
   if (enable.adzuna) {
@@ -85,21 +91,65 @@ export async function gatherJobs(q: SearchQuery, opts: GatherOptions = {}): Prom
           buckets.push(r.jobs)
           status.push(initialSourceStatus('adzuna', { ok: true, count: r.jobs.length, note: r.note }))
         })
-        .catch((e) => status.push(failedStatus('adzuna', e))),
+        .catch((e) => {
+          if (opts.signal?.aborted || isAbortError(e)) throw e
+          status.push(failedStatus('adzuna', e))
+        }),
     )
   }
   if (enable.ats) {
     runners.push(
-      fetchAllAts(opts.signal)
+      import('./ats').then(async ({ fetchAllAts }) => {
+        if (opts.signal?.aborted) throw new DOMException('Aborted', 'AbortError')
+        const market = (opts.region?.code ?? 'dach') as AtsMarketCode | 'dach'
+        const directRequest = fetchAllAts(opts.signal, undefined, market)
+        const cachedRequest = WORKER_URL
+          ? import('./ats/cache').then(({ fetchCachedAts }) => fetchCachedAts(q, {
+              signal: opts.signal,
+              market,
+            }))
+          : Promise.resolve(null)
+        const [direct, cached] = await Promise.allSettled([directRequest, cachedRequest])
+        if (opts.signal?.aborted) throw new DOMException('Aborted', 'AbortError')
+        const directValue = direct.status === 'fulfilled' ? direct.value : null
+        const cachedValue = cached.status === 'fulfilled' ? cached.value : null
+        if (!directValue && !cachedValue) {
+          throw direct.status === 'rejected' ? direct.reason : cached.status === 'rejected' ? cached.reason : new Error('ats_unavailable')
+        }
+        return {
+          jobs: [...(directValue?.jobs ?? []), ...(cachedValue?.jobs ?? [])],
+          okCompanies: (directValue?.okCompanies ?? 0) + (cachedValue?.activeCompanies ?? 0),
+          emptyCompanies: (directValue?.emptyCompanies ?? 0) + (cachedValue?.emptyCompanies ?? 0),
+          failedCompanies: (directValue?.failedCompanies ?? 0)
+            + (cachedValue?.hardFailedCompanies ?? 0)
+            + (cachedValue?.quarantinedCompanies ?? 0)
+            + (cachedValue?.transientCompanies ?? 0),
+          staleCompanies: cachedValue?.staleCompanies ?? 0,
+          cacheTruncated: cachedValue?.truncated ?? false,
+          cacheUnavailable: Boolean(WORKER_URL && !cachedValue),
+          directUnavailable: !directValue,
+        }
+      })
         .then((r) => {
           buckets.push(r.jobs)
           status.push(initialSourceStatus('ats', {
             ok: true,
             count: r.jobs.length,
-            note: `${r.okCompanies} companies${r.failedCompanies ? `, ${r.failedCompanies} skipped` : ''}`,
+            note: [
+              `${r.okCompanies} active`,
+              r.emptyCompanies ? `${r.emptyCompanies} healthy but empty` : '',
+              r.failedCompanies ? `${r.failedCompanies} failed` : '',
+              r.staleCompanies ? `${r.staleCompanies} using recent cache` : '',
+              r.cacheTruncated ? 'scheduled cache capped at 200 matching jobs' : '',
+              r.cacheUnavailable ? 'scheduled cache unavailable' : '',
+              r.directUnavailable ? 'direct ATS unavailable' : '',
+            ].filter(Boolean).join(', '),
           }))
         })
-        .catch((e) => status.push(failedStatus('ats', e))),
+        .catch((e) => {
+          if (opts.signal?.aborted || isAbortError(e)) throw e
+          status.push(failedStatus('ats', e))
+        }),
     )
   }
 
@@ -153,6 +203,10 @@ export async function gatherJobs(q: SearchQuery, opts: GatherOptions = {}): Prom
     rawCount: rawJobs.length,
     duplicatesRemoved: rawJobs.length - jobs.length,
   }
+}
+
+function isAbortError(error: unknown): boolean {
+  return error instanceof DOMException && error.name === 'AbortError'
 }
 
 function failedStatus(source: SourceStatus['source'], error: unknown): SourceStatus {

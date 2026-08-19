@@ -19,8 +19,14 @@
 // ============================================================================
 import { fabricFetch, isFabricFailure } from './fabric'
 import { proxyGroqRequest } from './groq'
+import { submitFeedback, type FeedbackEnv } from './feedback'
+import {
+  queryAtsCache,
+  refreshAtsCacheBatch,
+  workerAtsCacheStore,
+} from './atsCache'
 
-type KlarEnv = Env & {
+type KlarEnv = Env & FeedbackEnv & {
   // Set via: npx wrangler secret put ADZUNA_APP_ID   (and ADZUNA_APP_KEY)
   ADZUNA_APP_ID?: string
   ADZUNA_APP_KEY?: string
@@ -142,11 +148,21 @@ function appError(
   }
 }
 
-function json(body: unknown, status: number, origin: string): Response {
+function json(
+  body: unknown,
+  status: number,
+  origin: string,
+  extraHeaders: Record<string, string> = {},
+): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { 'content-type': 'application/json', ...corsHeaders(origin) },
+    headers: { 'content-type': 'application/json', ...corsHeaders(origin), ...extraHeaders },
   })
+}
+
+export function isFeedbackOriginAllowed(origin: string | null, allowed?: string): boolean {
+  if (!origin || !allowed || allowed.trim() === '*') return false
+  return allowed.split(',').map((value) => value.trim()).filter(Boolean).includes(origin)
 }
 
 export default {
@@ -170,6 +186,19 @@ export default {
     const segments = url.pathname.replace(/^\/+/, '').split('/')
     const route = segments[0]
 
+    if (route === 'feedback') {
+      if (!isFeedbackOriginAllowed(requestOrigin, env.ALLOWED_ORIGINS)) {
+        return json(
+          { error: 'origin not allowed' },
+          403,
+          origin,
+          { 'cache-control': 'no-store' },
+        )
+      }
+      const result = await submitFeedback(request, env)
+      return json(result.body, result.status, origin, { 'cache-control': 'no-store' })
+    }
+
     // Browser-safe Groq relay. This is handled before the GET-only source routes.
     if (route === 'groq') {
       const result = await proxyGroqRequest(request, segments.slice(1).join('/'))
@@ -190,6 +219,30 @@ export default {
 
     if (route === 'health' || url.pathname === '/') {
       return json({ ok: true, service: 'klar-proxy' }, 200, origin)
+    }
+
+    if (route === 'ats-cache') {
+      let result: Awaited<ReturnType<typeof queryAtsCache>>
+      try {
+        result = await queryAtsCache(workerAtsCacheStore(env.ATS_CACHE), url.searchParams)
+      } catch (caught) {
+        console.error(JSON.stringify({
+          event: 'ats_cache_query_failed',
+          error: caught instanceof Error ? caught.message : String(caught),
+        }))
+        return json(
+          { error: 'ats cache temporarily unavailable' },
+          503,
+          origin,
+          { 'cache-control': 'no-store', 'x-content-type-options': 'nosniff' },
+        )
+      }
+      return json(result.body, result.status, origin, {
+        'cache-control': result.status === 200
+          ? 'public, max-age=60, stale-while-revalidate=300'
+          : 'no-store',
+        'x-content-type-options': 'nosniff',
+      })
     }
 
     // v2.4 Source Fabric — allowlisted retrieval for employer-direct connectors.
@@ -309,5 +362,28 @@ export default {
         ...corsHeaders(origin),
       },
     })
+  },
+
+  async scheduled(controller: ScheduledController, env: KlarEnv): Promise<void> {
+    try {
+      const result = await refreshAtsCacheBatch(workerAtsCacheStore(env.ATS_CACHE), {
+        scheduledTime: controller.scheduledTime,
+      })
+      if (result.duplicate) controller.noRetry()
+      console.log(JSON.stringify({
+        event: 'ats_cache_refresh',
+        scheduledTime: controller.scheduledTime,
+        cron: controller.cron,
+        ...result,
+      }))
+    } catch (caught) {
+      console.error(JSON.stringify({
+        event: 'ats_cache_refresh_failed',
+        scheduledTime: controller.scheduledTime,
+        cron: controller.cron,
+        error: caught instanceof Error ? caught.message : String(caught),
+      }))
+      throw caught
+    }
   },
 } satisfies ExportedHandler<KlarEnv>

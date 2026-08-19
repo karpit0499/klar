@@ -8,7 +8,6 @@ import type { Adapter } from '../../sources/types'
 import { fetchBa } from '../../sources/ba'
 import { fetchArbeitnow } from '../../sources/arbeitnow'
 import { fetchAdzuna } from '../../sources/adzuna'
-import { fetchAllAts } from '../../sources/ats'
 import type { AdzunaKey } from '../../settings/adzunaKey'
 import { serializeAppError, toAppError } from '../../errors/appError'
 import { makeApiConnector, type ApiAdapters } from './engines/apiEngine'
@@ -34,7 +33,12 @@ export function defaultApiAdapters(options: FabricOptions = {}): Required<ApiAda
   const ba: Adapter = (q, o) => fetchBa(q, o)
   const arbeitnow: Adapter = (q, o) => fetchArbeitnow(q, o)
   const adzuna: Adapter = (q, o) => fetchAdzuna(q, { signal: o?.signal, key: options.adzunaKey, country: options.country })
-  const ats: Adapter = (_q, o) => fetchAllAts(o?.signal).then((r) => ({ jobs: r.jobs }))
+  const ats: Adapter = async (_q, o) => {
+    const { fetchAllAts } = await import('../../sources/ats')
+    if (o?.signal?.aborted) throw new DOMException('Aborted', 'AbortError')
+    const result = await fetchAllAts(o?.signal, undefined, 'de')
+    return { jobs: result.jobs }
+  }
   return { ba, arbeitnow, adzuna, ats }
 }
 
@@ -70,8 +74,11 @@ function wrapWithFallback(connector: Connector, apiRunner: ApiRunner): Connector
     async run(query, ctx) {
       try {
         const result = await connector.run(query, ctx)
-        if (result.opportunities.length === 0 && connector.config.type !== 'api') {
-          return await buildFallback(connector.config, query, ctx, apiRunner)
+        if (result.opportunities.length === 0) {
+          return {
+            ...await buildFallback(connector.config, query, ctx, apiRunner),
+            fallbackReason: 'empty',
+          }
         }
         return result
       } catch (error) {
@@ -80,6 +87,7 @@ function wrapWithFallback(connector: Connector, apiRunner: ApiRunner): Connector
         if (!fallback) throw error
         return {
           ...fallback,
+          fallbackReason: 'error',
           error: serializeAppError(
             toAppError(error, {
               category: 'source',

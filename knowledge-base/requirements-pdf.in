@@ -1,0 +1,5 @@
+# Direct PDF build and verification dependencies. Regenerate the hash-locked
+# requirements-pdf.txt with Python 3.12.13 and pip-tools; never hand-edit it.
+reportlab==4.4.9
+pypdf==6.10.0
+pdfplumber==0.11.9

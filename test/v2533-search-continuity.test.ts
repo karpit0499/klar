@@ -3,7 +3,7 @@ import { strict as assert } from 'node:assert'
 import { readFileSync } from 'node:fs'
 import { db } from '../src/db/db'
 import { invalidateEngineCache } from '../src/llm/provider'
-import { isLocalMatch } from '../src/match/fallback'
+import { hasAiAssessment } from '../src/match/fallback'
 import {
   runMatching,
   type MatchRunDiagnostics,
@@ -128,7 +128,7 @@ try {
         selected = candidates
       },
       onMatches: (snapshot) => {
-        snapshots.push(snapshot.filter(isLocalMatch).map((match) => match.jobId))
+        snapshots.push(snapshot.filter((match) => !hasAiAssessment(match)).map((match) => match.jobId))
       },
       onDiagnostics: (value) => {
         diagnostics = value
@@ -138,7 +138,7 @@ try {
 
     assert.equal(selected.length, 5)
     assert.equal(matches.length, 5)
-    assert.equal(matches.filter(isLocalMatch).length, 3)
+    assert.equal(matches.filter((match) => !hasAiAssessment(match)).length, 3)
     assert.equal(snapshots[0].length, 5, 'the first published snapshot must be complete and local')
     assert.equal(diagnosticsSnapshots[0]?.candidateCount, 5)
     assert.equal(diagnosticsSnapshots[0]?.aiFreshCount, 0)
@@ -178,7 +178,7 @@ try {
     })
 
     assert.equal(matches.length, 5)
-    assert.equal(matches.every(isLocalMatch), true)
+    assert.equal(matches.every((match) => !hasAiAssessment(match)), true)
     assert.equal(diagnostics?.localFallbackCount, 5)
     assert.equal(diagnostics?.failedBatchCount, 1)
     assert.equal(diagnostics?.failuresByCategory.rate_limit, 1)
@@ -198,7 +198,7 @@ try {
     })
 
     assert.equal(matches.length, 45)
-    assert.equal(matches.every(isLocalMatch), true)
+    assert.equal(matches.every((match) => !hasAiAssessment(match)), true)
     assert.equal(matches.every((match) => match.factors != null), true)
     assert.equal(diagnostics?.candidateCount, 45)
     assert.equal(diagnostics?.notPrioritizedCount, 5)

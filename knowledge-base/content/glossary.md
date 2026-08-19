@@ -6,10 +6,10 @@ order: 130
 audience: ["All audiences"]
 status: "current"
 classification: "public"
-applicable_version: "2.6.0.1"
+applicable_version: "2.6.1"
 owner: "Klar Product"
-last_verified: "2026-08-10"
-next_review: "2027-02-10"
+last_verified: "2026-08-11"
+next_review: "2026-11-11"
 tags: ["product", "glossary", "terminology", "resume"]
 ---
 
@@ -27,7 +27,7 @@ The Resume-based discovery mode for career-oriented job search, relevance filter
 
 **Dashboard**
 
-The local home surface for a display name, headline, location, image, about text, links, and at-a-glance career context.
+The local home surface for a display name, headline, location, image, about text, links, at-a-glance career context, and entry to Resume and Support workspaces.
 
 **Developer Preview**
 
@@ -85,6 +85,14 @@ A content-free identifier grouping records that Klar determined represent the sa
 
 An official employer application route or program that is available without a specific vacancy listing.
 
+**Official search**
+
+A verified route to an employer's own vacancy search. It is not itself a vacancy, API, direct connector result, or open-entry program.
+
+**Source state**
+
+The evidence-gated lifecycle of a source or tenant: active, healthy empty, quarantined, retired, or candidate. Only active sources run; healthy empty means the contract worked but no current regional inventory was returned.
+
 **Source confidence**
 
 A label describing whether information was published, structurally extracted, inferred, or unknown. It is not a guarantee that the posting remains live.
@@ -119,9 +127,13 @@ A stored, versioned record of requirements, evidence, eligibility facts, factors
 
 The stage that removes clear role, market, seniority, or location mismatches before ranking.
 
-**Score**
+**Klar score**
 
-A 0–100 local ranking aid used to order relevant jobs. It is not an estimate of hiring probability.
+A 0–100 deterministic local ranking aid used to order relevant jobs. It is not an estimate of hiring probability.
+
+**AI opinion**
+
+An optional provider assessment stored with its own score, factors, rationale, model, prompt/schema, evaluation time, and cache provenance. It is advisory and does not change deterministic order.
 
 ## Application content
 
@@ -158,6 +170,10 @@ A separately confirmed JSON export of sensitive career data in readable form. Cr
 **Standard backup**
 
 A routine workspace backup that never contains API credentials. If a vault is enabled, encrypted content remains ciphertext.
+
+**Support workspace**
+
+The Dashboard-linked surface for previewing and explicitly submitting an ordinary redacted bug or suggestion. Security and privacy concerns use the private vulnerability-reporting route.
 
 **Target**
 

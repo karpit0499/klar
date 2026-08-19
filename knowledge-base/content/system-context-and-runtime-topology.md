@@ -1,15 +1,15 @@
 ---
 title: "System Context and Runtime Topology"
-description: "Verified architecture boundaries, runtime components, trust zones, and end-to-end data flows for Klar 2.6.0.1."
+description: "Verified architecture boundaries, runtime components, trust zones, and end-to-end data flows for Klar 2.6.1."
 section: "Architecture"
 order: 200
 audience: ["Engineering", "Security", "Operations", "Product"]
 status: "current"
 classification: "public"
-applicable_version: "2.6.0.1"
+applicable_version: "2.6.1"
 owner: "Klar Engineering"
-last_verified: "2026-08-10"
-next_review: "2026-11-10"
+last_verified: "2026-08-11"
+next_review: "2026-11-11"
 tags: ["architecture", "runtime", "data-flow", "trust-boundary"]
 ---
 
@@ -19,9 +19,9 @@ tags: ["architecture", "runtime", "data-flow", "trust-boundary"]
 
 This page defines where Klar executes, which component owns each responsibility, and where personal or third-party data can cross a boundary. It is the starting point for design review, incident analysis, and any change that introduces storage, networking, or code execution.
 
-Klar 2.6.0.1 is a local-first React application with two delivery forms:
+Klar 2.6.1 is a local-first React application with two delivery forms:
 
-- a static web application hosted on GitHub Pages; and
+- a static web application hosted at `/klar/` with its Next-exported KB at `/klar/kb/` in one GitHub Pages artifact; and
 - an Electron developer preview that embeds the same renderer and adds a constrained local-model runtime.
 
 The application has no Klar-operated account database and no server-side career-data store. IndexedDB in the active browser or Electron profile is the system of record. A Cloudflare Worker is a bounded network relay for selected job sources and Groq; it is not an application backend.
@@ -33,7 +33,8 @@ The application has no Klar-operated account database and no server-side career-
 | Person using Klar | Supplies Resume, preferences, decisions, credentials, and export requests | Personal data and career facts | Primary data owner; explicit action is required for external AI and exports |
 | Klar renderer | Runs workflows, validation, ranking, storage, and document generation | Local application state | Trusted application code, but still inside the browser threat boundary |
 | IndexedDB and session storage | Persist workspace data and selected settings or temporary credentials | Structured rows, ciphertext, caches | Device-local; optional vault protects selected content at rest |
-| Cloudflare Worker (`klar-proxy`) | Relays allowlisted source retrieval and selected Groq routes | Search parameters, source responses, AI request/response | Separate network trust zone; must not persist user content by design |
+| Cloudflare Worker (`klar-proxy`) | Relays allowlisted sources/Groq, maintains scheduled ATS cache, and submits confirmed ordinary reports | Search parameters, source responses, AI request/response, redacted feedback payload | Separate network trust zone; must not persist workspace or prompt content by design |
+| GitHub Issues | Stores confirmed ordinary public bug/suggestion reports | Redacted report body, fixed label, report ID | Public external destination; private security reports use GitHub vulnerability reporting instead |
 | Public job sources | Return vacancy or route information | Search queries and public listing data | Untrusted external input; normalize and validate before use |
 | Configured AI provider | Performs explicitly invoked extraction, analysis, or writing | Bounded prompt projection and generated response | External processor selected by the user; output is untrusted until validated and reviewed |
 | Electron main process | Enforces desktop navigation, IPC, package trust, and runtime lifecycle | Validated IPC payloads and local inference requests | Privileged boundary; renderer receives no general Node or file access |
@@ -46,7 +47,7 @@ The application has no Klar-operated account database and no server-side career-
 
 `src/main.tsx` mounts the React application. `src/App.tsx` owns top-level onboarding, vault gating, mode selection, and workspace routing. The renderer contains the product logic under `src/`; it is not a thin client over a remote API.
 
-The production web build uses the `/klar/` base path. The desktop build uses a relative `./` base so packaged `file://` loading works. The service worker is registered only for production web builds and is not registered in Electron.
+The production web build uses the `/klar/` base path. The KB uses the `/klar/kb/` Next static-export base path. The desktop build uses a relative `./` base so packaged `file://` loading works. The service worker is registered only for production web builds, excludes `/klar/kb/`, deletes only Klar-owned caches, and is not registered in Electron.
 
 ### Local persistence
 
@@ -54,7 +55,7 @@ Dexie wraps a database named `klar`. Schema version 7 contains 17 stores. The ca
 
 ### Cloudflare Worker
 
-The Worker has four capabilities: health, Federal Employment Agency (BA) relay, Adzuna relay, Source Fabric retrieval, and the two supported Groq paths. It rebuilds upstream requests from fixed routes and allowlists rather than accepting arbitrary upstream URLs. See [Worker API and Network Security](/docs/worker-api-and-network-security).
+The Worker provides health, Federal Employment Agency (BA), Adzuna, verified Source Fabric, scheduled ATS cache, protected public feedback, and the two supported Groq paths. It rebuilds upstream requests from fixed routes and allowlists rather than accepting arbitrary upstream URLs. See [Worker API and Network Security](/docs/worker-api-and-network-security).
 
 ### Electron boundary
 
@@ -74,9 +75,9 @@ The renderer is sandboxed with Node integration disabled. A frozen preload bridg
 ### 2. Career discovery and ranking
 
 1. Klar derives a thin matching profile from the canonical Resume at runtime.
-2. Source adapters retrieve jobs directly or through the Worker.
+2. Source adapters retrieve jobs directly or through the Worker; ATS jobs come from bounded pages of the scheduled verified-tenant cache rather than browser fan-out.
 3. Klar validates, normalizes, deduplicates, filters, and ranks results locally.
-4. Deterministic results are publishable without AI. Provider analysis is optional attention or explanation work and cannot replace deterministic eligibility, confidence, or rank.
+4. Deterministic results are publishable without AI. A validated provider assessment is nested and shown as a separate AI opinion; it cannot replace deterministic eligibility, confidence, score, or rank.
 5. Results and diagnostics are cached locally. See [Career Discovery and Ranking](/docs/career-discovery-and-ranking).
 
 ### 3. Flexible Work discovery
@@ -85,7 +86,8 @@ The renderer is sandboxed with Node integration disabled. A frozen preload bridg
 2. A bounded session reads valid cache, runs enabled connectors, accepts independent batches, and terminates at its hard deadline.
 3. Every accepted opportunity carries source and field-level provenance.
 4. Duplicates merge in place and official direct application destinations take precedence.
-5. Search, cache, and connector-health state remain local. See [Flexible Work and Source Fabric](/docs/flexible-work-and-source-fabric).
+5. Candidate direct connectors do not run. Verified official-search routes remain route cards rather than fabricated vacancies or API results.
+6. Search, cache, and connector-health state remain local. See [Flexible Work and Source Fabric](/docs/flexible-work-and-source-fabric).
 
 ### 4. Application preparation
 
@@ -101,12 +103,20 @@ The renderer is sandboxed with Node integration disabled. A frozen preload bridg
 2. The selected mode either excludes credentials, preserves existing vault ciphertext, encrypts sensitive data with a backup password, or—after an exact warning confirmation—exports readable sensitive data.
 3. Import validates format and digest, authenticates encrypted material, migrates supported historical schemas, and atomically replaces the database.
 
+### 6. Ordinary public feedback
+
+1. The person prepares synthetic details on Support and reviews the exact client-redacted preview.
+2. After confirmation, the renderer sends the bounded payload, Turnstile token, honeypot, and report ID to the Worker.
+3. The Worker revalidates and redacts, enforces abuse controls, and creates one issue in the fixed public repository.
+4. GitHub stores the public issue; Klar displays its URL/number and does not persist a separate support case.
+5. Security, privacy, exposed-secret, and personal-data reports bypass this flow and use private vulnerability reporting.
+
 ## Trust boundaries and invariants
 
 | Boundary | Invariant |
 | --- | --- |
 | Renderer to IndexedDB | All persisted product state has an explicit store and migration path; sensitive plaintext stores are empty while the vault is enabled |
-| Renderer to Worker | Only configured Worker routes are used; source data and AI responses remain untrusted input |
+| Renderer to Worker | Only configured Worker routes are used; source data, AI responses, and feedback remain untrusted input; server checks repeat client validation |
 | Worker to source | The upstream host/path is fixed or allowlisted and redirects are revalidated |
 | Renderer to AI | Invocation is explicit, prompt input is minimized, response schemas are validated, and generated claims require evidence and human review |
 | Renderer to Electron main | Only the narrow preload contract is available; sender, frame, origin, types, sizes, and lifecycle are checked again in main |
@@ -119,7 +129,7 @@ The renderer is sandboxed with Node integration disabled. A frozen preload bridg
 - The static app does not continue searches while closed. A search exists only while its active browser or desktop session runs.
 - A Worker failure reduces external source and Groq connectivity; it does not delete local state or prevent deterministic local workspace use.
 - A third-party connector failure must be isolated from other connectors and produce an honest partial or limited state.
-- Desktop local inference can remain usable without an internet connection only after a trusted runtime and compatible model package are installed; normal product generation is not yet routed to that provider in 2.6.0.1.
+- Desktop local inference can remain usable without an internet connection only after a trusted runtime and compatible model package are installed; normal product generation is not yet routed to that provider in 2.6.1.
 
 ## Review triggers
 

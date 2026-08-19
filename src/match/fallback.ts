@@ -1,6 +1,15 @@
-import type { MatchResult, NormalizedJob, Preferences, Profile, RankingSnapshot } from '../types'
+import type {
+  AiAssessmentProvenance,
+  AiMatchAssessment,
+  MatchResult,
+  NormalizedJob,
+  Preferences,
+  Profile,
+  RankingSnapshot,
+} from '../types'
 import { coverageReport } from '../resume/keywords'
 import { evaluateJobV2 } from './rankingV2'
+import { AI_MATCH_PROMPT_VERSION } from './rerank'
 
 // Keep the established outer identifier for persisted tracker/cache consumers.
 // The independently versioned `ranking` snapshot identifies ranking-v2.
@@ -62,25 +71,71 @@ export function isLocalMatch(match: MatchResult): boolean {
   return match.modelVersion.startsWith('local-')
 }
 
+export function hasAiAssessment(match: MatchResult): boolean {
+  return Boolean(match.aiAssessment)
+}
+
 /**
- * Provider output may improve the prose explanation, but it must never replace
- * the reproducible v2.6 rank, eligibility decision, or posting-confidence
- * record. This keeps optional AI enrichment downstream of deterministic fit.
+ * Preserve the provider's genuinely independent result under `aiAssessment`.
+ * The outer row remains the reproducible score Klar uses for ordering. Keeping
+ * the two values separate prevents the v2.6 bug where the UI labelled a local
+ * score as AI after the provider's numeric result had been overwritten.
  */
 export function mergeAiExplanationWithLocal(
   local: MatchResult,
   ai: MatchResult,
 ): MatchResult {
   return {
+    ...local,
+    // Be idempotent at UI/cache boundaries. Some callers receive a result that
+    // is already separated; treating its outer deterministic row as a fresh AI
+    // row would recreate the v2.6 identical-score defect.
+    aiAssessment: ai.aiAssessment
+      ? cloneAiAssessment(ai.aiAssessment)
+      : toAiAssessment(ai),
+  }
+}
+
+function cloneAiAssessment(ai: AiMatchAssessment): AiMatchAssessment {
+  return {
     ...ai,
-    fitScore: local.fitScore,
-    verdict: local.verdict,
-    salaryFit: local.salaryFit,
-    locationFit: local.locationFit,
-    seniorityFit: local.seniorityFit,
-    redFlags: [...new Set([...local.redFlags, ...ai.redFlags])],
-    factors: local.factors,
-    ranking: local.ranking,
+    matchedSkills: [...ai.matchedSkills],
+    missingSkills: [...ai.missingSkills],
+    redFlags: [...ai.redFlags],
+    factors: ai.factors ? { ...ai.factors } : undefined,
+    provenance: { ...ai.provenance },
+  }
+}
+
+function toAiAssessment(ai: MatchResult): AiMatchAssessment {
+  return {
+    schemaVersion: 1,
+    promptVersion: AI_MATCH_PROMPT_VERSION,
+    fitScore: ai.fitScore,
+    verdict: ai.verdict,
+    rationale: ai.rationale,
+    matchedSkills: [...ai.matchedSkills],
+    missingSkills: [...ai.missingSkills],
+    salaryFit: ai.salaryFit,
+    locationFit: ai.locationFit,
+    seniorityFit: ai.seniorityFit,
+    redFlags: [...ai.redFlags],
+    factors: ai.factors ? { ...ai.factors } : undefined,
+    confidence: ai.confidence,
+    scoredAt: ai.scoredAt,
+    modelVersion: ai.modelVersion,
+    provenance: ai.aiProvenance ?? defaultAiProvenance(),
+  }
+}
+
+function defaultAiProvenance(): AiAssessmentProvenance {
+  return {
+    scorerVersion: 'unknown',
+    promptVersion: AI_MATCH_PROMPT_VERSION,
+    responseSchemaVersion: 'unknown',
+    engineHost: 'unknown',
+    cacheStatus: 'fresh',
+    locale: 'en',
   }
 }
 

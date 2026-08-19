@@ -6,10 +6,10 @@ order: 220
 audience: ["Engineering", "Security", "Operations", "Privacy reviewers"]
 status: "current"
 classification: "public"
-applicable_version: "2.6.0.1"
+applicable_version: "2.6.1"
 owner: "Klar Engineering"
-last_verified: "2026-08-10"
-next_review: "2026-11-10"
+last_verified: "2026-08-11"
+next_review: "2026-11-11"
 tags: ["data", "indexeddb", "vault", "encryption", "backup", "migration"]
 ---
 
@@ -38,7 +38,7 @@ The database name is `klar`; the current Dexie schema version is 7.
 | `profiles` | `id` | Historical thin-profile compatibility store | Cleared by v5 migration; current Profile is derived |
 | `preferences` | `id` | Career and Flexible Work preferences | Moved into vault content while enabled |
 | `jobs` | `queryKey` | Career result cache | Moved into vault content while enabled |
-| `matches` | `cacheKey` | Career match results | Moved into vault content while enabled |
+| `matches` | `cacheKey` | Career match results, including an optional nested AI assessment with its own provenance | Moved into vault content while enabled |
 | `tracked` | `jobId` | Application tracker rows | Moved into vault content while enabled |
 | `dashboard` | `id` | Personal dashboard row | Moved into vault content while enabled |
 | `vectors` | `jobId` | Local embedding cache | Moved into vault content while enabled |
@@ -73,6 +73,12 @@ Migration code must be idempotent within Dexie's upgrade semantics, preserve uns
 The current Resume row uses ID `current`; the onboarding draft uses `onboarding`. Resume history retains at most 10 snapshots and removes snapshots older than 90 days. Snapshot reasons include edit, reupload, migration, manual save, and restart/recovery. This is an edit-recovery mechanism, not indefinite records management.
 
 Saved-search seen identities are capped at 5,000 and expire after 180 days. Packet versions are bounded to five per packet and export history to 20 entries. Operational events are bounded to 100 browser events and desktop diagnostics to 200 in-memory events.
+
+## Match-result compatibility
+
+The outer match row remains the deterministic authority so v2.6.0 caches and Tracker snapshots can still be read. A v2.6.1 AI result is nested under `aiAssessment`; it is never inferred from an old model label or rationale. Historical rows without that object show only the Klar score. Cache identity includes provider, endpoint, model choice, prompt/schema, scorer, locale, and inputs so results from incompatible contracts do not collide.
+
+Support submissions are not stored as a new Klar database record. The form holds its draft in component memory, sends the confirmed redacted payload to the Worker, and displays the returned public issue URL/report ID. GitHub then owns the submitted public issue under its retention and deletion rules.
 
 ## Vault cryptography
 

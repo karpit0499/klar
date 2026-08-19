@@ -5,11 +5,10 @@
 // action, frozen pagination, a source-status expander, and a terminal complete /
 // partial / limited state — never "No jobs found" while sources are unfinished.
 // ============================================================================
-import { useEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { Button, Card, Badge, TextInput } from './atoms'
 import { OpportunityCard } from './OpportunityCard'
-import { FlexiblePrepare } from './FlexiblePrepare'
 import { useLocale } from '../i18n/LocaleProvider'
 import type { FlexibleWorkPreferences, NormalizedJob } from '../types'
 import { openPacket, updatePacket } from '../packets/store'
@@ -19,6 +18,16 @@ import type { SearchSessionSnapshot, SourceStatus } from '../flexible/searchSess
 import { loadAllHealth } from '../flexible/resilience'
 import { FLEXIBLE_REGISTRY_DE } from '../flexible/connectors/registry.de'
 import type { ConnectorConfig, ConnectorType } from '../flexible/connectors/types'
+
+const LazyOfficialRouteDirectory = lazy(async () => {
+  const module = await import('./OfficialRouteDirectory')
+  return { default: module.OfficialRouteDirectory }
+})
+
+const LazyFlexiblePrepare = lazy(async () => {
+  const module = await import('./FlexiblePrepare')
+  return { default: module.FlexiblePrepare }
+})
 
 export function FlexibleSearch({
   active,
@@ -179,21 +188,54 @@ export function FlexibleSearch({
         )
       )}
 
+      <OfficialRouteDirectoryLoader
+        preferredCities={preferences.locations.map((location) => location.city)}
+      />
+
       {active && preparing && onSavePreferences && (
-        <FlexiblePrepare
-          job={preparing}
-          preferences={preferences}
-          initialMessage={preparedMessage}
-          onSavePreferences={onSavePreferences}
-          onSaveDraft={(draft) =>
-            void updatePacket(`flexible:${preparing.id}`, (packet) => {
-              packet.flexible = { ...packet.flexible, message: draft.message, availability: draft.availability }
-            })
-          }
-          onClose={() => setPreparing(null)}
-        />
+        <Suspense fallback={null}>
+          <LazyFlexiblePrepare
+            job={preparing}
+            preferences={preferences}
+            initialMessage={preparedMessage}
+            onSavePreferences={onSavePreferences}
+            onSaveDraft={(draft) =>
+              void updatePacket(`flexible:${preparing.id}`, (packet) => {
+                packet.flexible = { ...packet.flexible, message: draft.message, availability: draft.availability }
+              })
+            }
+            onClose={() => setPreparing(null)}
+          />
+        </Suspense>
       )}
     </div>
+  )
+}
+
+function OfficialRouteDirectoryLoader({ preferredCities }: { preferredCities: string[] }) {
+  const { locale } = useLocale()
+  const de = locale === 'de'
+  const [open, setOpen] = useState(false)
+  return (
+    <details
+      className="mt-5 rounded-xl border border-border bg-surface"
+      onToggle={(event) => setOpen(event.currentTarget.open)}
+    >
+      <summary className="min-h-tap cursor-pointer list-none px-4 py-3 font-medium text-ink sm:px-5">
+        {de ? '100 verifizierte Arbeitgeberseiten durchsuchen' : 'Browse 100 verified employer sites'}
+      </summary>
+      {open && (
+        <Suspense
+          fallback={(
+            <p className="border-t border-border px-4 py-4 text-sm text-muted sm:px-5" role="status">
+              {de ? 'Verzeichnis wird geladen …' : 'Loading directory…'}
+            </p>
+          )}
+        >
+          <LazyOfficialRouteDirectory preferredCities={preferredCities} />
+        </Suspense>
+      )}
+    </details>
   )
 }
 

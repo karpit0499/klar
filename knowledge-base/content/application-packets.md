@@ -6,10 +6,10 @@ order: 240
 audience: ["Klar users", "Product support"]
 status: "current"
 classification: "public"
-applicable_version: "2.6.0.1"
+applicable_version: "2.6.1"
 owner: "Klar Product Support"
-last_verified: "2026-08-10"
-next_review: "2026-11-10"
+last_verified: "2026-08-11"
+next_review: "2026-11-11"
 tags: ["user-guide", "application-packet", "resume", "cover-letter", "provenance"]
 ---
 
@@ -108,4 +108,4 @@ Before submitting, open the original posting and personally verify facts, names,
 
 ## Current exclusions
 
-The reachable v2.6.0.1 packet does not expose a complete interview-preparation workflow. Do not treat unexposed interview-support code as a current user capability.
+The reachable v2.6.1 packet does not expose a complete interview-preparation workflow. Do not treat unexposed interview-support code as a current user capability.

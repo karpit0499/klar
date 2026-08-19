@@ -4,10 +4,10 @@ Klar is a private, browser-based workspace for finding work, understanding job
 fit, preparing grounded applications, and tracking every opportunity from first
 look to final decision.
 
-**Current release: v2.6.0.1 Developer Preview**
+**Current release: v2.6.1 Developer Preview**
 
 [**Open Klar →**](https://karpit0499.github.io/klar/) ·
-[Knowledge Base →](https://klar-knowledge-base.kmrarpit2704.chatgpt.site/) ·
+[Knowledge Base →](https://karpit0499.github.io/klar/kb/) ·
 [Browse KB source →](knowledge-base/content/) ·
 [What changed →](CHANGELOG.md) ·
 [Report an issue →](https://github.com/karpit0499/klar/issues)
@@ -20,7 +20,15 @@ _Highlights from Latest Update_
 
 ---
 
-v2.6 is a measurement-first foundation release. It adds a versioned,
+v2.6.1 is the stability, source-integrity, and experience release. It preserves
+Klar's deterministic score separately from the AI provider's advisory opinion;
+moves Resume into a dedicated workspace; expands German localization and
+cancellable-search safeguards; adds protected in-app bug/suggestion reporting;
+and serves the repaired Knowledge Base with Klar on GitHub Pages. It retires
+141 dead speculative ATS endpoints, stages 100 verified boards behind a
+scheduled Worker cache, and adds 100 honest official flexible-work routes.
+
+v2.6 is the measurement-first foundation. It adds a versioned,
 evidence-linked ranking snapshot; source-health and privacy-reviewed issue
 reporting; semantic English/German cover-letter DOCX and recruiter-message
 checks; an internal code-generated resume design lab; and a hardened macOS
@@ -356,6 +364,12 @@ browser origins must include the production GitHub Pages origin.
 
 ## Release history
 
+- **v2.6.1 — Stability, sources, and KB release:** separated deterministic and
+  AI scores, moved Resume and Help into dedicated workspaces, expanded German
+  support and cancellation/error recovery, added a protected feedback route,
+  enforced verified-only source execution, introduced the scheduled 100-board
+  ATS cache and 100-route Flexible directory, and migrated the audited KB to
+  the repository's GitHub Pages site.
 - **v2.6.0.1 — Resume format and BA continuity hotfix:** promoted the approved
   cross-compatible resume structure to production DOCX and PDF, versioned both
   exporter contracts, migrated BA search to the working v6 list schema while

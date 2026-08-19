@@ -1,15 +1,15 @@
 ---
 title: "Klar Overview"
-description: "Purpose, capability map, supported markets, privacy boundary, and maturity of Klar v2.6.0.1."
+description: "Purpose, capability map, supported markets, privacy boundary, and maturity of Klar v2.6.1."
 section: "Product"
 order: 100
 audience: ["All Klar stakeholders", "Users", "Product", "Engineering"]
 status: "current"
 classification: "public"
-applicable_version: "2.6.0.1"
+applicable_version: "2.6.1"
 owner: "Klar Product"
-last_verified: "2026-08-10"
-next_review: "2026-11-10"
+last_verified: "2026-08-11"
+next_review: "2026-11-11"
 tags: ["product", "overview", "developer-preview"]
 ---
 
@@ -19,7 +19,7 @@ tags: ["product", "overview", "developer-preview"]
 
 Klar is a privacy-first workspace for finding work, assessing fit, preparing evidence-grounded application material, and tracking opportunities from discovery to decision. Its purpose is to make a fragmented job-search process clearer while keeping the person in control of their data and every external action.
 
-The current release is **Klar v2.6.0.1 Developer Preview**. It is a functioning browser/PWA product with an experimental unsigned desktop build that is not publicly distributed; “Developer Preview” is a maturity boundary, not a marketing label.
+The current release is **Klar v2.6.1 Developer Preview**. It is a functioning browser/PWA product with an experimental unsigned desktop build that is not publicly distributed; “Developer Preview” is a maturity boundary, not a marketing label.
 
 ## Capability map
 
@@ -28,15 +28,15 @@ The current release is **Klar v2.6.0.1 Developer Preview**. It is a functioning 
 | Career Roles | Find and rank jobs against a canonical Resume and career preferences | Requires a reviewed Resume and preferences |
 | Flexible Work | Find minijobs, part-time, working-student, temporary, seasonal, weekend, evening, or night work | Does not require or use a Resume for discovery |
 | Resume workspace | Maintain one structured evidence source for matching and documents | Extraction needs review; the original imported file is not retained |
-| Matching and diagnostics | Filter irrelevant jobs, rank relevant jobs, and explain how the result set was formed | A score is a ranking aid, not a hiring probability |
+| Matching and diagnostics | Filter irrelevant jobs, rank relevant jobs, and show deterministic evidence beside an optional AI opinion | The Klar score controls order; neither score is a hiring probability |
 | Application Packet | Prepare per-job, per-language Resume, cover letter, recruiter message, notes, and exports | Generated writing requires human review |
 | Tracker | Manage Career Roles opportunities, status, notes, contacts, reminders, follow-up nudges, and historical scores | Flexible Work result cards do not currently offer a save-to-Tracker action; Klar does not contact an employer or change a status automatically |
 | Backup and vault | Move, recover, and optionally encrypt the browser-local workspace | A lost vault passphrase cannot be recovered by Klar |
-| Source and issue reporting | Expose source health and prepare privacy-reviewed GitHub reports | The user reviews and submits; Klar never submits automatically |
+| Support | Preview and explicitly submit an ordinary redacted bug or suggestion to the public GitHub repository | Protected Worker submission; security/privacy reports remain private; no uploads |
 
 ## Product surfaces
 
-The main workspace has Dashboard, Search, Tracker, and Settings navigation. When a canonical Resume exists, a mode switch makes Career Roles and Flexible Work available without creating separate accounts or workspaces. Without a Resume, Flexible Work remains the active discovery mode and Career Roles can be added later.
+The main workspace has Dashboard, Search, Tracker, and Settings primary navigation. Dashboard links to the focused Resume and Support workspaces without crowding the four-item mobile navigation. When a canonical Resume exists, a mode switch makes Career Roles and Flexible Work available without creating separate accounts or workspaces. Without a Resume, Flexible Work remains the active discovery mode and Career Roles can be added later.
 
 See [Product modes](/docs/product-modes) and [User journeys](/docs/user-journeys).
 
@@ -50,7 +50,7 @@ Read [Settings and data](/docs/settings-and-data) and [Backups and recovery](/do
 
 ## Languages, markets, and devices
 
-The interface supports English and German and is designed for current desktop and mobile browsers. Career search has region configurations for Germany, Austria, Switzerland, the Netherlands, Luxembourg, and Liechtenstein. Flexible Work employer coverage is focused on Germany.
+The interface supports English and German, including localized scoring/source/error states, locale-aware dates/numbers/currencies, and German search normalization for umlauts, digraphs, and ß. Career search has region configurations for Germany, Austria, Switzerland, the Netherlands, Luxembourg, and Liechtenstein. Flexible Work employer coverage is focused on Germany.
 
 Klar can be installed from a supporting browser as a PWA. The macOS ARM64 and Windows x64 desktop packages in v2.6 are unsigned experimental builds that are not publicly distributed; operating-system trust warnings are expected and public desktop distribution is not claimed.
 

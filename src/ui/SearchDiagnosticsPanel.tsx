@@ -15,8 +15,20 @@ export function SearchDiagnosticsPanel({
 }) {
   const { locale, t } = useLocale()
   const de = locale === 'de'
+  const number = new Intl.NumberFormat(locale === 'de' ? 'de-DE' : 'en-GB', {
+    maximumFractionDigits: 1,
+  })
   return (
-    <details className="mt-4 rounded-lg border border-border bg-surface-2 p-3 text-sm">
+    <>
+      {diagnostics.aiSuspiciousEquality && (
+        <div role="alert" className="mt-4 rounded-lg border border-danger/40 bg-danger/5 p-4 text-sm leading-relaxed text-ink">
+          {t('search.aiEqualityWarning', {
+            exact: number.format(diagnostics.aiExactAgreementCount),
+            count: number.format(diagnostics.aiComparedCount),
+          })}
+        </div>
+      )}
+      <details className="mt-4 rounded-lg border border-border bg-surface-2 p-3 text-sm">
       <summary className="min-h-tap cursor-pointer font-semibold leading-[44px] text-ink">
         {t('search.diagnosticsSummary', { count: diagnostics.finalCount })}
       </summary>
@@ -37,6 +49,16 @@ export function SearchDiagnosticsPanel({
         <Diagnostic label={t('search.candidatesSelected')} value={diagnostics.candidateCount} />
         <Diagnostic label={t('search.notPrioritized')} value={diagnostics.notPrioritizedCount} />
         <Diagnostic label={t('search.aiCompleted')} value={diagnostics.aiCompletedCount} />
+        <Diagnostic
+          label={t('search.aiExactAgreement')}
+          value={`${number.format(diagnostics.aiExactAgreementCount)} / ${number.format(diagnostics.aiComparedCount)}`}
+        />
+        <Diagnostic
+          label={t('search.aiMeanAbsoluteDelta')}
+          value={diagnostics.aiMeanAbsoluteDelta == null
+            ? '—'
+            : number.format(diagnostics.aiMeanAbsoluteDelta)}
+        />
         <Diagnostic label={t('search.localFallback')} value={diagnostics.localFallbackCount} />
         <Diagnostic label={t('search.aiBatchFailures')} value={diagnostics.aiBatchFailureCount} />
         <Diagnostic
@@ -118,7 +140,8 @@ export function SearchDiagnosticsPanel({
           })}
         </p>
       )}
-    </details>
+      </details>
+    </>
   )
 }
 

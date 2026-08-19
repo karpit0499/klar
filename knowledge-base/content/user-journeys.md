@@ -6,10 +6,10 @@ order: 150
 audience: ["Product", "Design", "Support", "Engineering", "Users"]
 status: "current"
 classification: "public"
-applicable_version: "2.6.0.1"
+applicable_version: "2.6.1"
 owner: "Klar Product"
-last_verified: "2026-08-10"
-next_review: "2026-11-10"
+last_verified: "2026-08-11"
+next_review: "2026-11-11"
 tags: ["product", "journeys", "onboarding", "recovery"]
 ---
 
@@ -48,7 +48,7 @@ Detailed procedures: [Resume and profile](/docs/resume-and-profile) and [Career 
 3. Klar gathers configured sources, removes duplicates, applies local filters, rejects clear role/market/seniority mismatches, enriches eligible BA records, and ranks the remaining jobs locally.
 4. Inspect source badges and Search diagnostics, especially when results are partial or empty.
 5. Open a job to view the posting, versioned ranking evidence, missing must-haves, uncertain facts, and original source.
-6. Optionally request an AI explanation for that one job.
+6. Optionally request an AI assessment for that one job. Klar shows the deterministic **Klar score** and advisory **AI opinion** separately, including their difference; the AI value does not change deterministic order.
 7. Save the job to the Tracker or open its Application Packet.
 
 **Decision rule:** the score orders relevant jobs; it does not predict hiring.
@@ -126,11 +126,11 @@ Detailed procedure: [Backups and recovery](/docs/backups-and-recovery).
 
 **Goal:** prepare a useful report without publishing career data or secrets.
 
-1. Open Settings and prepare a bug, incorrect-result, source, accessibility, privacy/security, or feature report.
+1. Open **Support** from the Dashboard and choose a bug, incorrect-result, source, accessibility, or suggestion report.
 2. Use synthetic or redacted examples; never paste a Resume or application document.
 3. Optionally include the reduced diagnostic summary.
 4. Review the exact privacy preview and automatic redactions.
-5. Open a public GitHub issue for ordinary reports or private vulnerability reporting for privacy/security concerns.
-6. Decide whether to submit. Klar does not submit automatically, and screenshots require a separate manual attachment and second review.
+5. Confirm the preview, complete the Turnstile check when requested, and submit the ordinary report through Klar's Worker to the public GitHub repository. A successful response includes a GitHub issue link and report ID.
+6. For privacy, security, exposed-secret, abuse, or personal-data concerns, do not use public submission. Klar routes to GitHub private vulnerability reporting instead. Screenshots and file uploads are not accepted by the in-app form.
 
 Use [Troubleshooting](/docs/troubleshooting) before reporting a recoverable local issue.

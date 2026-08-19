@@ -2,6 +2,7 @@
 
 # dependencies
 /node_modules
+/.venv/
 /.pnp
 .pnp.*
 .yarn/*
@@ -17,6 +18,9 @@
 /.next/
 /.vinext/
 /out/
+/public/search-index.json
+/output/pdf/klar-kb-*.pdf
+/public/downloads/klar-kb-*.pdf
 
 # misc
 .DS_Store

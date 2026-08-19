@@ -12,6 +12,10 @@ import { loadEngineSettings } from '../llm/provider'
 import { RERANK_OUTPUT } from '../llm/jsonSchemas'
 import { AppError, type ErrorCategory } from '../errors/appError'
 
+export const AI_MATCH_SCORER_VERSION = 'ai-match-scorer-v2.6.1'
+export const AI_MATCH_PROMPT_VERSION = 'ai-match-prompt-v2.6.1'
+export const AI_MATCH_SCHEMA_VERSION = 'ai-match-schema-v1'
+
 const SYSTEM = `You are a precise technical recruiter. You compare a candidate profile to job postings and score fit HONESTLY. You never inflate scores. You must reply with a single JSON object and nothing else.`
 
 const LEGACY_FAILED_RATIONALE = 'Scoring failed for this batch.'
@@ -60,6 +64,7 @@ export function buildRerankPrompt(
   profile: Profile,
   prefs: Preferences,
   batch: NormalizedJob[],
+  locale: 'en' | 'de' = 'en',
 ): string {
   const profileBlock = {
     summary: profile.summary,
@@ -106,6 +111,9 @@ export function buildRerankPrompt(
     'must not compensate for an unrelated role or industry (for example, data skills in a marketing resume).',
     'salary = fit vs the candidate\'s salary preference (use 50 when unknown),',
     'location = fit vs the candidate\'s locations/remote preference, seniority = level fit.',
+    locale === 'de'
+      ? 'Write rationale and redFlags in clear German. Preserve company, product, and skill names.'
+      : 'Write rationale and redFlags in clear English. Preserve company, product, and skill names.',
     'Reply ONLY as: {"results":[ ... ]} with one entry per job, same order.',
   ].join('\n')
 }
@@ -148,9 +156,9 @@ export function parseRerank(
       locationFit: locationFit(row.locationFit),
       seniorityFit: seniorityFit(row.seniorityFit),
       redFlags: stringList(row.redFlags),
-      // Per-factor breakdown for the explainable score. If the model omitted it,
-      // fall back to the holistic fitScore so the composite is always defined.
-      factors: coerceFactors(row.factors, fitScore),
+      // Missing provider factors stay missing. Inventing four copies of the
+      // holistic score would create false evidence in the comparison UI.
+      factors: coerceFactors(row.factors),
       confidence: clampUnit(row.confidence),
       scoredAt,
       modelVersion: model,
@@ -168,15 +176,21 @@ export function parseRerank(
   })
 }
 
-/** Coerce a factors object to four 0–100 numbers, defaulting each to `fallback`. */
-function coerceFactors(raw: unknown, fallback: number): MatchResult['factors'] {
+/** Accept a complete factor object; reject incomplete or malformed evidence. */
+function coerceFactors(raw: unknown): MatchResult['factors'] {
   const f = record(raw)
-  const one = (v: unknown) => (v == null ? fallback : clampScore(v))
+  const skills = finiteNumber(f.skills)
+  const salary = finiteNumber(f.salary)
+  const location = finiteNumber(f.location)
+  const seniority = finiteNumber(f.seniority)
+  if (skills == null || salary == null || location == null || seniority == null) {
+    return undefined
+  }
   return {
-    skills: one(f.skills),
-    salary: one(f.salary),
-    location: one(f.location),
-    seniority: one(f.seniority),
+    skills: clampScore(skills),
+    salary: clampScore(salary),
+    location: clampScore(location),
+    seniority: clampScore(seniority),
   }
 }
 
@@ -191,7 +205,7 @@ function clampUnit(n: unknown): number | undefined {
 function clampScore(n: unknown): number {
   const v = typeof n === 'number' ? n : Number(n)
   if (!isFinite(v)) return 0
-  return Math.max(0, Math.min(100, Math.round(v)))
+  return Math.max(0, Math.min(100, v))
 }
 
 function record(value: unknown): Record<string, unknown> {
@@ -266,6 +280,7 @@ export async function rerankBatch(
   batch: NormalizedJob[],
   apiKey: string,
   signal?: AbortSignal,
+  locale: 'en' | 'de' = 'en',
 ): Promise<MatchResult[]> {
   // v2.5 (B2 cost control): matching is the highest-volume LLM path in Klar —
   // only the top MATCH.candidateLimit locally ranked jobs enter this path, for
@@ -276,7 +291,7 @@ export async function rerankBatch(
   const text = await chatComplete({
     apiKey,
     system: SYSTEM,
-    user: buildRerankPrompt(profile, prefs, batch),
+    user: buildRerankPrompt(profile, prefs, batch, locale),
     jsonSchema: RERANK_OUTPUT,
     fast: engine.fastMatching,
     temperature: 0,
@@ -305,6 +320,7 @@ export async function rerankAll(
   signal?: AbortSignal,
   onDiagnostics?: (diagnostics: RerankDiagnostics) => void,
   onBatch?: (matches: MatchResult[]) => void,
+  locale: 'en' | 'de' = 'en',
 ): Promise<MatchResult[]> {
   const out: MatchResult[] = []
   const size = MATCH.batchSize
@@ -320,7 +336,7 @@ export async function rerankAll(
   for (let i = 0; i < candidates.length; i += size) {
     const batch = candidates.slice(i, i + size)
     try {
-      const matches = await rerankBatch(profile, prefs, batch, apiKey, signal)
+      const matches = await rerankBatch(profile, prefs, batch, apiKey, signal, locale)
       out.push(...matches)
       onBatch?.(matches)
       if (matches.length < batch.length) diagnostics.partialBatchCount += 1

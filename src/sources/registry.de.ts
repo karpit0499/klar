@@ -9,12 +9,8 @@
 //     public endpoint, so they are deliberately absent — the honest limitation
 //     of the ATS layer.
 //
-//   • ATS_CANDIDATES_DACH — a much larger list of real DACH tech employers that
-//     are KNOWN to hire but whose exact ATS vendor + slug we did NOT re-verify
-//     by hand. Treat every line as a hypothesis: the slug is a best-guess
-//     conventional form and the vendor is a best guess too. A wrong slug simply
-//     makes that company show up in the "skipped" count — it never breaks a
-//     search (see fetchAllAts, which isolates every failure).
+//   • legacy candidates — retained below as audit evidence, but classified as
+//     quarantined or retired. Neither state can execute in a browser search.
 //
 // To promote candidates → verified, run the verifier shipped with feature 6:
 //     npx tsx scripts/verify-registry.ts
@@ -22,16 +18,26 @@
 // verified lines. Delete the dead ones; move the green ones up. Verifying one
 // slug against its vendor is a great 'good first issue'.
 //
-// The app runs ATS_REGISTRY_DE, which is simply the two arrays concatenated,
-// so nothing else in the codebase needs to know about the split.
+// The app runs ATS_REGISTRY_DE, which contains the verified direct core only.
+// The additional 100 verified boards are staged for scheduled Worker caching.
 // ============================================================================
 import type { SourceId } from '../types'
 
 export type AtsVendor = Extract<SourceId, 'greenhouse' | 'lever' | 'ashby'>
-export type AtsEntry = { company: string; ats: AtsVendor; slug: string }
+export type AtsLifecycleState = 'active' | 'empty' | 'quarantined' | 'retired'
+export type AtsDelivery = 'direct' | 'worker_cache'
+export type AtsSeed = { company: string; ats: AtsVendor; slug: string }
+export type AtsEntry = AtsSeed & {
+  /** Only active entries are eligible for delivery. Empty is healthy but has no jobs. */
+  state: AtsLifecycleState
+  /** Large expansions are ingested by a scheduled Worker, never fanned out by browsers. */
+  delivery: AtsDelivery
+  verifiedAt?: string
+  note?: string
+}
 
 /** Hand-verified employers (live at the time of writing). */
-export const ATS_VERIFIED_DE: AtsEntry[] = [
+const LEGACY_VERIFIED_DE: AtsSeed[] = [
   { company: 'Aleph Alpha', ats: 'ashby', slug: 'alephalpha' }, // ~8 live jobs at verification
   { company: 'Amboss', ats: 'ashby', slug: 'amboss' }, // ~16 live jobs at verification
   { company: 'Babbel', ats: 'ashby', slug: 'babbel' }, // ~2 live jobs at verification
@@ -86,7 +92,7 @@ export const ATS_VERIFIED_DE: AtsEntry[] = [
  * unverified best guess. Run `npx tsx scripts/verify-registry.ts` to find which
  * are live, then promote them into ATS_VERIFIED_DE and delete the rest.
  */
-export const ATS_CANDIDATES_DACH: AtsEntry[] = [
+const LEGACY_CANDIDATES_DACH: AtsSeed[] = [
   { company: 'Personio', ats: 'greenhouse', slug: 'personio' }, // candidate — verify
   { company: 'Scalable Capital', ats: 'greenhouse', slug: 'scalablecapital' }, // candidate — verify
   { company: 'Taxfix', ats: 'greenhouse', slug: 'taxfix' }, // candidate — verify
@@ -251,8 +257,71 @@ export const ATS_CANDIDATES_DACH: AtsEntry[] = [
   { company: 'Scandit', ats: 'ashby', slug: 'scandit' }, // candidate — verify
 ]
 
+const REVIEWABLE_LIVE_CANDIDATES = /* @__PURE__ */ new Set([
+  'greenhouse:navvis',
+  'greenhouse:wooga',
+  'greenhouse:bitpanda',
+  'greenhouse:gostudent',
+  'greenhouse:storyblok',
+  'greenhouse:bird',
+  'lever:inkitt',
+  'ashby:tacto',
+  'ashby:sereact',
+  'ashby:luminovo',
+  'ashby:rasa',
+  'ashby:sanity',
+  'ashby:ostrom',
+  'ashby:swap',
+  'ashby:payrails',
+  'ashby:novel',
+  'ashby:blacksemiconductor',
+  'ashby:constructor',
+  'ashby:deeploy',
+  'ashby:deepjudge',
+  'ashby:frontify',
+])
+
+/** Small, hand-verified core that the browser may call with bounded concurrency. */
+export const ATS_DIRECT_RUNTIME_DE: AtsEntry[] = LEGACY_VERIFIED_DE.map((entry) => ({
+  ...entry,
+  state: 'active',
+  delivery: 'direct',
+  verifiedAt: '2026-08-11',
+}))
+
+/** Backward-compatible verified core; cache expansion lives in ats/catalog.ts. */
+export const ATS_VERIFIED_DE: AtsEntry[] = ATS_DIRECT_RUNTIME_DE
+
+/** Reachable hypotheses held outside runtime until schema, ownership and DACH review pass. */
+function quarantinedCandidates(): AtsEntry[] {
+  return LEGACY_CANDIDATES_DACH
+    .filter((entry) => REVIEWABLE_LIVE_CANDIDATES.has(`${entry.ats}:${entry.slug}`))
+    .map((entry) => ({
+    ...entry,
+    state: 'quarantined',
+    delivery: 'worker_cache',
+    verifiedAt: '2026-08-11',
+    note: 'Endpoint was reachable; schema, ownership and DACH admission review remain pending.',
+    }))
+}
+export const ATS_CANDIDATES_DACH: AtsEntry[] = /* @__PURE__ */ quarantinedCandidates()
+
+/** Audit tombstones. Retired endpoints remain inspectable but can never execute. */
+function retiredCandidates(): AtsEntry[] {
+  return LEGACY_CANDIDATES_DACH
+    .filter((entry) => !REVIEWABLE_LIVE_CANDIDATES.has(`${entry.ats}:${entry.slug}`))
+    .map((entry) => ({
+    ...entry,
+    state: 'retired',
+    delivery: 'worker_cache',
+    verifiedAt: '2026-08-11',
+    note: 'Retired after the 2026-08-11 endpoint audit; kept only as a tombstone.',
+    }))
+}
+export const ATS_RETIRED_DACH: AtsEntry[] = /* @__PURE__ */ retiredCandidates()
+
 /**
- * What the app actually fans out over: the verified core plus every candidate.
- * Candidates that 404 cost nothing but a line in the "skipped" tally.
+ * Backward-compatible runtime name. Crucially, this is verified/direct only:
+ * quarantined, retired and cache-delivered boards never enter client fan-out.
  */
-export const ATS_REGISTRY_DE: AtsEntry[] = [...ATS_VERIFIED_DE, ...ATS_CANDIDATES_DACH]
+export const ATS_REGISTRY_DE: AtsEntry[] = ATS_DIRECT_RUNTIME_DE

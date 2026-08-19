@@ -4,11 +4,20 @@
 // posting content, so a source may update a stable job ID without reusing an
 // explanation for the previous posting.
 // ============================================================================
-import type { MatchResult, NormalizedJob, Preferences, Profile } from '../types'
+import type {
+  AiAssessmentProvenance,
+  MatchResult,
+  NormalizedJob,
+  Preferences,
+  Profile,
+} from '../types'
 import { MATCH, type LlmRerankMode } from '../lib/config'
 import { stableHash } from '../lib/hash'
 import {
   isFailedMatchPlaceholder,
+  AI_MATCH_SCORER_VERSION,
+  AI_MATCH_PROMPT_VERSION,
+  AI_MATCH_SCHEMA_VERSION,
   rerankJobPromptInput,
   rerankBatch,
   rerankAll,
@@ -20,11 +29,13 @@ import { deleteMatchRows, getMatchRows, putMatchRows } from '../storage/careerDa
 import { CAREER_RELEVANCE_VERSION, filterCareerRelevantJobs } from './relevance'
 import {
   buildLocalMatch,
-  isLocalMatch,
+  hasAiAssessment,
   mergeAiExplanationWithLocal,
 } from './fallback'
 import { rankCandidateSetV2, RANKING_MODEL_VERSION } from './rankingV2'
 import type { ErrorCategory } from '../errors/appError'
+import { resolveModel } from '../llm/groq'
+import { loadEngineSettings, type EngineSettings } from '../llm/provider'
 
 /** A stable fingerprint of the profile+prefs that influence scoring. */
 export function matchContextHash(profile: Profile, prefs: Preferences): string {
@@ -53,8 +64,57 @@ export function matchCacheKey(
   profile: Profile,
   prefs: Preferences,
   job: NormalizedJob,
+  scorerSignature: string = AI_MATCH_PROMPT_VERSION,
 ): string {
-  return `${matchContextHash(profile, prefs)}:${job.id}:${matchJobContentHash(job)}`
+  return `${matchContextHash(profile, prefs)}:${scorerSignature}:${job.id}:${matchJobContentHash(job)}`
+}
+
+type AiScorerContext = {
+  engine: EngineSettings
+  locale: 'en' | 'de'
+  signature: string
+}
+
+async function aiScorerContext(locale: 'en' | 'de'): Promise<AiScorerContext> {
+  const engine = await loadEngineSettings()
+  const signature = stableHash(JSON.stringify({
+    scorer: AI_MATCH_SCORER_VERSION,
+    prompt: AI_MATCH_PROMPT_VERSION,
+    schema: AI_MATCH_SCHEMA_VERSION,
+    endpoint: engine.baseUrl.replace(/\/+$/, ''),
+    model: resolveModel(engine, { fast: engine.fastMatching }),
+    fastMatching: engine.fastMatching,
+    locale,
+  }))
+  return { engine, locale, signature }
+}
+
+function aiProvenance(
+  context: AiScorerContext,
+  cacheStatus: AiAssessmentProvenance['cacheStatus'],
+): AiAssessmentProvenance {
+  let engineHost = 'custom'
+  try {
+    engineHost = new URL(context.engine.baseUrl).host
+  } catch {
+    // Engine validation normally prevents this; use a data-safe label.
+  }
+  return {
+    scorerVersion: AI_MATCH_SCORER_VERSION,
+    promptVersion: AI_MATCH_PROMPT_VERSION,
+    responseSchemaVersion: AI_MATCH_SCHEMA_VERSION,
+    engineHost,
+    cacheStatus,
+    locale: context.locale,
+  }
+}
+
+function withAiProvenance(
+  match: MatchResult,
+  context: AiScorerContext,
+  cacheStatus: AiAssessmentProvenance['cacheStatus'],
+): MatchResult {
+  return { ...match, aiProvenance: aiProvenance(context, cacheStatus) }
 }
 
 /** Spend follows attention: enrich exactly one opened job, then cache it. */
@@ -64,14 +124,23 @@ export async function explainMatchWithAi(
   prefs: Preferences,
   apiKey: string,
   signal?: AbortSignal,
+  locale: 'en' | 'de' = documentLocale(),
 ): Promise<MatchResult> {
-  const cacheKey = matchCacheKey(profile, prefs, job)
+  const local = buildLocalMatch(job, profile, prefs, undefined, locale)
+  const context = await aiScorerContext(locale)
+  const cacheKey = matchCacheKey(profile, prefs, job, context.signature)
   const [cached] = await getMatchRows([cacheKey])
-  if (cached && !isFailedMatchPlaceholder(cached)) return cached
-  const [fresh] = await rerankBatch(profile, prefs, [job], apiKey, signal)
+  if (cached && !isFailedMatchPlaceholder(cached)) {
+    return mergeAiExplanationWithLocal(local, withAiProvenance(cached, context, 'cached'))
+  }
+  const [fresh] = await rerankBatch(profile, prefs, [job], apiKey, signal, locale)
   if (!fresh) throw new Error('The AI explanation did not contain this job.')
   await putMatchRows([{ ...fresh, cacheKey }])
-  return fresh
+  return mergeAiExplanationWithLocal(local, withAiProvenance(fresh, context, 'fresh'))
+}
+
+function documentLocale(): 'en' | 'de' {
+  return typeof document !== 'undefined' && document.documentElement.lang === 'de' ? 'de' : 'en'
 }
 
 /** Enrich BA candidates whose description is still empty (bounded concurrency). */
@@ -86,7 +155,12 @@ export async function enrichBaDescriptions(cands: NormalizedJob[], signal?: Abor
         job.description = detail.description
         if (detail.employment_type) job.employment_type = detail.employment_type
         if (detail.remote) job.location.remote = true
-      } catch { /* leave description empty; scoring still works on title */ }
+      } catch (caught) {
+        if (signal?.aborted || (caught instanceof DOMException && caught.name === 'AbortError')) {
+          throw caught
+        }
+        // Leave description empty; scoring still works on title.
+      }
     }
   }
   await Promise.all(Array.from({ length: Math.min(4, targets.length) }, run))
@@ -104,6 +178,25 @@ export type MatchRunDiagnostics = {
   failedBatchCount: number
   partialBatchCount: number
   failuresByCategory: Partial<Record<ErrorCategory, number>>
+  aiComparedCount: number
+  aiExactAgreementCount: number
+  aiMeanAbsoluteDelta: number | null
+  aiSuspiciousEquality: boolean
+}
+
+function comparisonDiagnostics(matches: readonly MatchResult[]) {
+  const deltas = matches.flatMap((match) => match.aiAssessment
+    ? [Math.abs(match.fitScore - match.aiAssessment.fitScore)]
+    : [])
+  const exact = deltas.filter((delta) => delta === 0).length
+  return {
+    aiComparedCount: deltas.length,
+    aiExactAgreementCount: exact,
+    aiMeanAbsoluteDelta: deltas.length
+      ? Math.round((deltas.reduce((sum, value) => sum + value, 0) / deltas.length) * 10) / 10
+      : null,
+    aiSuspiciousEquality: deltas.length >= 5 && exact / deltas.length >= 0.95,
+  }
 }
 
 export async function runMatching(
@@ -190,12 +283,15 @@ export async function runMatching(
       failedBatchCount: 0,
       partialBatchCount: 0,
       failuresByCategory: {},
+      ...comparisonDiagnostics(local),
     })
     opts.onProgress?.({ phase: 'done', done: local.length, total: local.length })
     return local
   }
 
-  const key = (job: NormalizedJob) => matchCacheKey(profile, prefs, job)
+  const locale = opts.locale ?? 'en'
+  const scorerContext = await aiScorerContext(locale)
+  const key = (job: NormalizedJob) => matchCacheKey(profile, prefs, job, scorerContext.signature)
   const cacheKeyByJobId = new Map(
     aiCandidates.map((job) => [job.id, key(job)]),
   )
@@ -207,7 +303,9 @@ export async function runMatching(
   const staleKeys: string[] = []
   aiCandidates.forEach((c, i) => {
     const row = cachedRows[i]
-    if (row && !isFailedMatchPlaceholder(row)) cached.push(row)
+    if (row && !isFailedMatchPlaceholder(row)) {
+      cached.push(withAiProvenance(row, scorerContext, 'cached'))
+    }
     else {
       todo.push(c)
       if (row) staleKeys.push(key(c))
@@ -226,6 +324,7 @@ export async function runMatching(
   }
   const publishDiagnostics = () => {
     const aiFreshCount = Math.max(0, aiById.size - cached.length)
+    const matches = snapshot(aiById)
     opts.onDiagnostics?.({
       candidateCount: candidates.length,
       notPrioritizedCount,
@@ -236,10 +335,11 @@ export async function runMatching(
       failedBatchCount: rerankDiagnostics.failedBatchCount,
       partialBatchCount: rerankDiagnostics.partialBatchCount,
       failuresByCategory: rerankDiagnostics.failuresByCategory,
+      ...comparisonDiagnostics(matches),
     })
   }
-  // Publish every candidate before the first provider request. Cached AI results
-  // override local scores; every uncached candidate keeps an honest local score.
+  // Publish every candidate before the first provider request. Cached AI rows
+  // are nested as advisory assessments; deterministic ordering never changes.
   // Publish the same reconciled counts immediately so the diagnostics panel
   // cannot show a pre-candidate filter total beside the local snapshot.
   opts.onMatches?.(snapshot(aiById))
@@ -255,10 +355,13 @@ export async function runMatching(
       rerankDiagnostics = diagnostics
     },
     (batch) => {
-      for (const match of batch) aiById.set(match.jobId, match)
+      for (const match of batch) {
+        aiById.set(match.jobId, withAiProvenance(match, scorerContext, 'fresh'))
+      }
       opts.onMatches?.(snapshot(aiById))
       publishDiagnostics()
     },
+    locale,
   )
 
   // 4. Persist only provider scores. Local fallbacks are deterministic and can
@@ -271,7 +374,9 @@ export async function runMatching(
     await putMatchRows(rows)
   }
 
-  for (const match of fresh) aiById.set(match.jobId, match)
+  for (const match of fresh) {
+    aiById.set(match.jobId, withAiProvenance(match, scorerContext, 'fresh'))
+  }
   const all = snapshot(aiById)
   const diagnostics: MatchRunDiagnostics = {
     candidateCount: candidates.length,
@@ -279,10 +384,11 @@ export async function runMatching(
     aiRequestedCount: todo.length,
     aiCachedCount: cached.length,
     aiFreshCount: fresh.length,
-    localFallbackCount: all.filter(isLocalMatch).length,
+    localFallbackCount: all.filter((match) => !hasAiAssessment(match)).length,
     failedBatchCount: rerankDiagnostics.failedBatchCount,
     partialBatchCount: rerankDiagnostics.partialBatchCount,
     failuresByCategory: rerankDiagnostics.failuresByCategory,
+    ...comparisonDiagnostics(all),
   }
   opts.onMatches?.(all)
   opts.onDiagnostics?.(diagnostics)

@@ -6,10 +6,10 @@ order: 280
 audience: ["Klar users", "Product support", "Operations"]
 status: "current"
 classification: "public"
-applicable_version: "2.6.0.1"
+applicable_version: "2.6.1"
 owner: "Klar Product Support"
-last_verified: "2026-08-10"
-next_review: "2026-11-10"
+last_verified: "2026-08-11"
+next_review: "2026-11-11"
 tags: ["user-guide", "backup", "restore", "vault", "recovery"]
 ---
 

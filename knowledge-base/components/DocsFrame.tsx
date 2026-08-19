@@ -9,7 +9,7 @@ export function DocsFrame({ activeSlug, children, aside }: { activeSlug?: string
       <SiteHeader />
       <details className="mobile-docs-menu">
         <summary>Browse documentation</summary>
-        <DocsSidebar activeSlug={activeSlug} />
+        <DocsSidebar activeSlug={activeSlug} collapsible />
       </details>
       <div className={`docs-grid ${aside ? "with-aside" : ""}`}>
         <DocsSidebar activeSlug={activeSlug} />

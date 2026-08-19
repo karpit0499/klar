@@ -6,10 +6,10 @@ order: 330
 audience: ["Operations", "Engineering", "Security", "Support", "Release owners"]
 status: "current"
 classification: "public"
-applicable_version: "2.6.0.1"
+applicable_version: "2.6.1"
 owner: "Klar Operations"
-last_verified: "2026-08-10"
-next_review: "2026-11-10"
+last_verified: "2026-08-11"
+next_review: "2026-09-11"
 tags: ["operations", "runbook", "incident", "recovery", "rollback"]
 ---
 
@@ -36,15 +36,15 @@ Suspected security or personal-data exposure uses private vulnerability reportin
 
 ## Static web release failure
 
-**Trigger:** blank page, asset 404, broken `/klar/` routing, wrong `version.json`, widespread regression after Pages deployment.
+**Trigger:** blank page, asset 404, broken `/klar/` application routing, broken `/klar/kb/` documentation routing, wrong `version.json`, widespread regression after Pages deployment.
 
 **Containment:** stop further merges/deployments. Identify the last known verified `main` deployment. Do not publish a locally built `dist` outside the workflow.
 
-**Diagnosis:** check Pages workflow result, uploaded artifact, Vite base, `version.json`, service-worker cache behavior, browser console with synthetic state, and whether the fault is cached or in the deployed artifact.
+**Diagnosis:** check the one Pages workflow result and uploaded artifact, application base, KB `basePath`, `version.json`, `nojekyll`, service-worker exclusion for `/klar/kb/`, browser console with synthetic state, and whether the fault is cached or in the deployed artifact.
 
 **Recovery:** fix forward through a reviewed commit or revert the specific release commit through normal version control, then allow the verify/deploy workflow to build and deploy the exact source. If stale service-worker state is involved, update cache/version handling rather than instructing destructive data wipes.
 
-**Success:** new workflow is green; fresh and previously installed clients load; local IndexedDB state remains; version metadata is correct; critical Career/Flexible/vault routes pass smoke review.
+**Success:** new workflow is green; fresh and previously installed clients load; `/klar/kb/` and deep documentation links load; local IndexedDB state remains; version metadata is correct; critical Career/Flexible/vault routes pass smoke review.
 
 ## Worker outage or misconfiguration
 
@@ -66,9 +66,21 @@ Suspected security or personal-data exposure uses private vulnerability reportin
 
 **Diagnosis:** verify official ownership and permitted route; inspect a content-redacted structural sample; compare registry host/path/parser version and Worker allowlist; check pagination, content type, expiry, fallback, health, and last verified time.
 
-**Recovery:** update parser/contract and safe fixtures, or downgrade support to the honest official route plus baseline aggregator fallback. Candidate connectors remain candidate until the full verification gate is complete.
+**Recovery:** update parser/contract and safe fixtures, or downgrade support to the honest official-search route plus baseline aggregator fallback. Candidate connectors remain outside runtime until the full verification gate is complete. An official route is not relabelled as an API, vacancy, or open-entry route.
 
-**Success:** inventory and zero-inventory fixtures pass; malformed/timeout/removal are isolated; provenance is correct; fallback is usable; session remains under 60 seconds; UI does not claim complete direct coverage.
+**Success:** inventory and healthy-empty fixtures pass; malformed/timeout/removal are isolated per tenant; provenance is correct; fallback is usable but does not reset direct health; session remains under 60 seconds; UI does not claim complete direct coverage.
+
+## ATS cache refresh failure
+
+**Trigger:** scheduled refresh alarm, stale-cache threshold, tenant failure spike, invalid page ledger, or browser fan-out regression.
+
+**Containment:** keep the last valid bounded cache with an explicit staleness state; quarantine only failing tenants. Do not let a user search trigger an all-tenant refresh.
+
+**Diagnosis:** compare the reviewed active manifest, scheduled-run ID, tenant state/evidence, schema/location validation, timeout/circuit state, page hashes, and last successful cache publication. Treat healthy empty separately from failure.
+
+**Recovery:** repair and verify the affected adapter or retire the tenant; rebuild cache from active verified tenants through the scheduled path; publish only after atomic validation.
+
+**Success:** stable pages reconcile with the manifest, 141 retired routes remain unreachable, candidate routes remain excluded, healthy-empty tenants are not penalized, and one bad tenant cannot fail the family.
 
 ## Synthetic Flexible Work data in a live build
 
@@ -93,6 +105,18 @@ Suspected security or personal-data exposure uses private vulnerability reportin
 **Recovery:** correct the credential/endpoint/model selection, wait for bounded quota reset, or deploy a compatibility fix with one bounded retry. A new provider/model requires full prompt, schema, evidence, privacy, and release review.
 
 **Success:** valid structured response passes the capability consumer; invalid responses fail closed; no false 0/100 score or empty artifact is cached; prior reviewed content remains intact.
+
+## Public feedback submission failure
+
+**Trigger:** Support returns Turnstile, rate-limit, validation, GitHub, or duplicate-submission failure.
+
+**Containment:** preserve the unsent local draft and preview; never copy a secret or personal reproduction into logs. Do not weaken origin, Turnstile, redaction, rate, fixed-repository, or fixed-label controls.
+
+**Diagnosis:** use report ID, safe error code, route status, origin class, Turnstile outcome, rate-limit outcome, and GitHub status class only. Never inspect or retain the submitted body in routine logs.
+
+**Recovery:** after an ambiguous response, first repeat the same report ID so the 30-day replay record can return the known issue. If it cannot, search the public repository for that report ID before retrying because the KV record is not a transactional exactly-once queue. Otherwise retry deliberately after the stated cooldown or use the public GitHub issue form manually with the same redacted text. Suspected security or personal-data problems always use private vulnerability reporting.
+
+**Success:** no duplicate was created for the report ID; the issue labels and public body are safe; the response or repository lookup yields its URL; neither secret nor feedback body appears in logs.
 
 ## Vault cannot unlock
 

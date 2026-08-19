@@ -376,9 +376,10 @@ assert.match(source('src/llm/groq.ts'), /waitForHeadroom/)
 assert.match(source('src/db/db.ts'), /this\.version\(7\)/)
 assert.doesNotMatch(source('src/db/db.ts'), /this\.version\(8\)/)
 const manifest = JSON.parse(source('package.json')) as { version: string; klarRelease: string }
-assert.equal(manifest.version, '2.6.0-1')
-assert.equal(manifest.klarRelease, '2.6.0.1')
-assert.match(source('public/sw.js'), /klar-shell-v10/)
+assert.equal(manifest.version, '2.6.1')
+assert.equal(manifest.klarRelease, '2.6.1')
+assert.match(source('public/sw.js'), /klar-shell-v11/)
+assert.match(source('public/sw.js'), /CACHE_PREFIX = 'klar-shell-'/)
 assert.doesNotMatch(source('public/sw.js'), /client\.navigate/)
 assert.match(source('CHANGELOG.md'), /^## v2\.5\.5 — Quota-resilient private matching/m)
 

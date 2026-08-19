@@ -6,10 +6,10 @@ order: 220
 audience: ["Klar users", "Product support"]
 status: "current"
 classification: "public"
-applicable_version: "2.6.0.1"
+applicable_version: "2.6.1"
 owner: "Klar Product Support"
-last_verified: "2026-08-10"
-next_review: "2026-11-10"
+last_verified: "2026-08-11"
+next_review: "2026-11-11"
 tags: ["user-guide", "flexible-work", "source-fabric", "open-entry"]
 ---
 
@@ -60,11 +60,11 @@ At completion, the banner identifies a complete, partial, or limited session. Re
 
 ## Inspect source status
 
-The source panel shows each employer family, connector state, result count, fetch time, last success, extraction confidence, official route, and report action. Possible states include OK, fallback route, failed, did not finish, skipped, pending, and checking.
+The source panel shows each employer family, connector state, result count, fetch time, last success, extraction confidence, official route, and report action. Possible states include active, healthy empty, fallback route, quarantined, retired, failed, did not finish, skipped, pending, and checking. Candidate connectors do not run.
 
 The panel also reports results hidden as not relevant Flexible Work and the number of merged duplicate families. A partial session is usable but does not represent full market coverage.
 
-If the build says it is showing sample results, no source service is configured for that build. Treat those results as fixtures, not live vacancies.
+Sample results exist only in explicitly labelled development/test builds. A production build without a configured Worker fails release validation instead of presenting fixtures as live vacancies.
 
 ## Read an opportunity card
 
@@ -72,6 +72,8 @@ A card may represent:
 
 - a specific vacancy with an Apply route; or
 - an **Open application** or official employer program without one specific vacancy.
+
+The Source Explorer can also show one of 100 verified official employer search destinations added in v2.6.1. An **Official search** card is a route to the employer's own search page, not evidence of one vacancy. Only two verified destinations currently qualify as genuine open-entry routes. Klar does not proxy those pages or count them as direct API results.
 
 Review employer, brand, city or remote state, employment and role tags, hourly pay only when published, source confidence, fetch/verification dates, duplicate information, and any “inferred” notice. Inferred fields are Klar classifications, not employer-published guarantees.
 
@@ -97,4 +99,4 @@ The draft and availability autosave in the opportunity's flexible packet. Klar d
 
 ## Add Career Roles later
 
-Choose **Add Resume for Career Roles** from Flexible Work or Settings. Adding a Resume enables Career Roles without removing Flexible Work or its saved searches. See [Product modes](/docs/product-modes).
+Choose **Add Resume for Career Roles** from Flexible Work or the Dashboard-linked Resume workspace. Adding a Resume enables Career Roles without removing Flexible Work or its saved searches. See [Product modes](/docs/product-modes).

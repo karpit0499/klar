@@ -1,7 +1,7 @@
 import { Card, Badge, Button } from './atoms'
 import { useLocale } from '../i18n/LocaleProvider'
 import type { MatchResult, NormalizedJob } from '../types'
-import { isLocalMatch } from '../match/fallback'
+import { formatCurrency, formatDate, formatNumber } from '../i18n/format'
 
 export function JobCard({
   job,
@@ -21,7 +21,6 @@ export function JobCard({
 }) {
   const shown = score ?? match?.fitScore
   const { locale, t } = useLocale()
-  const de = locale === 'de'
   return (
     <Card className="p-4">
       <div className="flex items-start justify-between gap-3">
@@ -40,8 +39,13 @@ export function JobCard({
               <span className="opacity-70">/100</span>
             </Badge>
             <div className="mt-1 text-xs text-faint">
-              {isLocalMatch(match) ? t('match.originLocalShort') : t('match.originAiShort')}
+              {t('match.klarScore')}
             </div>
+            {match.aiAssessment && (
+              <div className="mt-1 text-xs tabular-nums text-muted">
+                {t('match.aiScore')}: {formatNumber(match.aiAssessment.fitScore, locale)}/100
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -49,11 +53,11 @@ export function JobCard({
       {match?.rationale && <p className="mt-2 line-clamp-2 wrap-anywhere text-base text-muted">{match.rationale}</p>}
 
       <p className="mt-2 text-xs text-faint">
-        {de ? 'Quellensicherheit' : 'Source confidence'}: {job.sourceConfidence ?? 'unknown'}
+        {t('card.sourceConfidence')}: {job.sourceConfidence ?? t('card.unknown')}
         {' · '}
-        {de ? 'Abruf' : 'Fetched'}: {formatObserved(job.fetched_at, de)}
+        {t('card.fetched')}: {formatDate(job.fetched_at, locale)}
         {job.also_on?.length && job.duplicateFamily
-          ? ` · ${de ? 'Duplikatfamilie' : 'Duplicate family'}: ${job.duplicateFamily.slice(0, 8)}`
+          ? ` · ${t('card.duplicateFamily')}: ${job.duplicateFamily.slice(0, 8)}`
           : ''}
       </p>
 
@@ -63,7 +67,10 @@ export function JobCard({
         {job.salary.min != null && (
           <Badge tone="neutral">
             <span className="font-display tabular-nums">
-              €{Math.round(job.salary.min / 1000)}k{job.salary.max ? `–${Math.round(job.salary.max / 1000)}k` : '+'}
+              {formatCurrency(job.salary.min, job.salary.currency ?? 'EUR', locale, { notation: 'compact' })}
+              {job.salary.max
+                ? `–${formatCurrency(job.salary.max, job.salary.currency ?? 'EUR', locale, { notation: 'compact' })}`
+                : '+'}
             </span>
           </Badge>
         )}
@@ -79,10 +86,13 @@ export function JobCard({
           {t('card.details')}
         </Button>
         {/* One-click link straight to the posting (feature 5.1). */}
-        <a href={job.url} target="_blank" rel="noreferrer" className="inline-flex">
-          <Button variant="ghost" size="sm">
-            {t('card.open')}
-          </Button>
+        <a
+          href={job.url}
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex min-h-tap items-center justify-center rounded-md border border-border bg-surface px-3 py-1.5 text-sm font-medium text-ink transition hover:bg-surface-2"
+        >
+          {t('card.open')}
         </a>
         <Button size="sm" onClick={onSave} disabled={saved} aria-label={saved ? t('card.saved') : t('card.save')}>
           {saved ? t('card.saved') : t('card.save')}
@@ -90,10 +100,4 @@ export function JobCard({
       </div>
     </Card>
   )
-}
-
-function formatObserved(value: string, de: boolean): string {
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return '—'
-  return new Intl.DateTimeFormat(de ? 'de-DE' : 'en-GB', { dateStyle: 'medium' }).format(date)
 }

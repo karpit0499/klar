@@ -6,10 +6,10 @@ order: 240
 audience: ["Engineering", "Product", "Source operations", "Security", "Support"]
 status: "current"
 classification: "public"
-applicable_version: "2.6.0.1"
+applicable_version: "2.6.1"
 owner: "Klar Engineering"
-last_verified: "2026-08-10"
-next_review: "2026-11-10"
+last_verified: "2026-08-11"
+next_review: "2026-09-11"
 tags: ["flexible-work", "source-fabric", "connectors", "sessions", "taxonomy", "provenance"]
 ---
 
@@ -19,7 +19,7 @@ tags: ["flexible-work", "source-fabric", "connectors", "sessions", "taxonomy", "
 
 Flexible Work gives students and other users a first-class discovery path for schedule-compatible work without requiring a Resume. Source Fabric exists because no single durable API covers the required employer and job landscape. It combines bounded, source-specific retrieval contracts behind one normalized opportunity model.
 
-This page describes the executable 2.6.0.1 baseline. The July 2026 Source Fabric roadmap supplied the design intent, but code, configuration, and tests determine current behavior.
+This page describes the executable 2.6.1 baseline. The July 2026 Source Fabric roadmap supplied the design intent, but code, configuration, dated verification, and tests determine current behavior.
 
 ## Product separation
 
@@ -67,11 +67,23 @@ The registry contains allowlisted hosts and paths, parser version, query capabil
 
 ## Current registry baseline
 
-The runtime registry contains 36 enabled connector definitions: 24 top-level connectors and 12 member connectors. It represents 21 employer families, including major grocery, retail, drugstore, logistics, delivery, restaurant, café, and hotel groups.
+Klar v2.6.1 disables all 33 previously enabled candidate direct connectors. Their live audit found stale, invented, incompatible, or insufficiently evidenced targets; candidate status is now a hard runtime exclusion. A connector can run only after ownership, permitted route, response/schema, inventory/empty, location, pagination, provenance, timeout, fallback, and Worker-allowlist checks have dated evidence.
 
-Connector-type distribution is currently 11 API, 2 feed, 2 sitemap, 12 portal, 4 federated, and 5 open-entry definitions. Three baseline connectors are marked verified; 33 definitions are marked candidate.
+The release adds a directory of 100 verified official German employer destinations across retail, logistics, food service, grocery, hotels, staffing, healthcare, facilities, and drugstores. All 100 final official URLs returned HTTP 200 on 11 August 2026. Ninety-eight are `official_search` destinations and two are genuine `open_entry` routes.
 
-The code currently enables and runs candidate connectors; `buildFabric` does not exclude a connector because its verification field is `candidate`. Registry comments and the original roadmap require verification before production support claims, so current execution is broader than verified-support evidence. Do not describe the registry count as 36 verified direct integrations.
+| Sector | Verified routes |
+| --- | ---: |
+| Retail | 31 |
+| Logistics | 17 |
+| Food service | 14 |
+| Grocery | 11 |
+| Hotels | 8 |
+| Staffing | 7 |
+| Healthcare | 5 |
+| Facilities | 4 |
+| Drugstores | 3 |
+
+Official destinations are not presented as APIs or fabricated vacancies. They appear as clearly labelled route cards in the dedicated Source Explorer and as a low-supply/empty-state recovery path. They are not proxied or counted as successful direct connector inventory. Their verification is temporal; a 200 response does not guarantee a current job in the user's city.
 
 ## Search-session contract
 
@@ -133,7 +145,7 @@ Application destination priority favors a direct employer route over an aggregat
 
 Flexible cache has a normal 30-minute lifetime. Only normalized valid records are cached. Cache reads validate minimum required fields and respect `validThrough` for vacancies. Open-entry routes use separate freshness semantics. Revalidation preserves the original `firstSeenAt` and updates verification metadata; cached content must not be relabelled as newly posted.
 
-If no Worker URL is configured, the current hook can supply deterministic fixtures as the live UI input and sets `usingFixtures=true`. This supports offline development and QA, but a production deployment without the Worker could display synthetic opportunities unless the deployment and UI make that state unmistakable. This is a high-priority honesty/configuration gap.
+Fixtures are available only under an explicit development/test flag. A production build fails its release assertion when the Worker URL is absent and never substitutes fixtures into the live result path. Development fixture rows remain unmistakably labelled and cannot be cached as live opportunities.
 
 ## Resilience, health, and fallback
 
@@ -141,14 +153,14 @@ The fallback ladder is:
 
 1. valid local/session cache;
 2. baseline source inventory;
-3. direct employer connector;
+3. verified direct employer connector;
 4. employer-filtered BA results plus the official route;
-5. an official open-entry route; or
-6. an official employer search destination.
+5. a verified official open-entry route; or
+6. a verified official employer search destination.
 
 Connector health stores content-free counts, latency, timestamps, schema failures, breaker state, and a manual kill switch. The breaker opens after four consecutive failures and uses a five-minute cooldown. Search skips killed connectors and open circuits. The design calls for a low-frequency canary; current persistence does not model a distinct canary state, and a connector is simply eligible again after cooldown.
 
-Fallback success contributes to the connector observation. Operations must distinguish “direct integration healthy” from “a usable fallback was returned.”
+Fallback success is recorded separately from direct health. It does not reset a direct connector's failure count, manufacture inventory, or change an `official_search` route into `open_entry`.
 
 ## Source security
 

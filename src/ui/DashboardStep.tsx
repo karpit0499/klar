@@ -5,13 +5,19 @@ import { Button, Card, Field, TextInput } from './atoms'
 import { useDashboard, saveDashboard, fileToDataUrl, EMPTY_DASHBOARD } from '../dashboard/store'
 import type { Dashboard, Profile, Preferences } from '../types'
 import { useT } from '../i18n/LocaleProvider'
+import { toAppError, type AppErrorData } from '../errors/appError'
+import { ErrorNotice } from './ErrorNotice'
 
 export function DashboardStep({
   profile,
   prefs,
+  onResume,
+  onSupport,
 }: {
   profile?: Profile | null
   prefs?: Preferences | null
+  onResume: () => void
+  onSupport: () => void
 }) {
   const t = useT()
 
@@ -19,6 +25,7 @@ export function DashboardStep({
   const [form, setForm] = useState<Dashboard>(EMPTY_DASHBOARD)
   const [editing, setEditing] = useState(false)
   const [photoErr, setPhotoErr] = useState('')
+  const [saveError, setSaveError] = useState<AppErrorData | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
   // Sync local form when the stored dashboard loads/changes (and we're not editing).
@@ -37,8 +44,19 @@ export function DashboardStep({
   }
 
   async function save() {
-    await saveDashboard(form)
-    setEditing(false)
+    setSaveError(null)
+    try {
+      await saveDashboard(form)
+      setEditing(false)
+    } catch (caught) {
+      setSaveError(toAppError(caught, {
+        category: 'storage',
+        message: t('dashboard.saveFailed'),
+        dataSafe: true,
+        available: t('dashboard.saveAvailable'),
+        action: { label: t('dashboard.saveRetry'), kind: 'retry' },
+      }))
+    }
   }
 
   if (stored === undefined) return null // still loading
@@ -183,6 +201,7 @@ export function DashboardStep({
             </div>
           </div>
         )}
+        {saveError && <div className="mt-4"><ErrorNotice error={saveError} /></div>}
 
         {!editing && form.about && (
           <p className="mt-4 whitespace-pre-wrap text-sm leading-relaxed text-ink">{form.about}</p>
@@ -211,6 +230,21 @@ export function DashboardStep({
             {prefs?.locations[0] && <div><span className="font-medium">{t('dashboard.locationLabel')}</span> {prefs.locations[0].city}</div>}
           </div>
         </Card>
+      )}
+
+      {!editing && (
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          <Card className="p-4 sm:p-6">
+            <h3 className="text-lg font-semibold text-ink">{t('dashboard.resumeTitle')}</h3>
+            <p className="mt-1 text-sm text-muted">{t('dashboard.resumeIntro')}</p>
+            <Button className="mt-4" onClick={onResume}>{t('dashboard.openResume')}</Button>
+          </Card>
+          <Card className="p-4 sm:p-6">
+            <h3 className="text-lg font-semibold text-ink">{t('dashboard.supportTitle')}</h3>
+            <p className="mt-1 text-sm text-muted">{t('dashboard.supportIntro')}</p>
+            <Button className="mt-4" variant="ghost" onClick={onSupport}>{t('dashboard.openSupport')}</Button>
+          </Card>
+        </div>
       )}
     </div>
   )

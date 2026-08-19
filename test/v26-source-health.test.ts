@@ -125,12 +125,15 @@ assert.match(diagnostics, /klar:report-source/)
 assert.match(diagnostics, /disabled=\{refreshDisabled\}/)
 
 const searchStep = readFileSync('src/ui/SearchStep.tsx', 'utf8')
-assert.match(searchStep, /const runInProgress = useRef\(false\)/)
+assert.match(searchStep, /const runGeneration = useRef\(0\)/)
 assert.match(
   searchStep,
-  /async function run\(\) \{\s+if \(runInProgress\.current\) return\s+runInProgress\.current = true/,
+  /const activeRun = useRef<\{ generation: number; controller: AbortController \} \| null>\(null\)/,
 )
-assert.match(searchStep, /finally \{\s+runInProgress\.current = false\s+\}/)
+assert.match(searchStep, /generation: \+\+runGeneration\.current/)
+assert.match(searchStep, /current\.controller\.abort\('cancelled'\)/)
+assert.match(searchStep, /signal: current\.controller\.signal/)
+assert.match(searchStep, /if \(!isCurrent\(\)\) return/)
 assert.match(searchStep, /refreshDisabled=\{searchBusy\}/)
 
 const resumeStep = readFileSync('src/ui/ResumeStep.tsx', 'utf8')

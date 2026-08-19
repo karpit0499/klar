@@ -6,10 +6,10 @@ order: 230
 audience: ["Engineering", "Product", "Data quality reviewers", "Support"]
 status: "current"
 classification: "public"
-applicable_version: "2.6.0.1"
+applicable_version: "2.6.1"
 owner: "Klar Engineering"
-last_verified: "2026-08-10"
-next_review: "2026-11-10"
+last_verified: "2026-08-11"
+next_review: "2026-09-11"
 tags: ["career", "discovery", "sources", "ranking", "matching", "diagnostics"]
 ---
 
@@ -46,7 +46,7 @@ The current sequence is:
 8. repeat relevance evaluation after enrichment;
 9. compute deterministic requirements, ranking, explanations, and posting confidence;
 10. publish all deterministic candidates; and
-11. optionally allocate AI attention without changing the deterministic order.
+11. optionally request and display an independent AI assessment without changing the deterministic order.
 
 Explicit mismatches are separated with reasons. Unknown data is generally retained rather than converted into a negative fact.
 
@@ -57,11 +57,15 @@ Explicit mismatches are separated with reasons. Unknown data is generally retain
 | Bundesagentur für Arbeit (BA) | `ba` | Cloudflare Worker | Server-side search, 50 rows per page | Search and detail enrichment use separate upstream contracts without a public compatibility guarantee |
 | Arbeitnow | `arbeitnow` | Direct browser CORS | Fetches first two public pages and narrows locally | Not a true query API; practical acquisition is roughly bounded by those pages |
 | Adzuna | `adzuna` | Cloudflare Worker | Region-specific API, 50 rows per page | Needs a complete user credential pair or complete Worker credentials |
-| Greenhouse | `greenhouse` | Direct public ATS | Per-company board retrieval | Company registry controls fan-out; failure isolated per company |
-| Lever | `lever` | Direct public ATS | Per-company board retrieval | Same registry and isolation contract |
-| Ashby | `ashby` | Direct public ATS | Per-company board retrieval | Same registry and isolation contract |
+| Greenhouse | `greenhouse` | Worker-maintained ATS cache | Verified employer boards refreshed on a schedule | Tenant state and evidence control publication; browser reads bounded cached pages |
+| Lever | `lever` | Worker-maintained ATS cache | Verified employer boards refreshed on a schedule | Same state, evidence, timeout, and circuit contract |
+| Ashby | `ashby` | Worker-maintained ATS cache | Verified employer boards refreshed on a schedule | Same state, evidence, timeout, and circuit contract |
 
-ATS retrieval uses bounded concurrency of six companies. The current registry exports 47 verified German entries and 162 DACH candidate entries, combined as 209 entries. The current fetch path includes both verified and candidate entries. This is implementation truth, but it is also a data-quality and load-control gap because candidate status does not currently prevent production retrieval.
+The v2.6.1 verifier found 68 live boards in the old 209-entry catalog and 141 hard-dead HTTP 404 routes. The 47 previously verified entries remained live; 21 former candidates returned live payloads but still required schema, ownership, and regional review. Dead entries were removed from runtime and retained only as dated tombstone evidence.
+
+The release adds a separate manifest of 100 new active boards verified with full HTTP 200 responses and non-empty inventory on 11 August 2026: 45 Greenhouse, 46 Ashby, and 9 Lever. Scheduled Worker ingestion applies timeout, schema, location, ownership, and regional-inventory checks before a tenant becomes active. A browser search never fans out across all employer boards.
+
+Tenant states are `active`, `empty`, `quarantined`, and `retired`. `empty` means a healthy contract with no current regional inventory; it is not a failure. Candidate discoveries remain outside runtime until promoted with dated evidence. A per-tenant circuit isolates repeated failures without hiding the health of the ATS family as a whole.
 
 ## Region and source planning
 
@@ -76,6 +80,8 @@ The normal plan starts with BA, Arbeitnow, and ATS sources. Adzuna becomes a def
 ## Normalization and identity
 
 Every adapter maps source-specific data into the same job contract before filtering. At minimum, downstream behavior depends on stable source identity, title, company, location, dates, description, application URL, employment information, and source provenance where published.
+
+An ATS adapter does not default a missing country to Germany. It retains the source's free-form display location separately from a normalized city/country and assigns region eligibility only from positive structured or reviewed evidence. Remote, multi-location, unknown, and non-DACH rows remain distinguishable; an unknown country cannot be converted into a German job merely because the tenant appears in a DACH catalog.
 
 Deduplication combines:
 
@@ -109,9 +115,9 @@ Local relevance gates protect the candidate set from unrelated markets, roles, a
 
 Current contracts are:
 
-- ranking: `ranking-v2.6.0`;
-- requirements: `requirements-v2.6.0`; and
-- explanation: `ranking-explanation-v2.6.0`.
+- ranking: `ranking-v2.6.1`;
+- requirements: `requirements-v2.6.1`; and
+- explanation: `ranking-explanation-v2.6.1`.
 
 The core-fit weighted dimensions are:
 
@@ -128,7 +134,7 @@ Caps constrain scores when there is inadequate relevance, domain transfer, senio
 
 Preference fit is separate from core fit. Salary, location, work mode, and contract preferences use relative weights of 20, 35, 25, and 20 and can adjust the score by no more than eight points. Posting confidence is also separate: source quality 30%, completeness 30%, freshness 30%, duplicate corroboration 10%. The final ranking applies a penalty equal to 20% of the posting-confidence deficit.
 
-The outer legacy `modelVersion` remains `local-v2.3` for cache/backward compatibility, while the embedded snapshot names `ranking-v2.6.0`. Consumers must use the ranking snapshot version when interpreting current features and explanations.
+The outer legacy `modelVersion` remains `local-v2.3` for cache/backward compatibility, while the embedded snapshot names `ranking-v2.6.1`. Consumers must use the ranking snapshot version when interpreting current features and explanations.
 
 ## Reproducibility contract
 
@@ -145,16 +151,28 @@ Each deterministic snapshot uses schema version 1 and records:
 
 For identical normalized inputs and configuration, feature evaluation and rank must be deterministic. Time-dependent source freshness is part of the input context and can legitimately change results between runs.
 
+## Separate Klar score and AI opinion
+
+The v2.6.0.1 merge path expanded the provider row and then overwrote its `score`, `verdict`, `factors`, salary, location, seniority, and ranking fields with deterministic values. Because the model name and rationale could remain, the UI presented the deterministic score as AI-derived. The repeated equality was a defect in representation and provenance, not proof that deterministic and AI scoring independently agreed.
+
+Klar v2.6.1 keeps the deterministic match as the outer row and stores a valid provider response under `aiAssessment`. Cards and details show:
+
+- **Klar score**: the reproducible deterministic score used for order;
+- **AI opinion**: the provider's independently parsed advisory score; and
+- **difference**: AI opinion minus Klar score, without silently rounding stored precision.
+
+The nested assessment retains its own verdict, factors, rationale, skills, warnings, confidence, model, prompt/schema versions, evaluation time, and cache provenance. Missing or invalid AI fields remain missing; deterministic factors are never copied into the provider object.
+
 ## Optional AI attention
 
 The full deterministic result set is not capped. The `candidateLimit` value of 40 limits automatic AI priority, not visible results. AI batching is five jobs per request; the legacy shortlist size is eight; default LLM reranking is off.
 
 There are two supported attention patterns:
 
-- enrich one job the person opens, then cache that explanation; or
-- in compatibility mode, automatically enrich a bounded top set.
+- assess one job the person opens, then cache that independent assessment; or
+- in compatibility mode, automatically assess a bounded top set.
 
-If AI is unavailable, malformed, over budget, or missing a row, the deterministic local result remains. Only valid provider results are cached. Provider scores and prose cannot overwrite deterministic eligibility, posting confidence, or order.
+If AI is unavailable, malformed, over budget, or missing a row, the deterministic local result remains. Only valid provider results are cached. Provider scores and prose cannot overwrite deterministic eligibility, posting confidence, or order. Cache identity includes provider, normalized endpoint, selected model/fast-model choice, prompt version, response schema, scorer version, locale, and match inputs.
 
 ## Diagnostics and honest empty states
 
@@ -165,7 +183,7 @@ Search diagnostics reconcile:
 - duplicate merges;
 - local filter and relevance reasons;
 - candidate count;
-- local and AI analysis counts;
+- local and independently valid AI analysis counts, equality/divergence counts, and score deltas;
 - provider failures; and
 - final visible count.
 

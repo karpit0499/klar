@@ -6,10 +6,10 @@ order: 230
 audience: ["Klar users", "Product support"]
 status: "current"
 classification: "public"
-applicable_version: "2.6.0.1"
+applicable_version: "2.6.1"
 owner: "Klar Product Support"
-last_verified: "2026-08-10"
-next_review: "2026-11-10"
+last_verified: "2026-08-11"
+next_review: "2026-11-11"
 tags: ["user-guide", "resume", "profile", "evidence"]
 ---
 
@@ -51,9 +51,15 @@ Items and sections can be reordered. Removed content has an immediate undo actio
 
 The completeness report checks structural signals such as a name, contact route, summary, role basics, dates, achievements, and skills. Its percentage is a preparation aid, not a measure of candidate quality and not proof that every fact is correct.
 
+## Open the Resume workspace
+
+Choose **Resume** from the Dashboard or open the Resume deep link. The dedicated workspace contains the structured editor, replacement flow, completeness report, history, and the disabled-by-default design lab. It is no longer nested inside Settings.
+
+If an edit is unsaved, Klar warns before leaving the page or following a hash route. Use **Stay** to keep working or deliberately discard the draft. Browser reload and tab-close protection remains best effort, so save before closing the browser.
+
 ## Edit the current Resume
 
-Open **Settings**, then the Resume section. Edit the structured fields and choose **Review and save**. Saving updates the canonical Resume and therefore the profile derived for later matching and application work.
+Open **Resume**, edit the structured fields, and choose **Review and save**. Saving updates the canonical Resume and therefore the profile derived for later matching and application work.
 
 Previously saved search results and Tracker scores are not silently reinterpreted. Use **Rescore with current profile** on a tracked job when you deliberately want a new ranking snapshot.
 
@@ -90,7 +96,7 @@ Blocked AI wording cannot be accepted or exported. Supported or confirmation-req
 
 ## Export format
 
-The v2.6.0.1 production Resume DOCX and browser-print PDF use a consistent A4, single-column Arial structure with a compact identity block, unlabeled profile, ruled semantic headings, grouped role and date information, real bullets, and combined skills/languages. The newest held role is used as an evidence-backed subtitle; Klar does not present the target vacancy title as experience.
+Klar v2.6.1 retains the `klar-resume-docx-v2.6.0.1` Resume export contract: DOCX and browser-print PDF use a consistent A4, single-column Arial structure with a compact identity block, unlabeled profile, ruled semantic headings, grouped role and date information, real bullets, and combined skills/languages. The newest held role is used as an evidence-backed subtitle; Klar does not present the target vacancy title as experience.
 
 DOCX is the safer default for applicant tracking systems. PDF remains available through browser print/save and should be visually checked before submission.
 

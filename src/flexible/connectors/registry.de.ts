@@ -397,12 +397,16 @@ export const FLEXIBLE_REGISTRY_DE: ConnectorConfig[] = [
 
 /** Every host any connector may reach — the source of truth for the Worker allowlist. */
 export const FABRIC_ALLOWED_HOSTS: string[] = [
-  ...new Set(FLEXIBLE_REGISTRY_DE.flatMap((c) => c.allowedHosts)),
+  ...new Set(FLEXIBLE_REGISTRY_DE
+    .filter((config) => config.verification === 'verified')
+    .flatMap((config) => config.allowedHosts)),
 ].sort()
 
-/** Top-level connectors the fabric runs (federated members are excluded). */
+/** Production gate: only verified top-level connectors may execute. */
 export function topLevelConfigs(): ConnectorConfig[] {
-  return FLEXIBLE_REGISTRY_DE.filter((c) => !c.memberOnly)
+  return FLEXIBLE_REGISTRY_DE.filter((config) => (
+    !config.memberOnly && config.verification === 'verified'
+  ))
 }
 
 /** The 21 initial employer families (deduped by employerFamily, excluding baselines). */

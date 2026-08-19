@@ -8,6 +8,7 @@
 import type { NormalizedJob } from '../../types'
 import { getJson } from '../../lib/http'
 import { makeJob, toISO } from '../normalize'
+import { isAtsLocationAdmitted, parseAtsLocation, type AtsMarketCode } from './location'
 
 type LeverJob = {
   id: string
@@ -35,24 +36,26 @@ export async function fetchLever(
   company: string,
   slug: string,
   signal?: AbortSignal,
+  market: AtsMarketCode | 'dach' = 'dach',
 ): Promise<NormalizedJob[]> {
   const url = `https://api.lever.co/v0/postings/${slug}?mode=json`
   const data = await getJson<LeverJob[]>(url, { signal })
-  return (Array.isArray(data) ? data : [])
-    .filter((j) => j.id)
-    .map((j) => {
+  return (Array.isArray(data) ? data : []).flatMap((j) => {
+      if (!j.id) return []
       const cat = j.categories ?? {}
       const desc = [j.descriptionPlain, j.additionalPlain].filter(Boolean).join('\n\n')
-      return makeJob({
+      const parsed = parseAtsLocation({
+        locationText: cat.location,
+        country: j.country,
+        remote: (j.workplaceType || '').toLowerCase() === 'remote',
+      })
+      if (!isAtsLocationAdmitted(parsed, market)) return []
+      return [makeJob({
         source: 'lever',
         source_id: j.id,
         title: j.text,
         company,
-        location: {
-          city: cat.location,
-          country: j.country || 'Deutschland',
-          remote: (j.workplaceType || '').toLowerCase() === 'remote',
-        },
+        location: parsed.location,
         description: desc,
         url: j.hostedUrl,
         posted_at: toISO(j.createdAt),
@@ -67,6 +70,6 @@ export async function fetchLever(
           : {},
         tags: [cat.department, cat.team].filter((x): x is string => !!x),
         raw: j,
-      })
+      })]
     })
 }

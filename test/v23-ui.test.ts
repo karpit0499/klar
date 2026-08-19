@@ -56,7 +56,7 @@ assert.match(onboarding, /Return to Flexible Work/)
 // v2.4 moved this label into the i18n dictionary; the home still wires the add-resume path.
 assert.match(flexibleHome, /flexible\.home\.addResume/)
 assert.match(source('src/i18n/translations.ts'), /Add resume for career roles/)
-assert.match(settings, /Edit flexible search/)
+assert.match(settings, /flexible\.home\.edit/)
 assert.match(settings, /<SafetyCenter/)
 assert.match(app, /canonical \? deriveProfile/)
 assert.doesNotMatch(app, /deriveProfile\(\{\s*summary:\s*''/)

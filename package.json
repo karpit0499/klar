@@ -1,8 +1,8 @@
 {
   "name": "klar",
   "private": true,
-  "version": "2.6.0-1",
-  "klarRelease": "2.6.0.1",
+  "version": "2.6.1",
+  "klarRelease": "2.6.1",
   "description": "Privacy-first job search, ranking, and application toolkit.",
   "author": "Klar contributors",
   "license": "UNLICENSED",
@@ -27,12 +27,14 @@
     "audit:production": "npm audit --omit=dev --audit-level=high",
     "audit:build-tools": "npm audit --audit-level=high",
     "bundle:check": "node scripts/check-bundle-size.mjs",
+    "terminology:check": "node scripts/check-terminology.mjs",
     "typecheck": "tsc --noEmit",
     "test": "node scripts/run-tests.mjs",
     "worker:types:check": "wrangler types worker/worker-configuration.d.ts --config worker/wrangler.jsonc --include-runtime false --check",
     "worker:check": "tsc --noEmit -p worker/tsconfig.json",
     "worker:dry-run": "wrangler deploy --dry-run --config worker/wrangler.jsonc",
-    "qa": "node --check public/sw.js && node --check public/theme-bootstrap.js && node model/experiments/build-kaggle-notebook.mjs --check && npm run typecheck && npm run worker:types:check && npm run worker:check && npm test && npm run build && npm run bundle:check && npm run build:desktop && npm run bundle:check && npm run worker:dry-run"
+    "qa:e2e": "node qa/run-e2e.mjs",
+    "qa": "npm run terminology:check && node --check public/sw.js && node --check public/theme-bootstrap.js && node model/experiments/build-kaggle-notebook.mjs --check && npm run typecheck && npm run worker:types:check && npm run worker:check && npm test && npm run build && npm run bundle:check && npm run qa:e2e && npm run build:desktop && npm run bundle:check && npm run worker:dry-run"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

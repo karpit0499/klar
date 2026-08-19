@@ -20,6 +20,10 @@ import {
   type RankingReviewerSubmission,
 } from '../qa/ranking/humanReview.ts'
 import { SYNTHETIC_RANKING_CORPUS } from '../qa/ranking/syntheticCorpus.ts'
+import {
+  RANKING_MODEL_VERSION,
+  REQUIREMENT_MODEL_VERSION,
+} from '../src/match/rankingV2.ts'
 
 assert.equal(
   BASELINE_V255_COMMIT,
@@ -318,8 +322,8 @@ function makeDevelopmentBundle(): HumanReviewBundle {
     asOf,
     baselineCommit: BASELINE_V255_COMMIT,
     baselineVersion: BASELINE_V255_VERSION,
-    rankingVersion: 'ranking-v2.6.0',
-    requirementVersion: 'requirements-v2.6.0',
+    rankingVersion: RANKING_MODEL_VERSION,
+    requirementVersion: REQUIREMENT_MODEL_VERSION,
     scenarios: SYNTHETIC_RANKING_CORPUS.map((scenario) => ({
       scenarioId: scenario.id,
       language: scenario.review.language,

@@ -1,17 +1,6 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
 import { SITE_URL, SOCIAL_IMAGE } from "../lib/site";
 import "./globals.css";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -20,12 +9,10 @@ export const metadata: Metadata = {
     template: "%s · Klar Knowledge Base",
   },
   description: "The governed product, user, engineering, security, and operations documentation for Klar.",
-  alternates: { canonical: "/" },
-  robots: { index: true, follow: true },
   icons: {
-    icon: "/icon-192.png",
-    shortcut: "/icon-192.png",
-    apple: "/apple-touch-icon.png",
+    icon: `${SITE_URL}/icon-192.png`,
+    shortcut: `${SITE_URL}/icon-192.png`,
+    apple: `${SITE_URL}/apple-touch-icon.png`,
   },
   openGraph: {
     title: "Klar Knowledge Base",
@@ -33,7 +20,7 @@ export const metadata: Metadata = {
     type: "website",
     siteName: "Klar Knowledge Base",
     url: SITE_URL,
-    images: [{ url: SOCIAL_IMAGE, width: 1731, height: 909, alt: "Klar Knowledge Base" }],
+    images: [{ url: SOCIAL_IMAGE, width: 1200, height: 630, alt: "Klar Knowledge Base" }],
   },
   twitter: {
     card: "summary_large_image",
@@ -50,9 +37,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
+      <body>
         <a className="skip-link" href="#main">Skip to content</a>
         {children}
       </body>

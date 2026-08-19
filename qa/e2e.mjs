@@ -8,6 +8,8 @@ let issueReporting
 let resumeDesignLab
 let applicationPacket
 let trackedRescore
+let resumeNavigation
+let searchCancellation
 const browser = await chromium.launch()
 
 const EXPECTED_DOCUMENT_CHECK_IDS = [
@@ -86,12 +88,29 @@ async function run(viewport, tag, contextOptions = {}) {
   const page = await context.newPage()
   let chatRequests = 0
 
-  await page.route('**/chat/completions', async (route) => {
-    chatRequests += 1
+  // Keep the general viewport suite deterministic. Local build assets continue
+  // normally; every external connector is handled in-memory so a stale public
+  // endpoint cannot create hundreds of console 404s or change the assertion
+  // result. Scenarios that need real response shapes install their own routes.
+  await page.route('**/*', async (route) => {
+    const url = new URL(route.request().url())
+    if (url.hostname === '127.0.0.1' || url.hostname === 'localhost') {
+      await route.continue()
+      return
+    }
+    if (url.pathname.endsWith('/chat/completions')) {
+      chatRequests += 1
+      await route.fulfill({
+        status: 500,
+        contentType: 'application/json',
+        body: JSON.stringify({ error: { message: 'Unexpected E2E chat request.' } }),
+      })
+      return
+    }
     await route.fulfill({
-      status: 500,
+      status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({ error: { message: 'Unexpected E2E chat request.' } }),
+      body: '{}',
     })
   })
   page.on('console', (message) => {
@@ -124,7 +143,7 @@ async function run(viewport, tag, contextOptions = {}) {
     settingsOverflow,
     cards,
     sourceStatus: /Source status/i.test(searchMain),
-    openEntry: /Open application/i.test(searchMain),
+    officialRoute: /Official route/i.test(searchMain),
     terminal: /Search complete|returned no matching/i.test(searchMain),
     budgetTokens: /estimated tokens available now/i.test(settingsMain),
     budgetRequests: /Requests this minute:/i.test(settingsMain),
@@ -377,7 +396,7 @@ async function runCareerContinuity() {
   const overflowCompany = (await overflowCard.innerText()).match(/QA Company \d+/)?.[0]
   await details.nth(99).click()
   await page.getByRole('button', { name: 'Explain this job with AI', exact: true }).click()
-  await page.getByText('AI-enriched explanation', { exact: true }).waitFor()
+  await page.getByRole('heading', { name: 'AI opinion', exact: true }).waitFor()
   const chatRequestsAfterFirstExplain = chatRequests
   await page.getByRole('button', { name: 'Close', exact: true }).click()
 
@@ -395,7 +414,7 @@ async function runCareerContinuity() {
   )
   await cachedCard.getByRole('button', { name: 'Details', exact: true }).click()
   await page.getByRole('button', { name: 'Explain this job with AI', exact: true }).click()
-  await page.getByText('AI-enriched explanation', { exact: true }).waitFor()
+  await page.getByRole('heading', { name: 'AI opinion', exact: true }).waitFor()
   const chatRequestsAfterCachedExplain = chatRequests
 
   careerContinuity = {
@@ -445,7 +464,7 @@ async function runIssueReporting() {
   page.on('pageerror', (error) => errors.push(`[issue-reporting] pageerror: ${error.message}`))
 
   await seedCareerWorkspace(page)
-  await page.getByRole('button', { name: 'Settings', exact: true }).click()
+  await page.getByRole('button', { name: 'Open support', exact: true }).click()
   await page.getByRole('heading', { name: 'Submit a bug or issue', exact: true }).waitFor()
   await page.getByRole('button', { name: 'Prepare report', exact: true }).click()
 
@@ -503,7 +522,7 @@ async function runIssueReporting() {
       !publicPreviewText.includes('/home/alice'),
     diagnosticsMinimal:
       /Redacted diagnostics/.test(publicPreviewText) &&
-      /Klar: 2\.6\.0/.test(publicPreviewText) &&
+      /Klar: 2\.6\.1/.test(publicPreviewText) &&
       !/Groq|API key|r(?:esume|\u00e9sum\u00e9) body/i.test(publicPreviewText),
     attemptsBeforeReview,
     publicInitiallyDisabled,
@@ -520,6 +539,20 @@ async function runIssueReporting() {
 async function runResumeDesignLab() {
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } })
   const page = await context.newPage()
+  // Seeding the career workspace mounts Search once. Keep those background
+  // connectors deterministic even though this scenario only exercises Resume.
+  await page.route('**/*', async (route) => {
+    const url = new URL(route.request().url())
+    if (url.hostname === '127.0.0.1' || url.hostname === 'localhost') {
+      await route.continue()
+      return
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: '{}',
+    })
+  })
   page.on('console', (message) => {
     if (message.type() === 'error' || message.type() === 'warning') {
       errors.push(`[resume-design-lab] ${message.type()}: ${message.text()}`)
@@ -528,12 +561,14 @@ async function runResumeDesignLab() {
   page.on('pageerror', (error) => errors.push(`[resume-design-lab] pageerror: ${error.message}`))
 
   await seedCareerWorkspace(page)
-  await page.getByRole('button', { name: 'Settings', exact: true }).click()
-  await page.getByRole('heading', { name: 'Release features', exact: true }).waitFor()
+  await page.getByRole('button', { name: 'Open Resume', exact: true }).click()
+  await page.getByRole('heading', { name: 'Resume', exact: true }).waitFor()
   const hiddenByDefault = await page.getByRole('heading', {
     name: 'Internal resume design lab',
     exact: true,
   }).count() === 0
+  await page.getByRole('button', { name: 'Settings', exact: true }).click()
+  await page.getByRole('heading', { name: 'Release features', exact: true }).waitFor()
 
   const labFlag = page.getByLabel('Show the internal resume design evaluation lab', { exact: true })
   // This controlled checkbox updates after its IndexedDB write resolves, so a
@@ -544,6 +579,9 @@ async function runResumeDesignLab() {
       label.textContent?.trim() === 'Show the internal resume design evaluation lab' &&
       label.querySelector('input')?.checked)
   })
+
+  await page.getByRole('button', { name: 'Klar — Dashboard', exact: true }).click()
+  await page.getByRole('button', { name: 'Open Resume', exact: true }).click()
 
   const labHeading = page.getByRole('heading', { name: 'Internal resume design lab', exact: true })
   await labHeading.waitFor()
@@ -587,20 +625,34 @@ async function runResumeDesignLab() {
   await page.getByRole('status').filter({ hasText: 'Decision saved locally.' }).waitFor()
 
   await page.reload({ waitUntil: 'networkidle' })
-  await page.getByRole('button', { name: 'Settings', exact: true }).click()
   await labHeading.waitFor()
   const reloadedPrerequisites = page.locator('fieldset').filter({ hasText: 'Study prerequisites' })
     .locator('input[type="checkbox"]')
   const reloadedPrerequisiteStates = await reloadedPrerequisites.evaluateAll((inputs) =>
     inputs.map((input) => input.checked),
   )
+  const decisionPersisted = await page.locator('#resume-lab-decision').inputValue()
+  const defaultStatusPersisted = await page.locator('#resume-lab-default-status').inputValue()
+  const notePersisted = await page.locator('#resume-lab-note').inputValue()
+  const allowedVariantPersisted = await page.locator('fieldset')
+    .filter({ hasText: 'Allowed variants' })
+    .getByLabel('Data & analytics', { exact: true })
+    .isChecked()
+  await page.getByRole('button', { name: 'Settings', exact: true }).click()
+  const persistedFlag = page.getByLabel(
+    'Show the internal resume design evaluation lab',
+    { exact: true },
+  )
+  await page.waitForFunction(() => {
+    return [...document.querySelectorAll('label')].some((label) =>
+      label.textContent?.trim() === 'Show the internal resume design evaluation lab' &&
+      label.querySelector('input')?.checked)
+  })
+  const flagPersisted = await persistedFlag.isChecked()
 
   resumeDesignLab = {
     hiddenByDefault,
-    flagPersisted: await page.getByLabel(
-      'Show the internal resume design evaluation lab',
-      { exact: true },
-    ).isChecked(),
+    flagPersisted,
     previewCheckCount: checkLabels.length,
     previewChecksPass: checkLabels.length > 0 && checkLabels.every((text) => text.startsWith('✓')),
     previewUsesSeededResume:
@@ -612,14 +664,11 @@ async function runResumeDesignLab() {
     eligibleDisabledAfterPrerequisites,
     eligibleDisabledWithoutSelectedVariant,
     eligibleAfterCoherentSelection,
-    decisionPersisted: await page.locator('#resume-lab-decision').inputValue(),
-    defaultStatusPersisted: await page.locator('#resume-lab-default-status').inputValue(),
-    notePersisted: await page.locator('#resume-lab-note').inputValue(),
+    decisionPersisted,
+    defaultStatusPersisted,
+    notePersisted,
     prerequisitesPersisted: reloadedPrerequisiteStates.every(Boolean),
-    allowedVariantPersisted: await page.locator('fieldset')
-      .filter({ hasText: 'Allowed variants' })
-      .getByLabel('Data & analytics', { exact: true })
-      .isChecked(),
+    allowedVariantPersisted,
   }
   await context.close()
 }
@@ -816,6 +865,14 @@ async function runApplicationPacket() {
 async function runTrackedRescore() {
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } })
   const page = await context.newPage()
+  await page.route('**/*', async (route) => {
+    const url = new URL(route.request().url())
+    if (url.hostname === '127.0.0.1' || url.hostname === 'localhost') {
+      await route.continue()
+      return
+    }
+    await route.fulfill({ status: 200, contentType: 'application/json', body: '{}' })
+  })
   page.on('console', (message) => {
     if (message.type() === 'error' || message.type() === 'warning') {
       errors.push(`[tracked-rescore] ${message.type()}: ${message.text()}`)
@@ -886,7 +943,7 @@ async function runTrackedRescore() {
   ).isVisible()
   const rescoreEnabled = !(await rescoreButton.isDisabled())
   await rescoreButton.click()
-  await page.getByText('ranking-v2.6.0 · reproducibly stored', { exact: true }).waitFor()
+  await page.getByText('ranking-v2.6.1 · reproducibly stored', { exact: true }).waitFor()
   const stored = await page.evaluate(async () => {
     const database = await new Promise((resolve, reject) => {
       const request = indexedDB.open('klar')
@@ -915,12 +972,145 @@ async function runTrackedRescore() {
   await context.close()
 }
 
+async function runResumeNavigation() {
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } })
+  const page = await context.newPage()
+  page.on('console', (message) => {
+    if (message.type() === 'error' || message.type() === 'warning') {
+      errors.push(`[resume-navigation] ${message.type()}: ${message.text()}`)
+    }
+  })
+  page.on('pageerror', (error) => errors.push(`[resume-navigation] pageerror: ${error.message}`))
+
+  await seedCareerWorkspace(page)
+  await page.getByRole('button', { name: 'Open Resume', exact: true }).click()
+  const resumeHeading = page.getByRole('heading', { name: 'Resume', exact: true })
+  await resumeHeading.waitFor()
+  const deepLink = new URL(page.url()).hash
+
+  const nameField = page.getByLabel('Name', { exact: true }).first()
+  await nameField.fill('Unsaved QA Name')
+  await page.getByText('Unsaved changes', { exact: true }).waitFor()
+  await page.getByRole('button', { name: 'Settings', exact: true }).click()
+
+  const dialog = page.getByRole('alertdialog', { name: 'Leave without saving?' })
+  await dialog.waitFor()
+  const guardedHash = new URL(page.url()).hash
+  const initialDialogFocus = await page.evaluate(() => document.activeElement?.textContent?.trim())
+  await page.keyboard.press('Escape')
+  await dialog.waitFor({ state: 'hidden' })
+  const draftAfterCancel = await nameField.inputValue()
+
+  await page.getByRole('button', { name: 'Settings', exact: true }).click()
+  await dialog.getByRole('button', { name: 'Discard and leave', exact: true }).click()
+  const settingsHeading = page.getByRole('heading', { name: 'Settings & data', exact: true })
+  await settingsHeading.waitFor()
+  await page.waitForFunction(() => document.activeElement?.textContent?.includes('Settings & data'))
+  const requestedHash = new URL(page.url()).hash
+  const requestedFocus = await page.evaluate(() => document.activeElement?.textContent?.trim())
+
+  await page.evaluate(() => history.back())
+  await resumeHeading.waitFor()
+  const storedNameAfterDiscard = await page.getByLabel('Name', { exact: true }).first().inputValue()
+
+  await page.getByLabel('Name', { exact: true }).first().fill('Second unsaved name')
+  await page.evaluate(() => history.back())
+  await dialog.waitFor()
+  const historyGuardedHash = new URL(page.url()).hash
+  await dialog.getByRole('button', { name: 'Discard and leave', exact: true }).click()
+  await page.waitForFunction(() => window.location.hash === '#/dashboard')
+  const confirmedHistoryHash = new URL(page.url()).hash
+
+  await page.goto(`${BASE}#/support`, { waitUntil: 'networkidle' })
+  const supportHeading = page.getByRole('heading', { name: 'Help & feedback', exact: true })
+  await supportHeading.waitFor()
+  await page.waitForFunction(() => document.activeElement?.textContent?.includes('Help & feedback'))
+  const supportFocus = await page.evaluate(() => document.activeElement?.textContent?.trim())
+
+  resumeNavigation = {
+    deepLink,
+    guardedHash,
+    initialDialogFocus,
+    draftAfterCancel,
+    requestedHash,
+    requestedFocus,
+    storedNameAfterDiscard,
+    historyGuardedHash,
+    confirmedHistoryHash,
+    supportHash: new URL(page.url()).hash,
+    supportFocus,
+  }
+  await context.close()
+}
+
+async function runSearchCancellation() {
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } })
+  const page = await context.newPage()
+  let arbeitnowCalls = 0
+  page.on('console', (message) => {
+    if (message.type() === 'error' || message.type() === 'warning') {
+      errors.push(`[search-cancellation] ${message.type()}: ${message.text()}`)
+    }
+  })
+  page.on('pageerror', (error) => errors.push(`[search-cancellation] pageerror: ${error.message}`))
+  await page.route('**/*', async (route) => {
+    const url = new URL(route.request().url())
+    if (url.hostname === '127.0.0.1' || url.hostname === 'localhost') {
+      await route.continue()
+      return
+    }
+    if (url.hostname === 'www.arbeitnow.com' && url.pathname === '/api/job-board-api') {
+      arbeitnowCalls += 1
+      const generation = arbeitnowCalls
+      if (generation === 1) {
+        await new Promise((resolve) => setTimeout(resolve, 750))
+      }
+      const fixture = {
+        ...fixtureJobs()[0],
+        slug: generation === 1 ? 'cancelled-generation' : 'current-generation',
+        title: generation === 1 ? 'Cancelled Generation Data Engineer' : 'Current Generation Data Engineer',
+        company_name: generation === 1 ? 'Stale Company' : 'Current Company',
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ data: [fixture], links: { next: null } }),
+      }).catch(() => undefined)
+      return
+    }
+    await route.fulfill({ status: 200, contentType: 'application/json', body: '{}' })
+  })
+
+  await seedCareerWorkspace(page)
+  await page.getByRole('button', { name: 'Search', exact: true }).click()
+  await page.getByRole('button', { name: 'Search & match', exact: true }).click()
+  const cancel = page.getByRole('button', { name: 'Cancel search', exact: true })
+  await cancel.waitFor()
+  await cancel.click()
+  const cancelledNotice = await page.getByText(
+    'Search cancelled. Any partial results shown below were kept.',
+    { exact: true },
+  ).isVisible()
+
+  await page.getByRole('button', { name: 'Search & match', exact: true }).click()
+  await page.getByText('Current Generation Data Engineer', { exact: true }).waitFor({ timeout: 30_000 })
+  await new Promise((resolve) => setTimeout(resolve, 900))
+  searchCancellation = {
+    cancelledNotice,
+    arbeitnowCalls,
+    currentCount: await page.getByText('Current Generation Data Engineer', { exact: true }).count(),
+    staleCount: await page.getByText('Cancelled Generation Data Engineer', { exact: true }).count(),
+    finalHash: new URL(page.url()).hash,
+  }
+  await context.close()
+}
+
 await run({ width: 1280, height: 900 }, 'desktop')
 await run({ width: 375, height: 812 }, 'mobile-375')
 await run({ width: 320, height: 568 }, 'mobile-320')
 await run(
   { width: 640, height: 450 },
-  'desktop-200-percent-effective',
+  'desktop-high-density-dark-reduced-motion',
   { deviceScaleFactor: 2, colorScheme: 'dark', reducedMotion: 'reduce' },
 )
 await runCareerContinuity()
@@ -928,6 +1118,8 @@ await runIssueReporting()
 await runResumeDesignLab()
 await runApplicationPacket()
 await runTrackedRescore()
+await runResumeNavigation()
+await runSearchCancellation()
 await browser.close()
 
 console.log(JSON.stringify({
@@ -937,6 +1129,8 @@ console.log(JSON.stringify({
   resumeDesignLab,
   applicationPacket,
   trackedRescore,
+  resumeNavigation,
+  searchCancellation,
   errors,
 }, null, 2))
 
@@ -945,7 +1139,7 @@ const failed = Object.values(results).some((result) =>
   result.settingsOverflow ||
   result.cards === 0 ||
   !result.sourceStatus ||
-  !result.openEntry ||
+  !result.officialRoute ||
   !result.terminal ||
   !result.budgetTokens ||
   !result.budgetRequests ||
@@ -1037,9 +1231,29 @@ const trackedRescoreFailed =
   !trackedRescore ||
   !trackedRescore.historicalLabelVisible ||
   !trackedRescore.rescoreEnabled ||
-  trackedRescore.storedVersion !== 'ranking-v2.6.0' ||
+  trackedRescore.storedVersion !== 'ranking-v2.6.1' ||
   trackedRescore.storedHistorical !== false ||
   !/^[a-f0-9]{8}$/.test(trackedRescore.storedInputHash ?? '')
+const resumeNavigationFailed =
+  !resumeNavigation ||
+  resumeNavigation.deepLink !== '#/resume' ||
+  resumeNavigation.guardedHash !== '#/resume' ||
+  resumeNavigation.initialDialogFocus !== 'Keep editing' ||
+  resumeNavigation.draftAfterCancel !== 'Unsaved QA Name' ||
+  resumeNavigation.requestedHash !== '#/settings' ||
+  !resumeNavigation.requestedFocus?.includes('Settings & data') ||
+  resumeNavigation.storedNameAfterDiscard !== 'QA Data Engineer' ||
+  resumeNavigation.historyGuardedHash !== '#/resume' ||
+  resumeNavigation.confirmedHistoryHash !== '#/dashboard' ||
+  resumeNavigation.supportHash !== '#/support' ||
+  !resumeNavigation.supportFocus?.includes('Help & feedback')
+const searchCancellationFailed =
+  !searchCancellation ||
+  !searchCancellation.cancelledNotice ||
+  searchCancellation.arbeitnowCalls !== 2 ||
+  searchCancellation.currentCount !== 1 ||
+  searchCancellation.staleCount !== 0 ||
+  searchCancellation.finalHash !== '#/search'
 if (
   errors.length ||
   failed ||
@@ -1047,5 +1261,7 @@ if (
   issueFailed ||
   labFailed ||
   packetFailed ||
-  trackedRescoreFailed
+  trackedRescoreFailed ||
+  resumeNavigationFailed ||
+  searchCancellationFailed
 ) process.exit(1)

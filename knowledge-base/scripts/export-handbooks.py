@@ -9,10 +9,22 @@ import html
 import json
 import os
 import re
+import shutil
 import subprocess
 import textwrap
 from datetime import date
 from pathlib import Path
+
+# ReportLab uses SOURCE_DATE_EPOCH for PDF dates and trailer identifiers. Set
+# the controlled release date before importing ReportLab so identical governed
+# sources produce identical bytes instead of embedding the wall-clock time.
+CONTROLLED_SOURCE_DATE_EPOCH = "1786406400"  # 2026-08-11T00:00:00Z
+configured_epoch = os.environ.get("SOURCE_DATE_EPOCH")
+if configured_epoch not in (None, CONTROLLED_SOURCE_DATE_EPOCH):
+    raise RuntimeError(
+        "SOURCE_DATE_EPOCH must be 1786406400 for the v2.6.1 controlled PDFs."
+    )
+os.environ["SOURCE_DATE_EPOCH"] = CONTROLLED_SOURCE_DATE_EPOCH
 
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER, TA_LEFT
@@ -34,16 +46,21 @@ from reportlab.platypus import (
     TableStyle,
 )
 from reportlab.platypus.tableofcontents import TableOfContents
+from pypdf import PdfReader, PdfWriter
+from pypdf.generic import BooleanObject, DictionaryObject, NameObject, TextStringObject
 
 
 ROOT = Path(__file__).resolve().parent.parent
 CONTENT_ROOT = ROOT / "content"
 GENERATED_DOCS = ROOT / "generated" / "docs.json"
 OUTPUT_ROOT = ROOT / "output" / "pdf"
+PUBLIC_ROOT = ROOT / "public" / "downloads"
+RELEASE = "2.6.1"
+SITE_URL = "https://karpit0499.github.io/klar/kb"
 
 INK = colors.HexColor("#111318")
 MUTED = colors.HexColor("#62656D")
-FAINT = colors.HexColor("#8B8E96")
+FAINT = colors.HexColor("#6B6E76")
 LINE = colors.HexColor("#DADBD6")
 PAPER = colors.HexColor("#F7F6F2")
 COBALT = colors.HexColor("#2C4BFF")
@@ -117,9 +134,18 @@ def inline_markup(value: str) -> str:
         value = re.sub(pattern, store, value)
 
     protect(r"`([^`]+)`", lambda match: f'<font name="Courier">{html.escape(match.group(1))}</font>')
+    def link_markup(match: re.Match[str]) -> str:
+        target = match.group(2)
+        if target.startswith("/"):
+            path, marker, fragment = target.partition("#")
+            target = f"{SITE_URL}{path.rstrip('/')}/"
+            if marker:
+                target = f"{target}#{fragment}"
+        return f'<link href="{html.escape(target, quote=True)}" color="#2C4BFF">{html.escape(match.group(1))}</link>'
+
     protect(
         r"\[([^\]]+)\]\((https?://[^)]+|/[^)]+)\)",
-        lambda match: f'<link href="{html.escape(match.group(2), quote=True)}" color="#2C4BFF">{html.escape(match.group(1))}</link>',
+        link_markup,
     )
     value = html.escape(value)
     value = re.sub(r"\*\*([^*]+)\*\*", r"<b>\1</b>", value)
@@ -165,7 +191,7 @@ def paragraph_style(styles, name: str):
     return styles[name]
 
 
-def table_flowable(lines: list[str], styles, available_width: float):
+def table_flowables(lines: list[str], styles, available_width: float):
     rows = []
     for line in lines:
         cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
@@ -173,9 +199,33 @@ def table_flowable(lines: list[str], styles, available_width: float):
     if len(rows) >= 2 and all(re.fullmatch(r":?-{3,}:?", cell.replace(" ", "")) for cell in rows[1]):
         rows.pop(1)
     if not rows:
-        return None
+        return []
     columns = max(len(row) for row in rows)
     normalized = [row + [""] * (columns - len(row)) for row in rows]
+    if columns > 5 and len(normalized) > 1:
+        headers = normalized[0]
+        cards = []
+        for row in normalized[1:]:
+            data = [
+                [
+                    Paragraph(inline_markup(header), styles["TableHeaderCard"]),
+                    Paragraph(inline_markup(value), styles["TableCell"]),
+                ]
+                for header, value in zip(headers, row, strict=True)
+            ]
+            card = Table(data, colWidths=[42 * mm, available_width - 42 * mm], hAlign="LEFT")
+            card.setStyle(TableStyle([
+                ("BACKGROUND", (0, 0), (0, -1), PAPER),
+                ("GRID", (0, 0), (-1, -1), 0.35, LINE),
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("LEFTPADDING", (0, 0), (-1, -1), 6),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+                ("TOPPADDING", (0, 0), (-1, -1), 5),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+            ]))
+            cards.extend([KeepTogether([card]), Spacer(1, 8)])
+        return cards
+
     data = [[Paragraph(inline_markup(cell), styles["TableCell"]) for cell in row] for row in normalized]
     table = Table(data, colWidths=[available_width / columns] * columns, repeatRows=1, hAlign="LEFT")
     table.setStyle(TableStyle([
@@ -189,7 +239,7 @@ def table_flowable(lines: list[str], styles, available_width: float):
         ("TOPPADDING", (0, 0), (-1, -1), 6),
         ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
     ]))
-    return table
+    return [table]
 
 
 def markdown_flowables(markdown: str, styles, available_width: float):
@@ -238,9 +288,9 @@ def markdown_flowables(markdown: str, styles, available_width: float):
             while index < len(lines) and "|" in lines[index] and lines[index].strip():
                 table_lines.append(lines[index])
                 index += 1
-            table = table_flowable(table_lines, styles, available_width)
-            if table:
-                story.extend([table, Spacer(1, 8)])
+            tables = table_flowables(table_lines, styles, available_width)
+            if tables:
+                story.extend([*tables, Spacer(1, 8)])
             continue
 
         list_match = re.match(r"^\s*(?:[-*]|\d+\.)\s+(.+)$", line)
@@ -337,8 +387,9 @@ def build_styles():
         "ListText": ParagraphStyle("ListText", parent=base["BodyText"], fontName="Helvetica", fontSize=9.5, leading=13.5, textColor=INK, spaceAfter=2),
         "QuoteKB": ParagraphStyle("QuoteKB", parent=base["BodyText"], fontName="Helvetica", fontSize=9.5, leading=14, textColor=INK, leftIndent=12, rightIndent=8, borderColor=COBALT, borderWidth=1.7, borderPadding=8, backColor=COBALT_PALE, spaceBefore=5, spaceAfter=10),
         "CodeBlock": ParagraphStyle("CodeBlock", parent=base["Code"], fontName="Courier", fontSize=7, leading=9.2, textColor=colors.white, backColor=INK, borderPadding=8, spaceBefore=5, spaceAfter=10),
-        "TableCell": ParagraphStyle("TableCell", parent=base["BodyText"], fontName="Helvetica", fontSize=7.5, leading=10, textColor=INK),
-        "MetaLabel": ParagraphStyle("MetaLabel", parent=base["Normal"], fontName="Helvetica-Bold", fontSize=6.8, leading=9, textColor=FAINT),
+        "TableCell": ParagraphStyle("TableCell", parent=base["BodyText"], fontName="Helvetica", fontSize=8, leading=10.5, textColor=INK),
+        "TableHeaderCard": ParagraphStyle("TableHeaderCard", parent=base["BodyText"], fontName="Helvetica-Bold", fontSize=7.5, leading=10, textColor=INK),
+        "MetaLabel": ParagraphStyle("MetaLabel", parent=base["Normal"], fontName="Helvetica-Bold", fontSize=7.2, leading=9.5, textColor=FAINT),
         "MetaValue": ParagraphStyle("MetaValue", parent=base["Normal"], fontName="Helvetica", fontSize=7.5, leading=10, textColor=INK),
     }
 
@@ -378,7 +429,7 @@ def build_bundle(bundle_id: str, docs: list[dict], revision: str, snapshot_hash:
         raise RuntimeError(f"Bundle {bundle_id} has no documents.")
 
     OUTPUT_ROOT.mkdir(parents=True, exist_ok=True)
-    output = OUTPUT_ROOT / f"klar-kb-{bundle_id}-v2.6.0.1.pdf"
+    output = OUTPUT_ROOT / f"klar-kb-{bundle_id}-v{RELEASE}.pdf"
     styles = build_styles()
     template = KlarHandbookTemplate(
         str(output),
@@ -401,11 +452,12 @@ def build_bundle(bundle_id: str, docs: list[dict], revision: str, snapshot_hash:
         Paragraph("A controlled snapshot generated from the governed Markdown source. The live knowledge base remains authoritative for current guidance.", styles["CoverSubtitle"]),
         Table(
             [
-                [Paragraph("Klar release", styles["MetaLabel"]), Paragraph("2.6.0.1", styles["MetaValue"])],
+                [Paragraph("Klar release", styles["MetaLabel"]), Paragraph(RELEASE, styles["MetaValue"])],
                 [Paragraph("Classification", styles["MetaLabel"]), Paragraph(bundle["classification"], styles["MetaValue"])],
                 [Paragraph("Generated", styles["MetaLabel"]), Paragraph(generated_on, styles["MetaValue"])],
                 [Paragraph("Implementation baseline", styles["MetaLabel"]), Paragraph(revision, styles["MetaValue"])],
                 [Paragraph("KB content hash", styles["MetaLabel"]), Paragraph(snapshot_hash, styles["MetaValue"])],
+                [Paragraph("Accessible live version", styles["MetaLabel"]), Paragraph(f'<link href="{SITE_URL}" color="#2C4BFF">{SITE_URL}</link>', styles["MetaValue"])],
                 [Paragraph("Controlled-copy notice", styles["MetaLabel"]), Paragraph("Verify against the live KB before operational use.", styles["MetaValue"])],
             ],
             colWidths=[42 * mm, template.width - 42 * mm],
@@ -431,10 +483,8 @@ def build_bundle(bundle_id: str, docs: list[dict], revision: str, snapshot_hash:
     story.extend([toc, PageBreak()])
 
     current_section = None
-    for doc in selected:
+    for doc_index, doc in enumerate(selected):
         if doc["section"] != current_section:
-            if current_section is not None:
-                story.append(PageBreak())
             current_section = doc["section"]
             story.extend([
                 Spacer(1, 35 * mm),
@@ -448,10 +498,26 @@ def build_bundle(bundle_id: str, docs: list[dict], revision: str, snapshot_hash:
             KeepTogether([metadata_table(doc, styles, template.width), Spacer(1, 14)]),
         ])
         story.extend(markdown_flowables(source_body(doc["sourcePath"]), styles, template.width))
-        story.append(PageBreak())
+        if doc_index < len(selected) - 1:
+            story.append(PageBreak())
 
     template.multiBuild(story)
+    add_pdf_language_and_display_title(output)
     return output
+
+
+def add_pdf_language_and_display_title(output: Path) -> None:
+    reader = PdfReader(output)
+    writer = PdfWriter()
+    writer.clone_document_from_reader(reader)
+    writer._root_object[NameObject("/Lang")] = TextStringObject("en")
+    writer._root_object[NameObject("/ViewerPreferences")] = DictionaryObject({
+        NameObject("/DisplayDocTitle"): BooleanObject(True),
+    })
+    temporary = output.with_suffix(".tmp.pdf")
+    with temporary.open("wb") as handle:
+        writer.write(handle)
+    temporary.replace(output)
 
 
 def main() -> None:
@@ -473,9 +539,16 @@ def main() -> None:
             + ", ".join(unpublished)
         )
     chosen = args.bundle or list(BUNDLES)
+    OUTPUT_ROOT.mkdir(parents=True, exist_ok=True)
+    PUBLIC_ROOT.mkdir(parents=True, exist_ok=True)
+    if not args.bundle:
+        for directory in (OUTPUT_ROOT, PUBLIC_ROOT):
+            for retired in directory.glob("klar-kb-*-v*.pdf"):
+                retired.unlink()
     snapshot_hash = content_hash(docs)
     for bundle_id in chosen:
         output = build_bundle(bundle_id, docs, args.source_revision, snapshot_hash, args.generated_on)
+        shutil.copy2(output, PUBLIC_ROOT / output.name)
         print(output)
 
 

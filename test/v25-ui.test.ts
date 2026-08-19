@@ -19,7 +19,7 @@ import { FlexiblePrepare } from '../src/ui/FlexiblePrepare'
 import { EngineSettingsCard, FeatureFlagsCard } from '../src/ui/EngineSettings'
 import { OpportunityCard } from '../src/ui/OpportunityCard'
 import { translations, type TranslationKey } from '../src/i18n/translations'
-import { makeOpportunity } from '../src/flexible/opportunity'
+import { makeOfficialSearch, makeOpportunity } from '../src/flexible/opportunity'
 import {
   buildAvailabilitySummary, buildEmployerMessage, buildLanguageLine, buildTransportLine,
   profileCardHtml,
@@ -129,6 +129,7 @@ const flexOpportunity = makeOpportunity({
   title: 'Kassierer (m/w/d) Aushilfe', company: 'REWE Group',
   location: { city: 'Berlin', country: 'Deutschland', remote: false },
   url: 'https://jobs.rewe-group.com/1',
+  salary: { min: 12.5, max: 12.5, currency: 'EUR', period: 'hour' },
 })
 {
   const html = render(h(FlexiblePrepare, {
@@ -173,9 +174,26 @@ const flexOpportunity = makeOpportunity({
   assert.match(withPrepare, /aria-label="Apply/, 'card: the v2.4 apply label is unchanged')
   assert.match(withPrepare, /Prepare message/, 'card: the prepare action appears when it can be saved')
   assert.match(withPrepare, /aria-label="Prepare message —/, 'card: the prepare action is labelled')
+  assert.match(withPrepare, /12\.50/, 'card: English hourly pay uses locale-aware decimal punctuation')
 
   const withoutPrepare = render(h(OpportunityCard, { job: flexOpportunity }))
   assert.doesNotMatch(withoutPrepare, /Prepare message/, 'card: no prepare action without a save path')
+
+  const officialRoute = makeOfficialSearch({
+    source_id: 'official:qa',
+    connectorId: 'qa-official',
+    employerFamily: 'QA Employer',
+    title: 'QA Employer — official job search',
+    programName: 'QA Employer — official job search',
+    company: 'QA Employer',
+    location: { city: 'Berlin', country: 'Deutschland', remote: false },
+    url: 'https://example.test/jobs',
+  })
+  const route = render(h(OpportunityCard, { job: officialRoute, onPrepare: () => {} }))
+  assert.match(route, /Official search|Offizielle Suche/, 'card: an official search is explicitly labelled')
+  assert.match(route, /Official route/, 'card: an official search opens its official route')
+  assert.doesNotMatch(route, /Prepare message|Nachricht vorbereiten/, 'card: route directories never offer application-message preparation')
+  assert.doesNotMatch(route, /<a[^>]*>\s*<button/, 'card: a link never wraps a button')
 }
 
 // ===========================================================================

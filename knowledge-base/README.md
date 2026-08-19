@@ -2,14 +2,15 @@
 
 The Klar Knowledge Base is the public, governed documentation system for the current Klar implementation. It is designed for students, job seekers, schools, career services, developers, and independent privacy or security reviewers. Markdown is the canonical source, the website is the primary reading experience, and PDF handbooks are controlled public snapshots.
 
-[Open the public knowledge base](https://klar-knowledge-base.kmrarpit2704.chatgpt.site/) · [Browse the canonical Markdown](https://github.com/karpit0499/klar/tree/main/knowledge-base/content) · [Read the Klar license](https://github.com/karpit0499/klar/blob/main/LICENSE)
+[Open the public knowledge base](https://karpit0499.github.io/klar/kb/) · [Browse the canonical Markdown](https://github.com/karpit0499/klar/tree/main/knowledge-base/content) · [Read the Klar license](https://github.com/karpit0499/klar/blob/main/LICENSE)
 
 ## Content model
 
 - `content/` contains one Markdown file per governed page.
 - Every page carries ownership, audience, classification, lifecycle status, applicable version, and review dates in frontmatter.
 - `scripts/build-content.mjs` validates every source page, then emits only pages classified `public` whose status is neither `draft` nor `archived`.
-- `app/` and `components/` render the searchable website from that generated index.
+- `app/` and `components/` render a Next.js static export from that generated index.
+- `public/search-index.json` is generated as a separately loaded search corpus so every page does not embed the full KB.
 - `scripts/export-handbooks.py` creates the controlled PDF bundles in `output/pdf/`.
 
 Do not edit `generated/docs.json` or the downloadable PDF copies by hand. Regenerate them from the Markdown source.
@@ -19,7 +20,7 @@ Do not edit `generated/docs.json` or the downloadable PDF copies by hand. Regene
 Requires Node.js 22.13 or newer.
 
 ```bash
-npm install
+npm ci
 npm run dev
 ```
 
@@ -29,11 +30,15 @@ The local site is available at `http://localhost:3000` by default.
 
 ```bash
 npm run content:build
+npm run typecheck
 npm run lint
+npm run build
 npm test
 ```
 
-The production build is part of `npm test`. Content compilation fails for missing control metadata, duplicate slugs, broken internal documentation links, unsupported lifecycle values, or the retired accented spelling of Resume.
+Use `npm run qa` for the combined content, type, lint, static-build, and rendered-output gate. Content compilation fails for missing control metadata, duplicate slugs, broken internal documentation links, unsupported lifecycle values, or the retired accented spelling of Resume.
+
+The v2.6.1 handbook binaries are generated artifacts rather than committed source files. On a fresh checkout, install the hash-locked PDF dependencies and run `npm run pdf:repro` plus `npm run pdf:verify` before `npm run qa`; the reproducibility gate first rebuilds the governed public-content index, then builds twice and requires byte-identical output. The static-export tests require every advertised `/downloads/` target to exist and match its verified source. The deployment workflow uses this same order.
 
 ## Public publication gate
 
@@ -52,12 +57,12 @@ The package remains marked `private: true` to prevent accidental publication to 
 Install the pinned PDF dependencies, then build and verify the three controlled handbooks:
 
 ```bash
-python3 -m pip install -r requirements-pdf.txt
-npm run pdf:build
+python3 -m pip install --require-hashes -r requirements-pdf.txt
+npm run pdf:repro
 npm run pdf:verify
 ```
 
-All three bundles are classified `PUBLIC`. After visual review, copy the verified PDFs from `output/pdf/` into `public/downloads/` so the website distributes the exact approved snapshots.
+All three bundles are classified `PUBLIC`. The exporter writes each controlled file to `output/pdf/` and its downloadable copy to `public/downloads/`; the verifier requires those copies to be byte-identical. Render and visually review every page before publication. The verifier rejects blank pages, invalid page counts, relative production links, missing document language/title metadata, and stale public copies. The HTML site remains the accessible authority while tagged-PDF evidence is on HOLD.
 
 ## Adding or changing a page
 
@@ -69,6 +74,13 @@ All three bundles are classified `PUBLIC`. After visual review, copy the verifie
 
 ## Public deployment
 
-The site is packaged and published publicly through the configured Sites project. `.openai/hosting.json` records the project binding and must stay aligned with the deployed site. The knowledge base has no form for uploading application documents, personal information, credentials, secrets, or diagnostic archives.
+The repository's **Verify and deploy Klar** workflow builds the application and KB from the same reviewed commit, assembles one GitHub Pages artifact, and publishes:
 
-Run the complete site build immediately before packaging a release. After deployment, compare every public PDF download with its reviewed `public/downloads/` source so a stale build artifact cannot silently replace an approved handbook.
+- the Klar application at `/klar/`; and
+- the Next static KB export at `/klar/kb/`.
+
+The KB build uses `NEXT_PUBLIC_KB_BASE_PATH=/klar/kb` and `NEXT_PUBLIC_KB_SITE_URL=https://karpit0499.github.io/klar/kb`. Canonicals, Open Graph metadata, sitemaps, internal routes, assets, downloads, and the lazy search index must all retain that base path. The root application service worker deliberately passes `/klar/kb/` through rather than treating documentation as application-shell traffic.
+
+Do not restore `.openai/hosting.json`, the retired Sites/Vinext/Vite layer, or a ChatGPT Sites canonical. Do not manually deploy a local `out/` directory. Pull requests run the same build and artifact checks without publishing; a push to `main` deploys only after the verified artifact is complete. The knowledge base has no form for uploading application documents, personal information, credentials, secrets, or diagnostic archives.
+
+After deployment, crawl the GitHub Pages routes, compare every public PDF download with its reviewed `public/downloads/` source, and verify the published release metadata so a stale artifact cannot silently replace an approved handbook.

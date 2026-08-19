@@ -75,7 +75,7 @@ assert.equal(extractJsonLdJobPostings('<script type="application/ld+json">{"@typ
   const result = await buildFallback(cfg('rewe-group'), query, ctx)
   assert.equal(result.usedFallback, true)
   assert.ok(result.opportunities.length >= 1, 'api_employer fallback yields an official route card')
-  assert.ok(result.opportunities.some((o) => o.kind === 'open_entry'))
+  assert.ok(result.opportunities.some((o) => o.kind === 'official_search'))
 }
 
 // --- Registry integrity ------------------------------------------------------
@@ -91,12 +91,21 @@ assert.equal(extractJsonLdJobPostings('<script type="application/ld+json">{"@typ
       assert.ok(FLEXIBLE_REGISTRY_DE.some((c) => c.id === memberId), `${config.id} member ${memberId} exists`)
     }
   }
-  // At least the 21 initial employer families are represented.
-  assert.ok(employerFamilies().length >= 21, `has ${employerFamilies().length} employer families (>= 21)`)
+  // Required launch families are present by identity; a pile of duplicate or
+  // invented rows cannot satisfy this behavior gate.
+  const requiredFamilies = [
+    'REWE Group', 'Kaufland', 'Lidl', 'ALDI SÜD', 'ALDI Nord', 'Netto Marken-Discount',
+    'dm-drogerie markt', 'ROSSMANN', 'IKEA', 'EDEKA', 'Deutsche Post DHL',
+    'Amazon Operations', 'Hermes', 'Flink', 'Lieferando', 'Wolt', "McDonald's",
+    'Burger King', 'Starbucks', 'NORDSEE', 'Major hotel groups',
+  ].sort()
+  assert.deepEqual(employerFamilies().sort(), requiredFamilies)
   // Security: every registry host is on the Worker allowlist (§7).
   for (const host of FABRIC_ALLOWED_HOSTS) {
     assert.ok(FABRIC_HOSTS[host], `Worker allowlist covers ${host}`)
   }
+  assert.deepEqual(FABRIC_ALLOWED_HOSTS, Object.keys(FABRIC_HOSTS).sort(), 'client and Worker allowlists have exact parity')
+  assert.ok(topLevelConfigs().every((config) => config.verification === 'verified'), 'candidate connectors never execute')
 }
 
 // --- buildFabric: top-level only, members excluded, baselines present -------

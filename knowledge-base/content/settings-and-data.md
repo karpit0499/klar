@@ -1,15 +1,15 @@
 ---
 title: "Settings and Data"
-description: "Guide to Klar's local data, language, appearance, connections, Resume, AI engine, release controls, region, and deletion settings."
+description: "Guide to Klar's local data, language, appearance, connections, AI engine, release controls, region, and deletion settings."
 section: "User Guide"
 order: 270
 audience: ["Klar users", "Product support", "Operators"]
 status: "current"
 classification: "public"
-applicable_version: "2.6.0.1"
+applicable_version: "2.6.1"
 owner: "Klar Product Support"
-last_verified: "2026-08-10"
-next_review: "2026-11-10"
+last_verified: "2026-08-11"
+next_review: "2026-11-11"
 tags: ["user-guide", "settings", "data", "credentials", "ai-engine"]
 ---
 
@@ -21,23 +21,25 @@ Klar's workspace belongs to the current browser profile. Switching devices or br
 
 Settings contains several independent controls. Changing one does not imply that related external services were changed.
 
-## Backup, vault, and reports
+## Backup and vault
 
 Use **Backup & encryption** to download a standard or complete encrypted backup, restore a file, enable or disable the vault, lock it, or create an explicitly confirmed readable export. Read [Backups and recovery](/docs/backups-and-recovery) before changing vault state.
-
-Use **Submit a bug or issue** to prepare a privacy-reviewed GitHub report. Ordinary reports open public Issues; privacy or security concerns open private vulnerability reporting. Klar does not submit either type automatically.
 
 The Desktop capability panel appears only inside the experimental Electron build, which is not publicly distributed. It exposes bounded system/runtime status, verified model-package startup, stop, and redacted diagnostics through the desktop bridge; the browser page receives no general shell or filesystem access.
 
 ## Language and appearance
 
-Select English or German and the available appearance mode. These interface preferences are stored locally and do not translate user-entered Resume or packet content.
+Select English or German and the available appearance mode. Klar v2.6.1 localizes navigation, scoring, source states, validation and recovery messages, dates, numbers, and currency formatting more consistently. These interface preferences are stored locally and do not translate user-entered Resume or packet content. In German UI, Klar uses **Lebenslauf**; in English UI and code-facing documentation it uses **Resume**.
+
+If no language preference has been saved, Klar uses the browser's German locale when it begins with `de`; otherwise it starts in English. User-visible failures are stored as stable codes and translated when rendered, so changing language does not leave a cached English error behind. Job-card dates, score numbers, and salary currency values use locale-aware formatters; broader relative-time and plural-format coverage remains part of the localization follow-up.
+
+German search normalization treats `ß` and `ss` as equivalent and supports umlaut/digraph forms such as `München`/`Muenchen`, without rewriting the displayed employer text. This improves matching and search lookup; it is not a translation or spelling correction of user data.
 
 ## Flexible Work and Career Roles
 
-Settings can create or edit Flexible Work locations, work types, and availability. If no canonical Resume exists, Settings also offers **Add Resume** to enable Career Roles.
+Settings can create or edit Flexible Work locations, work types, and availability.
 
-Current limitation: v2.6.0.1 does not render a complete post-onboarding editor for career target titles, job market/field, seniority, salary, city, radius, must-haves, or dealbreakers. The setup checklist may navigate to Settings for those preferences even though the editor is absent. Preserve a backup and report the interface gap; do not use Delete all data as a routine edit path.
+Career target titles, job market/field, seniority, salary, city, radius, must-haves, and dealbreakers remain onboarding-owned in v2.6.1; Settings does not expose a complete post-onboarding editor for them. The setup checklist links Resume maintenance to the dedicated Resume page rather than implying that Settings owns career facts. Preserve a backup and use Support to report the remaining preference-editor gap; do not use Delete all data as a routine edit path.
 
 ## Adzuna credentials
 
@@ -45,16 +47,9 @@ Adzuna requires an App ID and App key from the same account. Enter both, then Sa
 
 Credentials are stored in the current browser or encrypted credential vault. They are sent to the Klar Worker only when an Adzuna request needs them. Standard backups exclude them; complete encrypted backups may include them.
 
-## Resume management
+## What moved out of Settings
 
-When a canonical Resume exists, Settings supports:
-
-- editing the structured Resume;
-- previewing and fully replacing it from a supported file or pasted text;
-- naming, renaming, restoring, and deleting Resume snapshots; and
-- the disabled-by-default experimental Resume design lab when its release flag is enabled.
-
-Replacing a Resume preserves tracked jobs and preferences and creates a restorable snapshot of the prior Resume. See [Resume and profile](/docs/resume-and-profile).
+Resume creation, editing, replacement, history, and the disabled-by-default design lab now live on the dedicated **Resume** page linked from the Dashboard. Bug and suggestion reporting now lives on the dedicated **Support** page. Moving both workspaces removes unrelated, high-density controls from Settings without changing their local-data or security boundaries.
 
 ## AI engine
 
@@ -68,7 +63,7 @@ The rolling-minute budget notice shows estimated use and actual use only when th
 
 The Developer Preview exposes guarded feature switches for requirement extraction, tailoring review, custom engine, packet retention, deterministic matching, budget scheduling, oversized-Resume chunking, and the experimental Resume design lab.
 
-These switches are evaluation and rollback controls. Use the safe defaults unless testing a specific behavior, and record any non-default state when reporting a defect. In v2.6.0.1, the custom-engine and packet-retention switches are presented in Settings but are not consumed by their corresponding runtime workflows; changing either switch does not disable custom-engine configuration or packet persistence. Treat that mismatch as a known implementation gap, not as a supported control outcome.
+These switches are evaluation and rollback controls. Use the safe defaults unless testing a specific behavior, and record any non-default state when reporting a defect. In v2.6.1, the custom-engine and packet-retention switches are presented in Settings but are not consumed by their corresponding runtime workflows; changing either switch does not disable custom-engine configuration or packet persistence. Treat that mismatch as a known implementation gap, not as a supported control outcome.
 
 ## Region
 

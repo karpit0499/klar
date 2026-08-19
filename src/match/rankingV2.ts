@@ -12,9 +12,9 @@ import type {
 import { normalizeKey, stableHash } from '../lib/hash'
 import { judgeCareerRelevance } from './relevance'
 
-export const RANKING_MODEL_VERSION = 'ranking-v2.6.0'
-export const REQUIREMENT_MODEL_VERSION = 'requirements-v2.6.0'
-export const RANKING_EXPLANATION_VERSION = 'ranking-explanation-v2.6.0'
+export const RANKING_MODEL_VERSION = 'ranking-v2.6.1'
+export const REQUIREMENT_MODEL_VERSION = 'requirements-v2.6.1'
+export const RANKING_EXPLANATION_VERSION = 'ranking-explanation-v2.6.1'
 
 export type RankingEvaluation = {
   job: NormalizedJob

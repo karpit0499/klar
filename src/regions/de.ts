@@ -11,13 +11,16 @@ import type { Region } from '../types'
 const DE_CITIES: Record<string, { lat: number; lng: number; canonical: string }> = {
   berlin: { lat: 52.52, lng: 13.405, canonical: 'Berlin' },
   münchen: { lat: 48.1372, lng: 11.5756, canonical: 'München' },
+  muenchen: { lat: 48.1372, lng: 11.5756, canonical: 'München' },
   munich: { lat: 48.1372, lng: 11.5756, canonical: 'München' },
   hamburg: { lat: 53.5511, lng: 9.9937, canonical: 'Hamburg' },
   köln: { lat: 50.9375, lng: 6.9603, canonical: 'Köln' },
+  koeln: { lat: 50.9375, lng: 6.9603, canonical: 'Köln' },
   cologne: { lat: 50.9375, lng: 6.9603, canonical: 'Köln' },
   frankfurt: { lat: 50.1109, lng: 8.6821, canonical: 'Frankfurt am Main' },
   stuttgart: { lat: 48.7758, lng: 9.1829, canonical: 'Stuttgart' },
   düsseldorf: { lat: 51.2277, lng: 6.7735, canonical: 'Düsseldorf' },
+  duesseldorf: { lat: 51.2277, lng: 6.7735, canonical: 'Düsseldorf' },
 }
 
 export const regionDE: Region = {

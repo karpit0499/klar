@@ -6,10 +6,10 @@ order: 260
 audience: ["Klar users", "Product support"]
 status: "current"
 classification: "public"
-applicable_version: "2.6.0.1"
+applicable_version: "2.6.1"
 owner: "Klar Product Support"
-last_verified: "2026-08-10"
-next_review: "2026-11-10"
+last_verified: "2026-08-11"
+next_review: "2026-11-11"
 tags: ["user-guide", "dashboard", "local-data"]
 ---
 
@@ -43,6 +43,15 @@ If a vault is enabled, Dashboard content is stored inside the encrypted workspac
 ## At-a-glance context
 
 When a canonical Resume and career preferences exist, the Dashboard may show skill count, total years of experience when derivable, target titles, and primary location. These values come from the canonical Resume and saved preferences; edit their owning source rather than the Dashboard.
+
+## Workspace links
+
+The Career Dashboard links to two focused workspaces:
+
+- **Resume** opens creation, editing, replacement, completeness, history, and the optional design lab.
+- **Support** opens the privacy preview and protected bug or suggestion form.
+
+These are secondary destinations rather than additional items in the four-item mobile primary navigation. Hash deep links, browser Back, focus restoration, and unsaved-change protection are part of the navigation contract.
 
 ## Boundaries
 

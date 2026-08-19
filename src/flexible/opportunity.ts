@@ -126,7 +126,7 @@ export function makeOpportunity(input: OpportunityInput): NormalizedJob {
     url: input.url,
     posted_at: input.posted_at,
     validThrough: input.validThrough,
-    lastVerifiedAt: input.lastVerifiedAt ?? now,
+    lastVerifiedAt: input.lastVerifiedAt ?? (kind === 'vacancy' ? now : undefined),
     salary: input.salary ?? {},
     employment_type: input.employment_type,
     language: input.language,
@@ -138,7 +138,7 @@ export function makeOpportunity(input: OpportunityInput): NormalizedJob {
     scheduleTags: input.scheduleTags,
     programName: input.programName,
     cityAvailability: input.cityAvailability,
-    sourceConfidence: methods.length ? overallConfidence(methods) : (kind === 'open_entry' ? 'published' : 'unknown'),
+    sourceConfidence: methods.length ? overallConfidence(methods) : (kind !== 'vacancy' ? 'published' : 'unknown'),
     duplicateFamily: stableHash(
       `duplicate-family:${normalizeKey(input.title)}|${normalizeKey(input.company)}|${normalizeKey(input.location.city ?? '')}`,
     ),
@@ -160,6 +160,18 @@ export function makeOpenEntry(
     source: input.source ?? 'fabric',
     kind: 'open_entry',
     // Open-entry programmes are official and durable, not "posted" vacancies.
+    posted_at: undefined,
+  })
+}
+
+/** Build an official job-search destination, distinct from an open application. */
+export function makeOfficialSearch(
+  input: Omit<OpportunityInput, 'kind' | 'source'> & { source?: SourceId },
+): NormalizedJob {
+  return makeOpportunity({
+    ...input,
+    source: input.source ?? 'fabric',
+    kind: 'official_search',
     posted_at: undefined,
   })
 }

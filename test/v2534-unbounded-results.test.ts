@@ -3,7 +3,7 @@ import { strict as assert } from 'node:assert'
 import { readFileSync } from 'node:fs'
 import { db } from '../src/db/db'
 import { invalidateEngineCache } from '../src/llm/provider'
-import { buildLocalMatch, isLocalMatch } from '../src/match/fallback'
+import { buildLocalMatch, hasAiAssessment } from '../src/match/fallback'
 import {
   explainMatchWithAi,
   matchJobContentHash,
@@ -58,7 +58,7 @@ try {
     })
 
     assert.equal(matches.length, RELEVANT_JOB_COUNT, `${prefilterMode}: all relevant jobs remain visible`)
-    assert.equal(matches.every(isLocalMatch), true)
+    assert.equal(matches.every((match) => !hasAiAssessment(match)), true)
     assert.equal(matches.every((match) => match.factors != null), true)
     assert.equal(diagnostics?.candidateCount, RELEVANT_JOB_COUNT)
     assert.equal(diagnostics?.notPrioritizedCount, LOCAL_OVERFLOW_COUNT)
@@ -122,7 +122,7 @@ try {
 
     assert.equal(calls, 8, '40 AI candidates are scored in eight five-job batches')
     assert.equal(matches.length, RELEVANT_JOB_COUNT)
-    assert.equal(matches.filter(isLocalMatch).length, LOCAL_OVERFLOW_COUNT)
+    assert.equal(matches.filter((match) => !hasAiAssessment(match)).length, LOCAL_OVERFLOW_COUNT)
     assert.equal(matches.every((match) => match.factors != null), true)
     assert.equal(diagnostics?.candidateCount, RELEVANT_JOB_COUNT)
     assert.equal(diagnostics?.notPrioritizedCount, LOCAL_OVERFLOW_COUNT)
@@ -169,7 +169,8 @@ try {
     const fresh = await explainMatchWithAi(overflowJob, profile, prefs, 'test-key')
     const cached = await explainMatchWithAi(overflowJob, profile, prefs, 'test-key')
     assert.equal(fresh.jobId, overflowJob.id)
-    assert.equal(isLocalMatch(fresh), false)
+    assert.equal(hasAiAssessment(fresh), true)
+    assert.equal(hasAiAssessment(cached), true)
     assert.equal(cached.jobId, fresh.jobId)
     assert.equal(cached.fitScore, fresh.fitScore)
     assert.equal(cached.rationale, fresh.rationale)

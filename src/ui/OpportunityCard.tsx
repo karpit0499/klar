@@ -13,6 +13,7 @@ import { useLocale } from '../i18n/LocaleProvider'
 import { employmentLabel, roleLabel, workplaceLabel } from '../flexible/labels'
 import { isInferredField } from '../flexible/opportunity'
 import type { NormalizedJob } from '../types'
+import { formatDate, formatNumber } from '../i18n/format'
 
 export function OpportunityCard({
   job,
@@ -27,6 +28,8 @@ export function OpportunityCard({
   const { locale, t } = useLocale()
   const de = locale === 'de'
   const openEntry = job.kind === 'open_entry'
+  const officialSearch = job.kind === 'official_search'
+  const routeCard = openEntry || officialSearch
   const inferred =
     isInferredField(job, 'employment') || isInferredField(job, 'roleFamilies') || isInferredField(job, 'workplaces')
 
@@ -39,10 +42,14 @@ export function OpportunityCard({
   ])].slice(0, 6)
 
   const hourly = job.salary.period === 'hour' && job.salary.min != null
-    ? t('flexible.card.perHour', { amount: formatEuro(job.salary.min) })
+    ? t('flexible.card.perHour', {
+        amount: formatNumber(job.salary.min, locale, Number.isInteger(job.salary.min)
+          ? { maximumFractionDigits: 0 }
+          : { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+      })
     : null
 
-  const applyLabel = openEntry || job.source === 'fabric' && job.programName ? t('flexible.card.official') : t('flexible.card.apply')
+  const applyLabel = routeCard || job.source === 'fabric' && job.programName ? t('flexible.card.official') : t('flexible.card.apply')
 
   return (
     <Card className="p-4">
@@ -54,7 +61,7 @@ export function OpportunityCard({
             rel="noreferrer"
             className="rounded-sm font-semibold text-ink outline-none hover:text-accent focus-visible:text-accent"
           >
-            <h3 className="wrap-anywhere">{openEntry ? job.programName ?? job.title : job.title}</h3>
+            <h3 className="wrap-anywhere">{routeCard ? job.programName ?? job.title : job.title}</h3>
           </a>
           <p className="mt-0.5 truncate text-sm text-muted">
             {(job.brand && job.brand !== job.employerFamily ? `${job.brand} · ` : '') +
@@ -69,6 +76,8 @@ export function OpportunityCard({
         <div className="flex shrink-0 flex-col items-end gap-1">
           {openEntry ? (
             <Badge tone="accent">{t('flexible.card.openEntry')}</Badge>
+          ) : officialSearch ? (
+            <Badge tone="outline">{t('flexible.card.officialSearch')}</Badge>
           ) : (
             isNew && <Badge tone="accent">{t('flexible.card.new')}</Badge>
           )}
@@ -97,27 +106,31 @@ export function OpportunityCard({
 
       {inferred && <p className="mt-2 text-xs text-faint">{t('flexible.card.inferred')}</p>}
       <p className="mt-2 text-xs text-faint">
-        {de ? 'Quelle' : 'Source'}: {job.sourceConfidence ?? 'unknown'}
+        {t('card.sourceConfidence')}: {job.sourceConfidence ?? t('card.unknown')}
         {' · '}
-        {de ? 'Abruf' : 'Fetched'}: {formatObserved(job.fetched_at, de)}
-        {job.lastVerifiedAt ? ` · ${de ? 'Geprüft' : 'Verified'}: ${formatObserved(job.lastVerifiedAt, de)}` : ''}
+        {t('card.fetched')}: {formatDate(job.fetched_at, locale)}
+        {job.lastVerifiedAt ? ` · ${t('card.verified')}: ${formatDate(job.lastVerifiedAt, locale)}` : ''}
         {job.also_on?.length && job.duplicateFamily
-          ? ` · ${de ? 'Duplikatfamilie' : 'Duplicate family'}: ${job.duplicateFamily.slice(0, 8)}`
+          ? ` · ${t('card.duplicateFamily')}: ${job.duplicateFamily.slice(0, 8)}`
           : ''}
       </p>
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
-        <a href={job.url} target="_blank" rel="noreferrer" className="inline-flex">
-          <Button variant="accent" size="sm" aria-label={`${applyLabel} — ${openEntry ? job.programName ?? job.title : job.title}`}>
-            {applyLabel}
-          </Button>
+        <a
+          href={job.url}
+          target="_blank"
+          rel="noreferrer"
+          aria-label={`${applyLabel} — ${routeCard ? job.programName ?? job.title : job.title}`}
+          className="inline-flex min-h-tap items-center justify-center rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-accent-ink transition hover:opacity-90"
+        >
+          {applyLabel}
         </a>
-        {onPrepare && (
+        {onPrepare && !routeCard && (
           <Button
             variant="ghost"
             size="sm"
             onClick={() => onPrepare(job)}
-            aria-label={`${t('flexible.card.prepare')} — ${openEntry ? job.programName ?? job.title : job.title}`}
+            aria-label={`${t('flexible.card.prepare')} — ${job.title}`}
           >
             {t('flexible.card.prepare')}
           </Button>
@@ -125,16 +138,4 @@ export function OpportunityCard({
       </div>
     </Card>
   )
-}
-
-function formatEuro(amount: number): string {
-  return Number.isInteger(amount) ? String(amount) : amount.toFixed(2).replace('.', ',')
-}
-
-function formatObserved(value: string, de: boolean): string {
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return '—'
-  return new Intl.DateTimeFormat(de ? 'de-DE' : 'en-GB', {
-    dateStyle: 'medium',
-  }).format(date)
 }

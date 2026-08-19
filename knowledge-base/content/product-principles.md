@@ -6,16 +6,16 @@ order: 110
 audience: ["Product", "Design", "Engineering", "Reviewers"]
 status: "current"
 classification: "public"
-applicable_version: "2.6.0.1"
+applicable_version: "2.6.1"
 owner: "Klar Product"
-last_verified: "2026-08-10"
-next_review: "2027-02-10"
+last_verified: "2026-08-11"
+next_review: "2026-11-11"
 tags: ["product", "principles", "trust"]
 ---
 
 # Product Principles
 
-These principles explain the intent behind the behavior present in Klar v2.6.0.1. They guide product choices but do not override executable contracts or release evidence.
+These principles explain the intent behind the behavior present in Klar v2.6.1. They guide product choices but do not override executable contracts or release evidence.
 
 ## The person owns the workspace
 
@@ -33,13 +33,13 @@ Klar should help present verified experience, not manufacture it. The canonical 
 
 A score is meaningful only after the job fits the requested role, market, seniority, and location boundary. Supporting skills cannot convert an unrelated job into a career match.
 
-**Product consequence:** Klar removes clear mismatches before ranking and explains those removals in search diagnostics.
+**Product consequence:** Klar removes clear mismatches before ranking, keeps the deterministic Klar score in control of order, and presents any AI opinion as a separate advisory value.
 
 ## The user controls consequential actions
 
-Klar prepares, explains, and hands off. It does not submit an application, fill an employer form, send a message, file an issue, rescore a saved historical result, or replace a Resume without an explicit user action.
+Klar prepares, explains, and hands off. It does not submit an application, fill an employer form, send a message, file a public issue, rescore a saved historical result, or replace a Resume without an explicit user action and confirmation appropriate to that action.
 
-**Product consequence:** external routes open in the original provider or employer site, and final review remains with the person.
+**Product consequence:** external routes open in the original provider or employer site; the Support page shows the exact redacted preview before a protected public issue submission; final review remains with the person.
 
 ## Degraded operation must remain honest
 

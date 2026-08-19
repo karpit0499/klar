@@ -17,6 +17,10 @@ export type SearchDiagnostics = {
   localFallbackCount: number
   aiBatchFailureCount: number
   aiFailureCategories: string[]
+  aiComparedCount: number
+  aiExactAgreementCount: number
+  aiMeanAbsoluteDelta: number | null
+  aiSuspiciousEquality: boolean
   finalCount: number
   zeroResultReason?: ZeroResultReason
   zeroResultNextStep?: string
@@ -71,6 +75,10 @@ export function buildSearchDiagnostics(
     localFallbackCount?: number
     aiBatchFailureCount?: number
     aiFailureCategories?: string[]
+    aiComparedCount?: number
+    aiExactAgreementCount?: number
+    aiMeanAbsoluteDelta?: number | null
+    aiSuspiciousEquality?: boolean
     finalCount?: number
   } = {},
 ): SearchDiagnostics {
@@ -90,6 +98,10 @@ export function buildSearchDiagnostics(
     localFallbackCount: update.localFallbackCount ?? 0,
     aiBatchFailureCount: update.aiBatchFailureCount ?? 0,
     aiFailureCategories: update.aiFailureCategories ?? [],
+    aiComparedCount: update.aiComparedCount ?? 0,
+    aiExactAgreementCount: update.aiExactAgreementCount ?? 0,
+    aiMeanAbsoluteDelta: update.aiMeanAbsoluteDelta ?? null,
+    aiSuspiciousEquality: update.aiSuspiciousEquality ?? false,
     finalCount: update.finalCount ?? filters.finalCount,
   }
   if (diagnostics.finalCount === 0) {

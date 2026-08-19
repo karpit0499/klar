@@ -6,10 +6,10 @@ order: 20
 audience: ["All Klar contributors", "Reviewers", "Release owners"]
 status: "current"
 classification: "public"
-applicable_version: "2.6.0.1"
+applicable_version: "2.6.1"
 owner: "Klar Documentation"
-last_verified: "2026-08-10"
-next_review: "2026-11-10"
+last_verified: "2026-08-11"
+next_review: "2026-11-11"
 tags: ["governance", "source-of-truth", "evidence"]
 ---
 
@@ -32,7 +32,7 @@ Use this order when two sources conflict:
 7. **Roadmaps and target documents** describe intended future behavior only.
 8. **Old build guides, discussions, and archived documents** are historical context, not current authority.
 
-The Klar application repository that contains this knowledge base is the authoritative implementation source for the KB. Planning material must never be used to reconstruct current behavior when the repository can be inspected directly.
+The Klar application repository that contains this knowledge base is the authoritative implementation source for the KB. Markdown under `knowledge-base/content` is canonical; the Next static export at `/klar/kb/`, lazy search index, sitemap, and PDF handbooks are derived from it. Planning material must never be used to reconstruct current behavior when the repository can be inspected directly.
 
 ## Current, target, and historical statements
 
