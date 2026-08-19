@@ -1,24 +1,46 @@
 {
-  "$schema": "../node_modules/wrangler/config-schema.json",
-  "name": "klar-proxy",
-  "main": "src/index.ts",
-  "compatibility_date": "2026-07-26",
-  "compatibility_flags": [
-    "nodejs_compat",
-    "global_fetch_strictly_public"
-  ],
-  "vars": {
-    "ALLOWED_ORIGINS": "https://karpit0499.github.io"
-  },
-  "observability": {
-    "enabled": true,
-    "logs": {
-      "enabled": true,
-      "head_sampling_rate": 1
-    },
-    "traces": {
-      "enabled": true,
-      "head_sampling_rate": 0.05
-    }
-  }
+	"$schema": "../node_modules/wrangler/config-schema.json",
+	"name": "klar-proxy",
+	"main": "src/index.ts",
+	"compatibility_date": "2026-08-11",
+	"compatibility_flags": [
+		"nodejs_compat",
+		"global_fetch_strictly_public"
+	],
+	"vars": {
+		"ALLOWED_ORIGINS": "https://karpit0499.github.io",
+		"GITHUB_REPO_OWNER": "karpit0499",
+		"GITHUB_REPO_NAME": "klar",
+		"TURNSTILE_EXPECTED_HOSTNAMES": "karpit0499.github.io"
+	},
+	"kv_namespaces": [
+		{ "binding": "ATS_CACHE" },
+		{ "binding": "FEEDBACK_DEDUP" }
+	],
+	"triggers": {
+		"crons": [
+			"*/15 * * * *"
+		]
+	},
+	"ratelimits": [
+		{
+			"name": "FEEDBACK_RATE_LIMITER",
+			"namespace_id": "1001",
+			"simple": {
+				"limit": 3,
+				"period": 60
+			}
+		}
+	],
+	"observability": {
+		"enabled": true,
+		"logs": {
+			"enabled": true,
+			"head_sampling_rate": 1
+		},
+		"traces": {
+			"enabled": true,
+			"head_sampling_rate": 0.05
+		}
+	}
 }
