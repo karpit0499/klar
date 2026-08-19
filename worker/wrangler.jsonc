@@ -18,9 +18,7 @@
 		{ "binding": "FEEDBACK_DEDUP" }
 	],
 	"triggers": {
-		"crons": [
-			"*/15 * * * *"
-		]
+		"crons": ["*/15 * * * *"]
 	},
 	"ratelimits": [
 		{
