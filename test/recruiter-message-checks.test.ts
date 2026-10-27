@@ -1,7 +1,7 @@
 import { strict as assert } from 'node:assert'
 import { checkRecruiterMessage, type RecruiterMessageContext } from '../src/llm/coverLetter'
 import { normalizeResume } from '../src/resume/canonical'
-import type { ResumeLanguage } from '../src/resume/types'
+import type { ResumeData, ResumeLanguage } from '../src/resume/types'
 import type { NormalizedJob } from '../src/types'
 
 const resume = normalizeResume({
@@ -67,8 +67,18 @@ function englishMessage(ask: string): string {
   ].join('\n')
 }
 
-function failingChecks(message: string, language: ResumeLanguage): string[] {
-  return checkRecruiterMessage(message, resume, job, context, language)
+function failingChecks(
+  message: string,
+  language: ResumeLanguage,
+  overrides: { source?: ResumeData; job?: NormalizedJob; context?: RecruiterMessageContext } = {},
+): string[] {
+  return checkRecruiterMessage(
+    message,
+    overrides.source ?? resume,
+    overrides.job ?? job,
+    overrides.context ?? context,
+    language,
+  )
     .filter((check) => !check.ok)
     .map((check) => check.id)
 }
@@ -92,13 +102,64 @@ assert.deepEqual(
   'a German message without a request still fails only human_ask',
 )
 
-// Sign-off and claim terms already matched normalized text (ß survives NFKD).
+// "Gespräch" also counts as the last part of a compound.
+for (const ask of [
+  'Ich würde mich über ein kurzes Kennenlerngespräch freuen.',
+  'Hätten Sie Interesse an einem kurzen Telefongespräch?',
+  'Ich würde mich über die Einladung zu einem Vorstellungsgespräch freuen.',
+]) {
+  assert.deepEqual(failingChecks(germanMessage(ask), 'de'), [], `German compound ask: ${ask}`)
+}
+
+// Request verbs count as infinitive and zu-infinitive; each ask relies on one form.
+for (const ask of [
+  'Ich würde mich gerne kurz mit Ihnen austauschen.',
+  'Ich würde mich freuen, mich kurz mit Ihnen auszutauschen.',
+  'Wären Sie so freundlich, sich mein Profil anzusehen?',
+  'Hätten Sie Gelegenheit, sich mein Profil anzuschauen?',
+]) {
+  assert.deepEqual(failingChecks(germanMessage(ask), 'de'), [], `German verb ask: ${ask}`)
+}
+
+// Words that merely end in another term are not requests.
+for (const statement of [
+  'Jede Anfrage aus dem Vertrieb beantworte ich mit einer klaren Auswertung.',
+  'Die Nachfrage nach Datenanalysen wächst.',
+  'Jede SQL-Abfrage dokumentiere ich sorgfältig.',
+  'Den Datenaustausch zwischen den Systemen habe ich vereinfacht.',
+  'Die Anforderungen entsprechen meiner bisherigen Arbeit.',
+]) {
+  assert.deepEqual(
+    failingChecks(germanMessage(statement), 'de'),
+    ['human_ask'],
+    `a word ending in a German term is not a request: ${statement}`,
+  )
+}
+
+// Deliberately not requests: offering availability for questions, and
+// expecting a reply, which the prompt says not to demand (compare "Please
+// reply." in English below).
+for (const statement of [
+  'Für Rückfragen stehe ich gerne zur Verfügung.',
+  'Bei Fragen stehe ich Ihnen gerne zur Verfügung.',
+  'Ich freue mich auf Ihre Rückmeldung.',
+]) {
+  assert.deepEqual(
+    failingChecks(germanMessage(statement), 'de'),
+    ['human_ask'],
+    `deliberately not a German request: ${statement}`,
+  )
+}
+
+// ß is folded to "ss" on both sides of every comparison, so Swiss and ASCII
+// spelling counts exactly like ß spelling.
 for (const signOff of [
   'Viele Grüße',
   'Freundliche Grüße',
   'Beste Grüße',
   'Mit freundlichen Grüßen',
   'Viele Grüsse',
+  'Mit freundlichen Grüssen',
 ]) {
   assert.deepEqual(
     failingChecks(germanMessage('Ich freue mich auf ein Gespräch.', signOff), 'de'),
@@ -106,11 +167,57 @@ for (const signOff of [
     `German sign-off: ${signOff}`,
   )
 }
-assert.deepEqual(
-  failingChecks(germanMessage('Ich spreche fließend Englisch und freue mich auf ein Gespräch.'), 'de'),
-  ['unsupported_claims'],
-  'an unsupported German fluency claim is still detected',
-)
+for (const fluently of ['fließend', 'fliessend', 'FLIEẞEND']) {
+  assert.deepEqual(
+    failingChecks(germanMessage(`Ich spreche ${fluently} Englisch und freue mich auf ein Gespräch.`), 'de'),
+    ['unsupported_claims'],
+    `an unsupported German fluency claim is detected: ${fluently}`,
+  )
+}
+
+// A claim the evidence supports passes whichever spelling either side uses.
+for (const [evidence, claim] of [['fließend', 'fliessend'], ['fliessend', 'fließend']]) {
+  assert.deepEqual(
+    failingChecks(
+      germanMessage(`Ich präsentiere ${claim} auf Englisch und freue mich auf ein Gespräch.`),
+      'de',
+      { source: { ...resume, summary: `Analystin, die Ergebnisse ${evidence} auf Englisch präsentiert.` } },
+    ),
+    [],
+    `evidence "${evidence}" supports the claim "${claim}"`,
+  )
+}
+
+// The role/company, discovery-context, referral, and evidence checks match
+// across spellings in both directions. Only the ß word connects the message
+// to the evidence here.
+function sharpSFailures(
+  spellSource: (value: string) => string,
+  spellMessage: (value: string) => string,
+): string[] {
+  const message = spellMessage([
+    'Guten Tag,',
+    'über den Messestand in Gießen bin ich auf die Position Senior Data Analyst / Operations bei Großmann & Söhne GmbH gestoßen; Jürgen Strauß hat mich empfohlen.',
+    'Meine Arbeit mit Straßenverkehrsdaten passt zu Ihrem Team. Wären Sie offen für ein kurzes Gespräch?',
+    'Viele Grüße',
+    'Zoë Müller',
+  ].join('\n'))
+  return failingChecks(message, 'de', {
+    source: { ...resume, summary: spellSource('Analystin für Straßenverkehrsdaten.') },
+    job: { ...job, company: spellSource('Großmann & Söhne GmbH') },
+    context: {
+      ...context,
+      applicationState: 'referred',
+      discoveryContext: spellSource('den Messestand in Gießen'),
+      referralName: spellSource('Jürgen Strauß'),
+    },
+  })
+}
+const asWritten = (value: string) => value
+const swiss = (value: string) => value.replace(/ß/g, 'ss')
+assert.deepEqual(sharpSFailures(asWritten, asWritten), [], 'ß spelling on both sides')
+assert.deepEqual(sharpSFailures(asWritten, swiss), [], 'a Swiss-spelled message matches ß in the job, context, and evidence')
+assert.deepEqual(sharpSFailures(swiss, asWritten), [], 'a message with ß matches Swiss spelling in the job, context, and evidence')
 
 // English behaviour is unchanged; each ask relies on one English term.
 for (const ask of [

@@ -15,6 +15,21 @@ This file records Klar’s product history from the newest release to the origin
   diacritics had already been removed, so a German request only passed through
   words such as “Austausch”. Saved messages show the corrected result when
   reopened; English checks are unchanged.
+- German recruiter-message checks now recognize more request wording: compound
+  nouns such as “Kennenlerngespräch”, “Telefongespräch”, and
+  “Vorstellungsgespräch”, and the verb forms “austauschen”, “auszutauschen”,
+  “anzusehen”, and “anzuschauen”. Longer words that merely end in another
+  request word, such as “Anfrage”, “SQL-Abfrage”, or “Datenaustausch”, still do
+  not count. Two common phrasings deliberately still do not count as a request:
+  offering to answer questions (“Für Rückfragen stehe ich gerne zur Verfügung”)
+  and expecting a reply (“Ich freue mich auf Ihre Rückmeldung”), which the
+  message instructions ask the model not to demand.
+- Recruiter-message checks now treat the Swiss and ASCII spelling “ss” like
+  “ß”. “fliessend” is flagged as an unsupported claim just like “fließend”, and
+  a role, company, discovery context, referral name, or resume evidence written
+  with “ß” on one side and “ss” on the other now matches. Saved messages show
+  the corrected result when reopened; English checks are unchanged for text
+  without “ß”.
 
 ---
 

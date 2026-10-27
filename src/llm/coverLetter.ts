@@ -324,14 +324,24 @@ export function checkRecruiterMessage(
   const candidateEvidence = [...evidenceTokens].some((token) =>
     new RegExp(`\\b${escapeRegExp(token)}\\b`, 'u').test(normalized),
   )
+  // Only "Gespräch" also counts at the end of a compound (Kennenlerngespräch);
+  // words ending in the other terms are not requests (Anfrage, SQL-Abfrage,
+  // Datenaustausch, entsprechen). Deliberately not requests: "fragen" and
+  // "rückfragen", which once lowercased are mostly the plural in an offer of
+  // availability ("Für Rückfragen stehe ich gerne zur Verfügung"), and
+  // "Rückmeldung", which expects the reply the prompt says not to demand.
   const ask = language === 'de'
-    ? containsTerm(normalized, [
-        'austausch', 'gespräch', 'sprechen', 'anschauen', 'ansehen',
+    ? containsCompoundHead(normalized, ['gespräch']) ||
+      containsTerm(normalized, [
+        'austausch', 'austauschen', 'auszutauschen', 'sprechen',
+        'anschauen', 'anzuschauen', 'ansehen', 'anzusehen',
         'frage', 'rückfrage', 'offen für', 'zeit für',
       ])
     : /\b(take a look|conversation|speak|chat|question|open to|available for|connect)\b/.test(normalized)
   const signOff = language === 'de'
-    ? /\b(viele gru(?:ß|ss)e|freundliche gru(?:ß|ss)e|beste gru(?:ß|ss)e|mit freundlichen gru(?:ß|ss)en)\b/.test(finalLines)
+    ? containsTerm(finalLines, [
+        'viele grüße', 'freundliche grüße', 'beste grüße', 'mit freundlichen grüßen',
+      ])
     : /\b(best|regards|kind regards|sincerely|thank you|thanks)\b/.test(finalLines)
   const saysApplied = /\b(applied|submitted (my|an) application|beworben|bewerbung (?:bereits )?eingereicht)\b/.test(normalized)
   const saysReferred = /\b(referred|introduced|recommended|empfohlen|vorgestellt)\b/.test(normalized)
@@ -362,7 +372,7 @@ export function checkRecruiterMessage(
     'expertin',
     'muttersprach',
     'fließend',
-  ].filter((phrase) => normalized.includes(phrase))
+  ].map(normalizeForCheck).filter((phrase) => normalized.includes(phrase))
   const evidenceText = normalizeForCheck(JSON.stringify(verifiedEvidenceOf(source)))
   const unsupportedClaims =
     outputNumbers.every((number) => allowedNumbers.has(number)) &&
@@ -456,11 +466,17 @@ function distinctiveEvidenceTokens(evidence: unknown, job: NormalizedJob): Set<s
   return result
 }
 
+/**
+ * Comparable form of everything a check compares. ß has no NFKD
+ * decomposition, so it is folded to the Swiss and ASCII spelling "ss" (after
+ * lowercasing, which also covers ẞ) to make both spellings compare equal.
+ */
 function normalizeForCheck(value: string): string {
   return value
     .normalize('NFKD')
     .replace(/\p{M}/gu, '')
     .toLocaleLowerCase('en')
+    .replace(/ß/g, 'ss')
     .replace(/[^\p{L}\p{N}%]+/gu, ' ')
     .replace(/\s+/g, ' ')
     .trim()
@@ -470,6 +486,13 @@ function normalizeForCheck(value: string): string {
 function containsTerm(normalizedText: string, terms: readonly string[]): boolean {
   return terms.some((term) =>
     new RegExp(`\\b${escapeRegExp(normalizeForCheck(term))}\\b`, 'u').test(normalizedText),
+  )
+}
+
+/** Like containsTerm, but a term may also end a compound word ("Kennenlerngespräch"). */
+function containsCompoundHead(normalizedText: string, terms: readonly string[]): boolean {
+  return terms.some((term) =>
+    new RegExp(`${escapeRegExp(normalizeForCheck(term))}\\b`, 'u').test(normalizedText),
   )
 }
 
