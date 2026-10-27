@@ -325,7 +325,10 @@ export function checkRecruiterMessage(
     new RegExp(`\\b${escapeRegExp(token)}\\b`, 'u').test(normalized),
   )
   const ask = language === 'de'
-    ? /\b(austausch|gespräch|sprechen|anschauen|ansehen|frage|rückfrage|offen für|zeit für)\b/.test(normalized)
+    ? containsTerm(normalized, [
+        'austausch', 'gespräch', 'sprechen', 'anschauen', 'ansehen',
+        'frage', 'rückfrage', 'offen für', 'zeit für',
+      ])
     : /\b(take a look|conversation|speak|chat|question|open to|available for|connect)\b/.test(normalized)
   const signOff = language === 'de'
     ? /\b(viele gru(?:ß|ss)e|freundliche gru(?:ß|ss)e|beste gru(?:ß|ss)e|mit freundlichen gru(?:ß|ss)en)\b/.test(finalLines)
@@ -461,6 +464,13 @@ function normalizeForCheck(value: string): string {
     .replace(/[^\p{L}\p{N}%]+/gu, ' ')
     .replace(/\s+/g, ' ')
     .trim()
+}
+
+/** Whole-word match for terms in natural spelling, normalized the same way as the text. */
+function containsTerm(normalizedText: string, terms: readonly string[]): boolean {
+  return terms.some((term) =>
+    new RegExp(`\\b${escapeRegExp(normalizeForCheck(term))}\\b`, 'u').test(normalizedText),
+  )
 }
 
 function escapeRegExp(value: string): string {

@@ -4,6 +4,20 @@ This file records Klar’s product history from the newest release to the origin
 
 ---
 
+## Unreleased
+
+### Fixed
+
+- German recruiter-message checks now recognize a low-pressure request written
+  with umlauts, such as “Hätten Sie Zeit für ein kurzes Gespräch?” or “Darf ich
+  Ihnen eine kurze Rückfrage stellen?” The check compared “Gespräch”,
+  “Rückfrage”, “offen für”, and “Zeit für” against message text whose
+  diacritics had already been removed, so a German request only passed through
+  words such as “Austausch”. Saved messages show the corrected result when
+  reopened; English checks are unchanged.
+
+---
+
 ## v2.6.1 — Stability, source integrity, and Knowledge Base migration
 
 ### Honest scoring and resilient journeys
