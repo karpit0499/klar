@@ -14,6 +14,14 @@ This file records Klar’s product history from the newest release to the origin
   and by electron-builder's `plist`. Well-formed DOCX files extract unchanged;
   a DOCX with a not-well-formed end tag now shows the existing file-read error
   instead of being imported silently.
+- Updated build tooling flagged by the full development/build dependency
+  audit. concurrently moves from 10.0.4 to 10.0.6 for the critical
+  `shell-quote` command-injection advisory (it only runs `npm run desktop:dev`),
+  and in-range lockfile updates cover Vite 7.3.7, wrangler 4.154.0 with
+  miniflare and workerd, axios, undici, sharp, brace-expansion and smaller
+  build dependencies. The web, desktop renderer and Worker builds are
+  byte-for-byte unchanged; the regenerated Worker types only add wrangler's
+  default module declarations.
 
 ---
 

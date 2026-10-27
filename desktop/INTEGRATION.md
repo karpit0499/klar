@@ -8,7 +8,7 @@ and never receive runtime tokens, filesystem paths or process handles.
 
 `package.json` and `package-lock.json` are authoritative. The desktop-specific
 pins are Electron `43.2.0`, electron-builder `26.15.3`, `@electron/fuses`
-`1.8.0`, concurrently `10.0.4`, and wait-on `9.1.0`. Use `npm ci`; do not replace
+`1.8.0`, concurrently `10.0.6`, and wait-on `9.1.0`. Use `npm ci`; do not replace
 the lockfile with an unreviewed install.
 
 The supported scripts are:
