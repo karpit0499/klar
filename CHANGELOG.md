@@ -15,10 +15,11 @@ This file records Klar’s product history from the newest release to the origin
   diacritics had already been removed, so a German request only passed through
   words such as “Austausch”.
 - German message checks now accept the German counterparts of what the English
-  checks accept: a request to connect (“vernetzen”) or for a
-  “Kennenlerngespräch”, “Erstgespräch”, “Telefongespräch”, or “Videogespräch”,
-  and any “Grüße” or “Gruß” closing, such as “Herzliche Grüße” or “Mit
-  freundlichem Gruß”.
+  checks accept: a request to connect (“vernetzen”), to talk (“austauschen”,
+  “auszutauschen”), or to take a look (“anzusehen”, “anzuschauen”); a
+  “Kennenlerngespräch”, “Erstgespräch”, “Telefongespräch”, “Videogespräch”, or
+  “Vorstellungsgespräch”; and any “Grüße” or “Gruß” closing, such as “Herzliche
+  Grüße” or “Mit freundlichem Gruß”.
 - Message checks treat ß and ss as the same letter, so “Grüsse”, or a company
   written “Weissbach” instead of “Weißbach”, now matches its ß spelling.
   Unsupported “fliessend” and “verhandlungssicher” fluency claims are now

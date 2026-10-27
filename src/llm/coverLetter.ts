@@ -324,10 +324,16 @@ export function checkRecruiterMessage(
   const candidateEvidence = [...evidenceTokens].some((token) =>
     new RegExp(`\\b${escapeRegExp(token)}\\b`, 'u').test(normalized),
   )
+  // German counterparts of the English terms. No general "-gespräch" rule
+  // (Kundengespräch would read as an ask), and deliberately not counted, as in
+  // English: offers ("Für Rückfragen stehe ich gerne zur Verfügung"), reply
+  // requests ("Ihre Rückmeldung"), and "Telefonat".
   const ask = language === 'de'
     ? containsTerm(normalized, [
-        'austausch', 'gespräch', 'kennenlerngespräch', 'erstgespräch',
-        'telefongespräch', 'videogespräch', 'sprechen', 'anschauen', 'ansehen',
+        'austausch', 'austauschen', 'auszutauschen',
+        'gespräch', 'kennenlerngespräch', 'erstgespräch', 'telefongespräch',
+        'videogespräch', 'vorstellungsgespräch',
+        'sprechen', 'anschauen', 'anzuschauen', 'ansehen', 'anzusehen',
         'frage', 'rückfrage', 'offen für', 'zeit für', 'vernetzen',
       ])
     : /\b(take a look|conversation|speak|chat|question|open to|available for|connect)\b/.test(normalized)
