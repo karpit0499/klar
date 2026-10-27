@@ -22,6 +22,11 @@ This file records Klar’s product history from the newest release to the origin
   build dependencies. The web, desktop renderer and Worker builds are
   byte-for-byte unchanged; the regenerated Worker types only add wrangler's
   default module declarations.
+- Updated the Developer Preview's Electron from 43.2.0 to 43.8.4, which clears
+  12 Electron advisories (five high severity) and supersedes the v2.6.0 pin.
+  electron-builder 26.15.3 and `@electron/fuses` 1.8.0 stay pinned, and the
+  packaged app still exposes exactly the nine reviewed fuses. The production
+  and full development/build dependency audits are clean as of 27 October 2026.
 
 ---
 

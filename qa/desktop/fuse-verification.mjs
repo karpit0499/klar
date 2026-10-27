@@ -113,7 +113,7 @@ export async function verifyPackagedFuses(executablePath) {
   assert.deepEqual(
     fuseIndexes,
     Array.from({ length: ELECTRON_43_FUSE_COUNT }, (_, index) => index),
-    'Electron 43.2.0 must expose exactly the nine reviewed Fuse Wire v1 switches.',
+    'Electron 43.8.4 must expose exactly the nine reviewed Fuse Wire v1 switches.',
   )
 
   const states = {}
