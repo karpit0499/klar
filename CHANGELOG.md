@@ -13,8 +13,21 @@ This file records Klar’s product history from the newest release to the origin
   Ihnen eine kurze Rückfrage stellen?” The check compared “Gespräch”,
   “Rückfrage”, “offen für”, and “Zeit für” against message text whose
   diacritics had already been removed, so a German request only passed through
-  words such as “Austausch”. Saved messages show the corrected result when
-  reopened; English checks are unchanged.
+  words such as “Austausch”.
+- German message checks now accept the German counterparts of what the English
+  checks accept: a request to connect (“vernetzen”) or for a
+  “Kennenlerngespräch”, “Erstgespräch”, “Telefongespräch”, or “Videogespräch”,
+  and any “Grüße” or “Gruß” closing, such as “Herzliche Grüße” or “Mit
+  freundlichem Gruß”.
+- Message checks treat ß and ss as the same letter, so “Grüsse”, or a company
+  written “Weissbach” instead of “Weißbach”, now matches its ß spelling.
+  Unsupported “fliessend” and “verhandlungssicher” fluency claims are now
+  flagged like “fließend”.
+
+### Unchanged
+
+The English check terms and all stored data are unchanged. Saved messages show
+the corrected checks when reopened.
 
 ---
 

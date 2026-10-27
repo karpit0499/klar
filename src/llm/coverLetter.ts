@@ -326,12 +326,13 @@ export function checkRecruiterMessage(
   )
   const ask = language === 'de'
     ? containsTerm(normalized, [
-        'austausch', 'gespräch', 'sprechen', 'anschauen', 'ansehen',
-        'frage', 'rückfrage', 'offen für', 'zeit für',
+        'austausch', 'gespräch', 'kennenlerngespräch', 'erstgespräch',
+        'telefongespräch', 'videogespräch', 'sprechen', 'anschauen', 'ansehen',
+        'frage', 'rückfrage', 'offen für', 'zeit für', 'vernetzen',
       ])
     : /\b(take a look|conversation|speak|chat|question|open to|available for|connect)\b/.test(normalized)
   const signOff = language === 'de'
-    ? /\b(viele gru(?:ß|ss)e|freundliche gru(?:ß|ss)e|beste gru(?:ß|ss)e|mit freundlichen gru(?:ß|ss)en)\b/.test(finalLines)
+    ? containsTerm(finalLines, ['grüße', 'grüßen', 'gruß'])
     : /\b(best|regards|kind regards|sincerely|thank you|thanks)\b/.test(finalLines)
   const saysApplied = /\b(applied|submitted (my|an) application|beworben|bewerbung (?:bereits )?eingereicht)\b/.test(normalized)
   const saysReferred = /\b(referred|introduced|recommended|empfohlen|vorgestellt)\b/.test(normalized)
@@ -362,7 +363,8 @@ export function checkRecruiterMessage(
     'expertin',
     'muttersprach',
     'fließend',
-  ].filter((phrase) => normalized.includes(phrase))
+    'verhandlungssicher',
+  ].map(normalizeForCheck).filter((phrase) => normalized.includes(phrase))
   const evidenceText = normalizeForCheck(JSON.stringify(verifiedEvidenceOf(source)))
   const unsupportedClaims =
     outputNumbers.every((number) => allowedNumbers.has(number)) &&
@@ -461,6 +463,8 @@ function normalizeForCheck(value: string): string {
     .normalize('NFKD')
     .replace(/\p{M}/gu, '')
     .toLocaleLowerCase('en')
+    // NFKD keeps ß, so fold it explicitly: "Grüße" and "Grüsse" compare equal.
+    .replace(/ß/g, 'ss')
     .replace(/[^\p{L}\p{N}%]+/gu, ' ')
     .replace(/\s+/g, ' ')
     .trim()

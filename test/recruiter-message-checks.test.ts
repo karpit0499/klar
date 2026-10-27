@@ -1,10 +1,10 @@
 import { strict as assert } from 'node:assert'
 import { checkRecruiterMessage, type RecruiterMessageContext } from '../src/llm/coverLetter'
 import { normalizeResume } from '../src/resume/canonical'
-import type { ResumeLanguage } from '../src/resume/types'
+import type { ResumeData, ResumeLanguage } from '../src/resume/types'
 import type { NormalizedJob } from '../src/types'
 
-const resume = normalizeResume({
+const resumeInput = {
   contact: {
     name: 'Zoë Müller',
     email: 'zoe.mueller@example.invalid',
@@ -25,7 +25,8 @@ const resume = normalizeResume({
   languages: [],
   projects: [],
   certifications: [],
-})
+}
+const resume = normalizeResume(resumeInput)
 
 const job: NormalizedJob = {
   id: 'job-1',
@@ -67,8 +68,13 @@ function englishMessage(ask: string): string {
   ].join('\n')
 }
 
-function failingChecks(message: string, language: ResumeLanguage): string[] {
-  return checkRecruiterMessage(message, resume, job, context, language)
+function failingChecks(
+  message: string,
+  language: ResumeLanguage,
+  source: ResumeData = resume,
+  target: NormalizedJob = job,
+): string[] {
+  return checkRecruiterMessage(message, source, target, context, language)
     .filter((check) => !check.ok)
     .map((check) => check.id)
 }
@@ -86,19 +92,35 @@ for (const ask of [
 ]) {
   assert.deepEqual(failingChecks(germanMessage(ask), 'de'), [], `German ask: ${ask}`)
 }
+
+// German counterparts of the English "connect" and "<kind> conversation".
+for (const ask of [
+  'Ich würde mich freuen, mich mit Ihnen zu vernetzen.',
+  'Hätten Sie Interesse an einem kurzen Kennenlerngespräch?',
+  'Wäre ein kurzes Erstgespräch für Sie denkbar?',
+  'Passt Ihnen ein kurzes Telefongespräch in der kommenden Woche?',
+  'Wäre ein kurzes Videogespräch möglich?',
+]) {
+  assert.deepEqual(failingChecks(germanMessage(ask), 'de'), [], `German ask: ${ask}`)
+}
 assert.deepEqual(
   failingChecks(germanMessage('Die Stelle habe ich mit Interesse gelesen.'), 'de'),
   ['human_ask'],
   'a German message without a request still fails only human_ask',
 )
 
-// Sign-off and claim terms already matched normalized text (ß survives NFKD).
+// Any Grüße/Gruß closing counts, as any "regards" closing does in English.
+// NFKD keeps ß, so the checks fold it: ß and ss spellings compare equal.
 for (const signOff of [
   'Viele Grüße',
   'Freundliche Grüße',
   'Beste Grüße',
   'Mit freundlichen Grüßen',
+  'Herzliche Grüße',
+  'Mit besten Grüßen',
+  'Mit freundlichem Gruß',
   'Viele Grüsse',
+  'Mit freundlichen Grüssen',
 ]) {
   assert.deepEqual(
     failingChecks(germanMessage('Ich freue mich auf ein Gespräch.', signOff), 'de'),
@@ -107,9 +129,35 @@ for (const signOff of [
   )
 }
 assert.deepEqual(
-  failingChecks(germanMessage('Ich spreche fließend Englisch und freue mich auf ein Gespräch.'), 'de'),
-  ['unsupported_claims'],
-  'an unsupported German fluency claim is still detected',
+  failingChecks(germanMessage('Ich freue mich auf ein Gespräch.', ''), 'de'),
+  ['sign_off'],
+  'a German message without a closing still fails only sign_off',
+)
+for (const claim of ['fließend', 'fliessend', 'verhandlungssicher']) {
+  assert.deepEqual(
+    failingChecks(germanMessage(`Ich spreche ${claim} Englisch und freue mich auf ein Gespräch.`), 'de'),
+    ['unsupported_claims'],
+    `an unsupported German fluency claim is detected: ${claim}`,
+  )
+}
+assert.deepEqual(
+  failingChecks(
+    germanMessage('Ich spreche fliessend Englisch und freue mich auf ein Gespräch.'),
+    'de',
+    normalizeResume({ ...resumeInput, summary: 'Datenanalystin mit fließendem Englisch.' }),
+  ),
+  [],
+  'a claim spelled with ss is supported by evidence spelled with ß',
+)
+assert.deepEqual(
+  failingChecks(
+    germanMessage('Ich freue mich auf ein Gespräch.').replace('München & Söhne GmbH', 'Weissbach GmbH'),
+    'de',
+    resume,
+    { ...job, company: 'Weißbach GmbH' },
+  ),
+  [],
+  'a company spelled with ß matches a message spelled with ss',
 )
 
 // English behaviour is unchanged; each ask relies on one English term.
