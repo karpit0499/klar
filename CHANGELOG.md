@@ -4,6 +4,19 @@ This file records Klar’s product history from the newest release to the origin
 
 ---
 
+## Unreleased
+
+### Dependency security
+
+- Updated the transitive XML parser `@xmldom/xmldom` from 0.8.13 to 0.8.15
+  (lockfile only) to clear the high-severity advisories that failed the
+  production dependency audit. It is used by `mammoth` for DOCX Resume import
+  and by electron-builder's `plist`. Well-formed DOCX files extract unchanged;
+  a DOCX with a not-well-formed end tag now shows the existing file-read error
+  instead of being imported silently.
+
+---
+
 ## v2.6.1 — Stability, source integrity, and Knowledge Base migration
 
 ### Honest scoring and resilient journeys
