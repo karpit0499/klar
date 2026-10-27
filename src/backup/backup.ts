@@ -36,6 +36,7 @@ import {
 } from '../crypto/vault'
 import { AppError, toAppError } from '../errors/appError'
 import { loadGroqKey } from '../settings/keys'
+import { invalidateEngineCache } from '../llm/provider'
 import { APP_VERSION } from '../lib/version'
 
 export const BACKUP_FORMAT = 'klar-backup'
@@ -241,7 +242,10 @@ export async function importBackup(value: unknown, passphrase?: string): Promise
       action: { label: 'Check the file and try again', kind: 'choose_file' },
     })
   }
+  // Active data was replaced: forget what memory still holds of the old
+  // workspace now, because the automatic unlock below can still throw.
   clearVaultSession()
+  invalidateEngineCache()
   if (vault && passphrase) {
     try {
       await unlockVault(passphrase)

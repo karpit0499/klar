@@ -150,7 +150,10 @@ export function engineWarning(
 
 let cached: EngineSettings | null = null
 
-/** Drop the in-memory copy (used after a save and by tests). */
+/**
+ * Drop the in-memory copy. Call it whenever `db.settings` is replaced without
+ * going through this module: Delete all local data, a backup restore, tests.
+ */
 export function invalidateEngineCache(): void {
   cached = null
 }
