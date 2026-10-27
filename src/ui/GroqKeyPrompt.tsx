@@ -3,7 +3,7 @@ import { Button, Card, Field, Spinner, TextInput } from './atoms'
 import { loadGroqKey, saveGroqKey } from '../settings/keys'
 import { pingGroqKey } from '../llm/groq'
 import { ErrorNotice } from './ErrorNotice'
-import type { AppErrorData } from '../errors/appError'
+import { toAppError, type AppErrorData } from '../errors/appError'
 import { useLocale } from '../i18n/LocaleProvider'
 
 export function GroqKeyPrompt({ action, onReady, onCancel }: {
@@ -33,7 +33,18 @@ export function GroqKeyPrompt({ action, onReady, onCancel }: {
       })
       setBusy(false); return
     }
-    await saveGroqKey(clean, remember)
+    try {
+      await saveGroqKey(clean, remember)
+    } catch (caught) {
+      // A locked vault or failed storage write must not leave the dialog spinning.
+      setError(toAppError(caught, {
+        category: 'storage',
+        message: de ? 'Der Groq-Schlüssel konnte nicht gespeichert werden.' : 'The Groq key could not be saved.',
+        available: de ? 'Lokale Funktionen bleiben verfügbar.' : 'Local features remain available.',
+        action: { label: de ? 'Erneut versuchen' : 'Try again', kind: 'retry' },
+      }))
+      setBusy(false); return
+    }
     setBusy(false); onReady(clean)
   }
 

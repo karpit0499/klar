@@ -1,10 +1,10 @@
 import type { MatchResult, NormalizedJob, Profile } from '../types'
 import type { ResumeData, ResumeLanguage } from '../resume/types'
-import { resumeFromLegacyProfile } from '../resume/canonical'
+import { asResumeData, isResumeData } from '../resume/canonical'
 import { pickLanguage } from '../resume/tailor'
 import { PROMPT } from '../lib/config'
 import { costOf, estimateLetterOutputTokens, type RequestCost } from './budget'
-import { projectEvidenceForPrompt, projectJobForPrompt } from './promptProjection'
+import { projectEvidenceForPrompt, projectJobForPrompt, promptLanguageName } from './promptProjection'
 import { chatComplete } from './groq'
 
 export type LetterTone = 'concise' | 'balanced' | 'formal'
@@ -112,8 +112,7 @@ export type LetterOptions = {
 }
 
 function verifiedEvidenceOf(source: ResumeData | Profile) {
-  const resume = isResumeData(source) ? source : resumeFromLegacyProfile(source)
-  return projectEvidenceForPrompt(resume)
+  return projectEvidenceForPrompt(asResumeData(source))
 }
 
 export function buildCoverLetterPrompt(
@@ -123,9 +122,10 @@ export function buildCoverLetterPrompt(
 ): string {
   const tone = options.tone ?? DEFAULT_LETTER_TONE
   const rules = TONE_RULES[tone]
-  const german = (options.language ?? pickLanguage(job)) === 'de'
+  const language = options.language ?? pickLanguage(job)
+  const german = language === 'de'
   return [
-    `Write ${rules.words} of cover-letter BODY text in ${german ? 'German' : 'English'}.`,
+    `Write ${rules.words} of cover-letter BODY text in ${promptLanguageName(language)}.`,
     `Tone: ${german ? rules.de : rules.en}`,
     `Mention the exact role "${job.title}" and company "${job.company}" naturally in the opening paragraph.`,
     'Use two concrete candidate facts when the verified evidence supports them.',
@@ -221,7 +221,7 @@ export function buildRecruiterMessagePrompt(
       : 'The candidate was referred or introduced. Mention only the connection supplied below.',
   }
   return [
-    `Write one ${german ? 'German' : 'English'} ${context.channel} recruiter message.`,
+    `Write one ${promptLanguageName(language)} ${context.channel} recruiter message.`,
     `Style: ${german ? style.de : style.en}`,
     `Maximum length: ${style.maximumWords} words.`,
     stateInstruction[context.applicationState],
@@ -278,24 +278,16 @@ export async function draftRecruiterMessage(
   options: LetterOptions = {},
 ): Promise<string> {
   const user = buildRecruiterMessagePrompt(source, job, context, options)
-  const maxTokens = context.style === 'formal' ? 400 : 300
-  const estimated = costOf({
-    system: RECRUITER_MESSAGE_SYSTEM,
-    user,
-    maxTokens,
-  })
   return chatComplete({
     apiKey,
     system: RECRUITER_MESSAGE_SYSTEM,
     user,
     temperature: 0.3,
-    maxTokens,
+    maxTokens: context.style === 'formal' ? 400 : 300,
     signal: options.signal,
     onBudgetWait: options.onBudgetWait,
-    onUsage: (event) => options.onUsage?.({
-      ...event,
-      estimated,
-    }),
+    // The client prices exactly this system prompt, user prompt and reservation.
+    onUsage: options.onUsage,
   })
 }
 
@@ -465,8 +457,4 @@ function normalizeForCheck(value: string): string {
 
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-}
-
-function isResumeData(value: ResumeData | Profile): value is ResumeData {
-  return 'experience' in value && 'contact' in value
 }

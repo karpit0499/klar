@@ -1,5 +1,8 @@
+import { isRecord } from '../lib/coerce'
 import { AI_CAPABILITIES, capabilityDefinition } from './capabilities'
 import {
+  ADAPTER_SLOTS,
+  AI_LANGUAGES,
   AiProviderError,
   type AdapterSlot,
   type AiCapability,
@@ -13,18 +16,14 @@ const REQUEST_ID = /^[a-zA-Z0-9][a-zA-Z0-9._:-]{7,95}$/
 const CAPABILITIES = new Set<AiCapability>(
   Object.keys(AI_CAPABILITIES) as AiCapability[],
 )
-const LANGUAGES = new Set<AiLanguage>(['de', 'en'])
-const ADAPTERS = new Set<AdapterSlot>(['base', 'precision', 'writer'])
+const LANGUAGES = new Set<AiLanguage>(AI_LANGUAGES)
+const ADAPTERS = new Set<AdapterSlot>(ADAPTER_SLOTS)
 const ALLOWED_ROLES = new Set<AiMessage['role']>(['system', 'user', 'assistant'])
 const MAX_MESSAGE_CHARS = 120_000
 const MAX_SCHEMA_CHARS = 32_000
 
 function fail(message: string): never {
   throw new AiProviderError('invalid_request', message)
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return !!value && typeof value === 'object' && !Array.isArray(value)
 }
 
 function exactKeys(value: Record<string, unknown>, allowed: readonly string[]): void {

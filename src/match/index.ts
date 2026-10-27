@@ -11,6 +11,7 @@ import type {
   Preferences,
   Profile,
 } from '../types'
+import { isAbortError } from '../lib/abort'
 import { MATCH, type LlmRerankMode } from '../lib/config'
 import { stableHash } from '../lib/hash'
 import {
@@ -156,9 +157,7 @@ export async function enrichBaDescriptions(cands: NormalizedJob[], signal?: Abor
         if (detail.employment_type) job.employment_type = detail.employment_type
         if (detail.remote) job.location.remote = true
       } catch (caught) {
-        if (signal?.aborted || (caught instanceof DOMException && caught.name === 'AbortError')) {
-          throw caught
-        }
+        if (signal?.aborted || isAbortError(caught)) throw caught
         // Leave description empty; scoring still works on title.
       }
     }

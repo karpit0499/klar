@@ -6,8 +6,9 @@
 // JSON envelope { status, contentType, body }. Tests/fixtures inject their own
 // FabricFetch and never touch the network.
 // ============================================================================
+import { isAbortError } from '../../lib/abort'
 import { WORKER_URL } from '../../lib/config'
-import { AppError, isAppErrorData } from '../../errors/appError'
+import { AppError, appErrorFromResponseText } from '../../errors/appError'
 import type { FabricFetch } from './types'
 
 export const workerFabricFetch: FabricFetch = async (input) => {
@@ -32,7 +33,7 @@ export const workerFabricFetch: FabricFetch = async (input) => {
   try {
     res = await fetch(url, { signal: input.signal })
   } catch (error) {
-    if (error instanceof DOMException && error.name === 'AbortError') throw error
+    if (isAbortError(error)) throw error
     throw new AppError({
       category: 'network',
       message: 'Klar could not reach the source service.',
@@ -45,12 +46,8 @@ export const workerFabricFetch: FabricFetch = async (input) => {
 
   const text = await res.text()
   if (!res.ok) {
-    try {
-      const parsed = JSON.parse(text) as { error?: unknown }
-      if (isAppErrorData(parsed.error)) throw new AppError(parsed.error)
-    } catch (error) {
-      if (error instanceof AppError) throw error
-    }
+    const structured = appErrorFromResponseText(text)
+    if (structured) throw structured
     throw new AppError({
       category: res.status === 429 ? 'rate_limit' : 'source',
       message: 'A Flexible Work source returned an error.',

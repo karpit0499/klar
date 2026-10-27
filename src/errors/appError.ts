@@ -64,6 +64,19 @@ export class AppError extends Error implements AppErrorData {
   }
 }
 
+/**
+ * The category implied by a failed HTTP status when the response carries no
+ * structured AppError: 429 is a rate limit, 401/403 reject the credentials,
+ * and anything else is a failure of the source itself.
+ */
+export function httpStatusErrorCategory(
+  status: number,
+): Extract<ErrorCategory, 'rate_limit' | 'credentials' | 'source'> {
+  if (status === 429) return 'rate_limit'
+  if (status === 401 || status === 403) return 'credentials'
+  return 'source'
+}
+
 export function lockedVaultError(technical?: string): AppError {
   return new AppError({
     category: 'locked',
@@ -99,6 +112,19 @@ export function serializeAppError(error: AppErrorData): AppErrorData {
     available: error.available,
     action: { ...error.action },
     technical: error.technical,
+  }
+}
+
+/**
+ * The structured error a Klar Worker returns in a failed response body
+ * (`{ "error": AppErrorData }`), or null for any other body.
+ */
+export function appErrorFromResponseText(text: string): AppError | null {
+  try {
+    const error = (JSON.parse(text) as { error?: unknown } | null)?.error
+    return isAppErrorData(error) ? new AppError(error) : null
+  } catch {
+    return null
   }
 }
 

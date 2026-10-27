@@ -16,9 +16,11 @@
 // resume schemaVersion 3 and are a separate, migrated release.
 // ============================================================================
 import type { NormalizedJob, Profile } from '../types'
-import type { ResumeBullet, ResumeData, ResumeLanguage, SkillGroup } from './types'
-import { deriveProfile } from './canonical'
-import { normalizeResume } from './canonical'
+import {
+  PRESENT_LABEL, SECTION_HEADINGS,
+  type ResumeBullet, type ResumeData, type ResumeLanguage, type SkillGroup,
+} from './types'
+import { deriveProfile, normalizeResume } from './canonical'
 import {
   extractJdTerms, containsTerm, canonicalizeSkill, coverageReport, mergeJdTerms,
   type CoverageReport,
@@ -32,25 +34,29 @@ export function pickLanguage(job: NormalizedJob): ResumeLanguage {
   return deHits >= 3 ? 'de' : 'en'
 }
 
-function orderItemsByJd(items: SkillGroup['items'], jdTerms: string[]): SkillGroup['items'] {
+type SkillItem = SkillGroup['items'][number]
+
+/** Whether a skill (by name or canonical alias) is one of the posting's terms. */
+function jdSkillMatcher(jdTerms: string[]): (item: SkillItem) => boolean {
   const jdSet = new Set(jdTerms.map((term) => term.toLowerCase()))
-  const isJd = (item: SkillGroup['items'][number]) => {
+  return (item) => {
+    // Restored legacy rows may still hold plain strings.
     const name = typeof item === 'string' ? item : item.name
     const canon = canonicalizeSkill(name)
     return jdSet.has(name.toLowerCase()) || (canon != null && jdSet.has(canon.toLowerCase()))
   }
+}
+
+function orderItemsByJd(items: SkillGroup['items'], jdTerms: string[]): SkillGroup['items'] {
+  const isJd = jdSkillMatcher(jdTerms)
   return [...items.filter(isJd), ...items.filter((item) => !isJd(item))]
 }
 
 export function tailorSkills(skills: SkillGroup[], jdTerms: string[]): SkillGroup[] {
-  const jdSet = new Set(jdTerms.map((term) => term.toLowerCase()))
+  const isJd = jdSkillMatcher(jdTerms)
   return skills.map((group, index) => {
     const items = orderItemsByJd(group.items, jdTerms)
-    const hitCount = items.filter((item) => {
-      const name = typeof item === 'string' ? item : item.name
-      const canon = canonicalizeSkill(name)
-      return jdSet.has(name.toLowerCase()) || (canon != null && jdSet.has(canon.toLowerCase()))
-    }).length
+    const hitCount = items.filter(isJd).length
     return { group: { ...group, items }, hitCount, index }
   }).sort((a, b) => b.hitCount - a.hitCount || a.index - b.index).map((item) => item.group)
 }
@@ -130,9 +136,7 @@ export function tailorResume(
 }
 
 export function resumeToPlainText(data: ResumeData, lang: ResumeLanguage): string {
-  const H = lang === 'de'
-    ? { summary: 'Kurzprofil', experience: 'Berufserfahrung', education: 'Ausbildung', skills: 'Kenntnisse', languages: 'Sprachen', projects: 'Projekte', certifications: 'Zertifikate' }
-    : { summary: 'Summary', experience: 'Experience', education: 'Education', skills: 'Skills', languages: 'Languages', projects: 'Projects', certifications: 'Certifications' }
+  const H = SECTION_HEADINGS[lang]
   const lines: string[] = [data.contact.name]
   const contactBits = [data.contact.location, data.contact.email, data.contact.phone, ...data.contact.links.map((link) => link.url)].filter(Boolean)
   if (contactBits.length) lines.push(contactBits.join(' · '))
@@ -141,7 +145,7 @@ export function resumeToPlainText(data: ResumeData, lang: ResumeLanguage): strin
     lines.push(H.experience)
     for (const role of data.experience) {
       lines.push(`${role.title} — ${role.company}${role.city ? ` — ${role.city}` : ''}`)
-      const range = [role.start, role.current ? (lang === 'de' ? 'heute' : 'Present') : role.end].filter(Boolean).join(' – ')
+      const range = [role.start, role.current ? PRESENT_LABEL[lang] : role.end].filter(Boolean).join(' – ')
       if (range) lines.push(range)
       for (const bullet of role.bullets) lines.push(`• ${bullet.text}`)
     }

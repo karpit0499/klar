@@ -19,6 +19,16 @@ export type AiLanguage = 'de' | 'en'
 
 export type AdapterSlot = 'base' | 'precision' | 'writer'
 
+/** Every output language a Klar AI task may request. */
+export const AI_LANGUAGES: readonly AiLanguage[] = Object.freeze(['de', 'en'] as const)
+
+/** Every adapter slot, from the shared base model to the task-tuned adapters. */
+export const ADAPTER_SLOTS: readonly AdapterSlot[] = Object.freeze([
+  'base',
+  'precision',
+  'writer',
+] as const)
+
 export type AiMessage = {
   role: 'system' | 'user' | 'assistant'
   content: string

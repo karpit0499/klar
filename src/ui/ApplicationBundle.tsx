@@ -23,6 +23,7 @@ import { CoveragePanel } from './CoveragePanel'
 import { TailoringReview } from './TailoringReview'
 import type { MatchResult, NormalizedJob, Region } from '../types'
 import type { ResumeData, ResumeLanguage } from '../resume/types'
+import type { CoverageReport } from '../resume/keywords'
 import { pickLanguage, tailorResume } from '../resume/tailor'
 import {
   acceptAll, applyChanges, restoreChange, setDecision, setEditedText, type ChangeRecord,
@@ -56,10 +57,11 @@ import {
   ARTIFACT_GENERATOR_CONTRACTS,
   coverLetterProvenanceAfterManualEdit,
   currentArtifactProvenance,
-  emptyLanguageState,
   isCurrentCoverLetterProvenance,
   packetReadiness,
+  recruiterMessageContext,
   recruiterMessageProvenanceAfterManualEdit,
+  updateLanguageState,
   type PacketLanguageState,
   type PacketRow,
 } from '../packets/types'
@@ -71,13 +73,14 @@ import type { TranslationKey } from '../i18n/translations'
 import { ErrorNotice } from './ErrorNotice'
 import { toAppError, type AppErrorData } from '../errors/appError'
 import { BudgetNotice } from './BudgetNotice'
-import { generationCacheKey } from '../packets/cache'
+import { letterCacheKey, recruiterMessageCacheKey, resumeCacheKey } from '../packets/cache'
 import { loadEngineSettings } from '../llm/provider'
 import {
   createCoverLetterModel,
   downloadCoverLetterDocx,
   localCalendarDateIso,
   validateCoverLetterModel,
+  type CoverLetterDetails,
 } from '../application/coverLetterDocx'
 import { recordOperationalEvent } from '../observability/events'
 
@@ -106,14 +109,27 @@ function mergeUsage(
   }
 }
 
-function matchContext(match?: MatchResult): unknown {
-  return match
-    ? {
-        matchedSkills: match.matchedSkills,
-        missingSkills: match.missingSkills,
-        rationale: match.rationale,
-      }
-    : null
+/** One AI request's local usage record, in the packet's usage shape. */
+function singleRequestUsage(event: {
+  estimated: { billedTokens: number }
+  actualTokens?: number
+  model: string
+}): NonNullable<PacketLanguageState['aiUsage']> {
+  return {
+    estimatedTokens: event.estimated.billedTokens,
+    actualTokens: event.actualTokens,
+    requests: 1,
+    model: event.model,
+  }
+}
+
+function coverageSnapshot(coverage: CoverageReport): NonNullable<PacketLanguageState['coverage']> {
+  return {
+    summary: coverage.summary,
+    covered: coverage.covered,
+    missing: coverage.missing,
+    ratio: coverage.ratio,
+  }
 }
 
 const TONE_LABEL: Record<LetterTone, TranslationKey> = {
@@ -299,6 +315,39 @@ export function ApplicationBundle({
     [packet],
   )
 
+  /** Autosave a change to the selected language's packet state. */
+  function updateSelectedLanguage(
+    update: (previous: PacketLanguageState) => PacketLanguageState,
+  ) {
+    return mutate((row) => updateLanguageState(row, resumeLanguage, update))
+  }
+
+  function updateLetterDetails(patch: Partial<CoverLetterDetails>) {
+    return updateSelectedLanguage((previous) => ({
+      ...previous,
+      letterDetails: { ...previous.letterDetails, ...patch },
+    }))
+  }
+
+  function reportExportFailure(
+    error: unknown,
+    documentKind: 'resume' | 'cover_letter' | 'packet',
+    fallback: { message: string; available: string; actionLabel: string },
+  ) {
+    void recordOperationalEvent({
+      name: 'export_failure',
+      outcome: 'error',
+      documentKind,
+    }).catch(() => undefined)
+    setExportError(toAppError(error, {
+      category: 'export',
+      message: fallback.message,
+      dataSafe: true,
+      available: fallback.available,
+      action: { label: fallback.actionLabel, kind: 'retry' },
+    }))
+  }
+
   const state = packet?.languages[resumeLanguage]
   const readiness = packetReadiness(packet, resumeLanguage)
   useEffect(() => {
@@ -314,47 +363,20 @@ export function ApplicationBundle({
       }
     }
     void loadEngineSettings().then((engine) => {
-      const current = generationCacheKey({
-        kind: 'resume',
-        source: resume,
-        job,
-        language: resumeLanguage,
-        engine,
-        jdTerms: state.jdTerms,
-      })
+      const keyInput = { resume, job, language: resumeLanguage, engine, jdTerms: state.jdTerms }
+      const current = resumeCacheKey(keyInput)
       const resumeCurrent =
         state.mode !== 'ai' ||
         !state.baseline ||
         Boolean(state.resumeCacheKey && state.resumeCacheKey === current)
       const letterCurrent =
         !state.letter ||
-        state.letterCacheKey === generationCacheKey({
-          kind: 'letter',
-          source: resume,
-          job,
-          language: resumeLanguage,
-          engine,
-          jdTerms: state.jdTerms,
-          variant: state.letterTone,
-          context: matchContext(match),
-        })
+        state.letterCacheKey === letterCacheKey({ ...keyInput, tone: state.letterTone, match })
       const messageCurrent =
         !state.shortMessage ||
-        state.messageCacheKey === generationCacheKey({
-          kind: 'message',
-          source: resume,
-          job,
-          language: resumeLanguage,
-          engine,
-          jdTerms: state.jdTerms,
-          variant: state.messageStyle ?? 'conversational',
-          context: {
-            applicationState: state.messageApplicationState ?? 'not_applied',
-            channel: state.messageChannel ?? 'linkedin',
-            recruiterName: state.recruiterName?.trim() || null,
-            discoveryContext: state.messageDiscoveryContext?.trim() || null,
-            referralName: state.messageReferralName?.trim() || null,
-          },
+        state.messageCacheKey === recruiterMessageCacheKey({
+          ...keyInput,
+          context: recruiterMessageContext(state, resume.contact.name),
         })
       if (alive) setCacheFresh(resumeCurrent && letterCurrent && messageCurrent)
     })
@@ -392,23 +414,20 @@ export function ApplicationBundle({
     return applyChanges(state.baseline, state.source, state.changes)
   }, [state])
 
-  const messageContext = useMemo<RecruiterMessageContext>(() => ({
-    style: state?.messageStyle ?? 'conversational',
-    applicationState: state?.messageApplicationState ?? 'not_applied',
-    channel: state?.messageChannel ?? 'linkedin',
-    recruiterName: state?.recruiterName?.trim() || undefined,
-    discoveryContext: state?.messageDiscoveryContext?.trim() || undefined,
-    referralName: state?.messageReferralName?.trim() || undefined,
-    signOffName: resume.contact.name,
-  }), [
-    resume.contact.name,
-    state?.messageApplicationState,
-    state?.messageChannel,
-    state?.messageDiscoveryContext,
-    state?.messageReferralName,
-    state?.messageStyle,
-    state?.recruiterName,
-  ])
+  const messageContext = useMemo<RecruiterMessageContext>(
+    () => recruiterMessageContext(state, resume.contact.name),
+    // Only the message fields matter; other packet edits keep the same context.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [
+      resume.contact.name,
+      state?.messageApplicationState,
+      state?.messageChannel,
+      state?.messageDiscoveryContext,
+      state?.messageReferralName,
+      state?.messageStyle,
+      state?.recruiterName,
+    ],
+  )
 
   const letterModel = useMemo(() => {
     if (!state?.letter?.trim()) return null
@@ -474,14 +493,7 @@ export function ApplicationBundle({
         : { terms: [] as string[] }
 
       const engine = await loadEngineSettings()
-      const cacheKey = generationCacheKey({
-        kind: 'resume',
-        source: resume,
-        job,
-        language,
-        engine,
-        jdTerms: extracted.terms,
-      })
+      const cacheKey = resumeCacheKey({ resume, job, language, engine, jdTerms: extracted.terms })
       const result = await tailorResumeWithAi(resume, job, key, language, {
         jdTerms: extracted.terms,
         allowChunking: flags.tailoringChunking,
@@ -491,8 +503,7 @@ export function ApplicationBundle({
 
       if (state?.baseline) await pushPacketVersion(packet.id, `regenerate-${language}`)
       await mutate((row) => {
-        const previous = row.languages[language] ?? emptyLanguageState()
-        row.languages[language] = {
+        updateLanguageState(row, language, (previous) => ({
           ...previous,
           mode: 'ai',
           resumeCacheKey: cacheKey,
@@ -502,12 +513,7 @@ export function ApplicationBundle({
           source: result.source,
           changes: result.changes,
           changeSummary: result.changeSummary,
-          coverage: {
-            summary: result.coverage.summary,
-            covered: result.coverage.covered,
-            missing: result.coverage.missing,
-            ratio: result.coverage.ratio,
-          },
+          coverage: coverageSnapshot(result.coverage),
           jdTerms: result.jdTerms,
           unresolved: result.unresolved,
           attempts: result.attempts,
@@ -517,7 +523,7 @@ export function ApplicationBundle({
           },
           generatedAt: new Date().toISOString(),
           reviewedAt: undefined,
-        }
+        }))
         delete row.generation
       })
     } catch (error) {
@@ -545,36 +551,30 @@ export function ApplicationBundle({
       const key = apiKey ?? (await requireGroq(t('bundle.draft')))
       if (!key) return
       const engine = await loadEngineSettings()
-      const cacheKey = generationCacheKey({
-        kind: 'letter',
-        source: resume,
+      const tone = state?.letterTone ?? DEFAULT_LETTER_TONE
+      const cacheKey = letterCacheKey({
+        resume,
         job,
         language: resumeLanguage,
         engine,
         jdTerms: state?.jdTerms,
-        variant: state?.letterTone ?? DEFAULT_LETTER_TONE,
-        context: matchContext(match),
+        tone,
+        match,
       })
-      let usage: { estimatedTokens: number; actualTokens?: number; requests: number; model?: string } | undefined
+      let usage: PacketLanguageState['aiUsage']
       if (packet) await beginGeneration(packet.id, { stage: 'letter', language: resumeLanguage, startedAt: new Date().toISOString() })
       const text = await draftCoverLetter(resume, job, key, {
         language: resumeLanguage,
-        tone: state?.letterTone ?? DEFAULT_LETTER_TONE,
+        tone,
         jdTerms: state?.jdTerms ?? [],
         match,
         onBudgetWait: setBudgetWaitMs,
         onUsage: (event) => {
-          usage = {
-            estimatedTokens: event.estimated.billedTokens,
-            actualTokens: event.actualTokens,
-            requests: 1,
-            model: event.model,
-          }
+          usage = singleRequestUsage(event)
         },
       })
       await mutate((row) => {
-        const previous = row.languages[resumeLanguage] ?? emptyLanguageState()
-        row.languages[resumeLanguage] = {
+        updateLanguageState(row, resumeLanguage, (previous) => ({
           ...previous,
           letter: text,
           letterCacheKey: cacheKey,
@@ -589,7 +589,7 @@ export function ApplicationBundle({
             ),
           },
           aiUsage: mergeUsage(previous.aiUsage, usage),
-        }
+        }))
         delete row.generation
       })
     } catch (error) {
@@ -613,40 +613,26 @@ export function ApplicationBundle({
       const key = apiKey ?? (await requireGroq(t('message.draft')))
       if (!key) return
       const engine = await loadEngineSettings()
-      const cacheKey = generationCacheKey({
-        kind: 'message',
-        source: resume,
+      const cacheKey = recruiterMessageCacheKey({
+        resume,
         job,
         language: resumeLanguage,
         engine,
         jdTerms: state?.jdTerms,
-        variant: messageContext.style,
-        context: {
-          applicationState: messageContext.applicationState,
-          channel: messageContext.channel,
-          recruiterName: messageContext.recruiterName ?? null,
-          discoveryContext: messageContext.discoveryContext ?? null,
-          referralName: messageContext.referralName ?? null,
-        },
+        context: messageContext,
       })
-      let usage: { estimatedTokens: number; actualTokens?: number; requests: number; model?: string } | undefined
+      let usage: PacketLanguageState['aiUsage']
       if (packet) await beginGeneration(packet.id, { stage: 'message', language: resumeLanguage, startedAt: new Date().toISOString() })
       const text = await draftRecruiterMessage(resume, job, key, messageContext, {
         language: resumeLanguage,
         jdTerms: state?.jdTerms ?? [],
         onBudgetWait: setBudgetWaitMs,
         onUsage: (event) => {
-          usage = {
-            estimatedTokens: event.estimated.billedTokens,
-            actualTokens: event.actualTokens,
-            requests: 1,
-            model: event.model,
-          }
+          usage = singleRequestUsage(event)
         },
       })
       await mutate((row) => {
-        const previous = row.languages[resumeLanguage] ?? emptyLanguageState()
-        row.languages[resumeLanguage] = {
+        updateLanguageState(row, resumeLanguage, (previous) => ({
           ...previous,
           shortMessage: text,
           messageCacheKey: cacheKey,
@@ -670,7 +656,7 @@ export function ApplicationBundle({
             ),
           },
           aiUsage: mergeUsage(previous.aiUsage, usage),
-        }
+        }))
         delete row.generation
       })
     } catch (error) {
@@ -689,18 +675,15 @@ export function ApplicationBundle({
   async function approveHistoricalLetterBody() {
     if (!packet || !letterModel || !letterBodyChecksReady || letterProvenanceCurrent) return
     await pushPacketVersion(packet.id, `before-cover-letter-review-${resumeLanguage}`)
-    await mutate((row) => {
-      const previous = row.languages[resumeLanguage] ?? emptyLanguageState()
-      row.languages[resumeLanguage] = {
-        ...previous,
-        artifactProvenance: {
-          ...previous.artifactProvenance,
-          coverLetter: currentArtifactProvenance(
-            ARTIFACT_GENERATOR_CONTRACTS.reviewedCoverLetter,
-          ),
-        },
-      }
-    })
+    await updateSelectedLanguage((previous) => ({
+      ...previous,
+      artifactProvenance: {
+        ...previous.artifactProvenance,
+        coverLetter: currentArtifactProvenance(
+          ARTIFACT_GENERATOR_CONTRACTS.reviewedCoverLetter,
+        ),
+      },
+    }))
   }
 
   /**
@@ -715,20 +698,14 @@ export function ApplicationBundle({
     const result = tailorResume(resume, { ...job, language })
     if (state?.baseline) await pushPacketVersion(packet.id, `no-ai-${language}`)
     await mutate((row) => {
-      const previous = row.languages[language] ?? emptyLanguageState()
-      row.languages[language] = {
+      updateLanguageState(row, language, (previous) => ({
         ...previous,
         mode: 'deterministic',
         baseline: result.data,
         source: result.data,
         changes: [],
         changeSummary: [],
-        coverage: {
-          summary: result.coverage.summary,
-          covered: result.coverage.covered,
-          missing: result.coverage.missing,
-          ratio: result.coverage.ratio,
-        },
+        coverage: coverageSnapshot(result.coverage),
         jdTerms: [...result.coverage.covered, ...result.coverage.missing],
         unresolved: [],
         attempts: 0,
@@ -740,16 +717,13 @@ export function ApplicationBundle({
         },
         generatedAt: new Date().toISOString(),
         reviewedAt: undefined,
-      }
+      }))
       delete row.generation
     })
   }
 
   function updateChanges(next: ChangeRecord[]) {
-    void mutate((row) => {
-      const previous = row.languages[resumeLanguage] ?? emptyLanguageState()
-      row.languages[resumeLanguage] = { ...previous, changes: next }
-    })
+    void updateSelectedLanguage((previous) => ({ ...previous, changes: next }))
   }
 
   async function downloadResume() {
@@ -767,18 +741,11 @@ export function ApplicationBundle({
         filename,
       })
     } catch (error) {
-      void recordOperationalEvent({
-        name: 'export_failure',
-        outcome: 'error',
-        documentKind: 'resume',
-      }).catch(() => undefined)
-      setExportError(toAppError(error, {
-        category: 'export',
+      reportExportFailure(error, 'resume', {
         message: 'Klar could not prepare the resume download.',
-        dataSafe: true,
         available: 'The tailored resume and application packet remain saved.',
-        action: { label: 'Try the download again', kind: 'retry' },
-      }))
+        actionLabel: 'Try the download again',
+      })
     }
   }
 
@@ -794,18 +761,11 @@ export function ApplicationBundle({
         language: resumeLanguage,
       })
     } catch (error) {
-      void recordOperationalEvent({
-        name: 'export_failure',
-        outcome: 'error',
-        documentKind: 'resume',
-      }).catch(() => undefined)
-      setExportError(toAppError(error, {
-        category: 'export',
+      reportExportFailure(error, 'resume', {
         message: 'Klar could not prepare the resume PDF.',
-        dataSafe: true,
         available: 'The tailored resume and application packet remain saved.',
-        action: { label: 'Try the PDF again', kind: 'retry' },
-      }))
+        actionLabel: 'Try the PDF again',
+      })
     }
   }
 
@@ -822,18 +782,11 @@ export function ApplicationBundle({
         filename,
       })
     } catch (error) {
-      void recordOperationalEvent({
-        name: 'export_failure',
-        outcome: 'error',
-        documentKind: 'cover_letter',
-      }).catch(() => undefined)
-      setExportError(toAppError(error, {
-        category: 'export',
+      reportExportFailure(error, 'cover_letter', {
         message: 'Klar could not prepare the cover-letter download.',
-        dataSafe: true,
         available: 'The cover letter remains saved in this packet.',
-        action: { label: 'Try the download again', kind: 'retry' },
-      }))
+        actionLabel: 'Try the download again',
+      })
     }
   }
 
@@ -866,18 +819,11 @@ export function ApplicationBundle({
         filename,
       })
     } catch (error) {
-      void recordOperationalEvent({
-        name: 'export_failure',
-        outcome: 'error',
-        documentKind: 'packet',
-      }).catch(() => undefined)
-      setExportError(toAppError(error, {
-        category: 'export',
+      reportExportFailure(error, 'packet', {
         message: 'Klar could not prepare the application packet download.',
-        dataSafe: true,
         available: 'The tailored resume, cover letter, and saved packet remain unchanged.',
-        action: { label: 'Try the download again', kind: 'retry' },
-      }))
+        actionLabel: 'Try the download again',
+      })
     } finally {
       setExportBusy(false)
     }
@@ -1171,10 +1117,10 @@ export function ApplicationBundle({
                     size="sm"
                     variant="ghost"
                     onClick={() =>
-                      void mutate((row) => {
-                        const previous = row.languages[resumeLanguage] ?? emptyLanguageState()
-                        row.languages[resumeLanguage] = { ...previous, reviewedAt: new Date().toISOString() }
-                      })
+                      void updateSelectedLanguage((previous) => ({
+                        ...previous,
+                        reviewedAt: new Date().toISOString(),
+                      }))
                     }
                   >
                     {t('packet.markReviewed')}
@@ -1222,10 +1168,7 @@ export function ApplicationBundle({
                         role="radio"
                         aria-checked={selected}
                         onClick={() =>
-                          void mutate((row) => {
-                            const previous = row.languages[resumeLanguage] ?? emptyLanguageState()
-                            row.languages[resumeLanguage] = { ...previous, letterTone: tone }
-                          })
+                          void updateSelectedLanguage((previous) => ({ ...previous, letterTone: tone }))
                         }
                         className={`min-h-tap rounded-md border px-3 py-1.5 text-sm font-medium transition ${
                           selected
@@ -1246,17 +1189,7 @@ export function ApplicationBundle({
                     id="bundle-letter-recipient"
                     value={state?.letterDetails?.recipientName ?? ''}
                     onChange={(event) => {
-                      const recipientName = event.target.value
-                      void mutate((row) => {
-                        const previous = row.languages[resumeLanguage] ?? emptyLanguageState()
-                        row.languages[resumeLanguage] = {
-                          ...previous,
-                          letterDetails: {
-                            ...previous.letterDetails,
-                            recipientName,
-                          },
-                        }
-                      })
+                      void updateLetterDetails({ recipientName: event.target.value })
                     }}
                   />
                 </Field>
@@ -1265,14 +1198,7 @@ export function ApplicationBundle({
                     id="bundle-letter-place"
                     value={state?.letterDetails?.place ?? resume.contact.location?.split(',')[0] ?? ''}
                     onChange={(event) => {
-                      const place = event.target.value
-                      void mutate((row) => {
-                        const previous = row.languages[resumeLanguage] ?? emptyLanguageState()
-                        row.languages[resumeLanguage] = {
-                          ...previous,
-                          letterDetails: { ...previous.letterDetails, place },
-                        }
-                      })
+                      void updateLetterDetails({ place: event.target.value })
                     }}
                   />
                 </Field>
@@ -1285,17 +1211,7 @@ export function ApplicationBundle({
                       ? 'Straße und Hausnummer\nPLZ Ort'
                       : 'Street and number\nPostal code and city'}
                     onChange={(event) => {
-                      const recipientAddress = event.target.value
-                      void mutate((row) => {
-                        const previous = row.languages[resumeLanguage] ?? emptyLanguageState()
-                        row.languages[resumeLanguage] = {
-                          ...previous,
-                          letterDetails: {
-                            ...previous.letterDetails,
-                            recipientAddress,
-                          },
-                        }
-                      })
+                      void updateLetterDetails({ recipientAddress: event.target.value })
                     }}
                   />
                 </Field>
@@ -1305,14 +1221,7 @@ export function ApplicationBundle({
                     type="date"
                     value={state?.letterDetails?.dateIso ?? localCalendarDateIso()}
                     onChange={(event) => {
-                      const dateIso = event.target.value
-                      void mutate((row) => {
-                        const previous = row.languages[resumeLanguage] ?? emptyLanguageState()
-                        row.languages[resumeLanguage] = {
-                          ...previous,
-                          letterDetails: { ...previous.letterDetails, dateIso },
-                        }
-                      })
+                      void updateLetterDetails({ dateIso: event.target.value })
                     }}
                   />
                 </Field>
@@ -1330,12 +1239,11 @@ export function ApplicationBundle({
                       value={state.letter}
                       onChange={(event) => {
                         const value = event.target.value
-                        void mutate((row) => {
-                          const previous = row.languages[resumeLanguage] ?? emptyLanguageState()
+                        void updateSelectedLanguage((previous) => {
                           const editedProvenance = coverLetterProvenanceAfterManualEdit(
                             previous.artifactProvenance?.coverLetter,
                           )
-                          row.languages[resumeLanguage] = {
+                          return {
                             ...previous,
                             letter: value,
                             ...(editedProvenance
@@ -1453,10 +1361,10 @@ export function ApplicationBundle({
                         type="button"
                         role="radio"
                         aria-checked={selected}
-                        onClick={() => void mutate((row) => {
-                          const previous = row.languages[resumeLanguage] ?? emptyLanguageState()
-                          row.languages[resumeLanguage] = { ...previous, messageStyle: style }
-                        })}
+                        onClick={() => void updateSelectedLanguage((previous) => ({
+                          ...previous,
+                          messageStyle: style,
+                        }))}
                         className={`min-h-tap rounded-md border px-3 py-1.5 text-sm font-medium transition ${
                           selected
                             ? 'border-accent bg-accent-tint text-accent'
@@ -1477,10 +1385,7 @@ export function ApplicationBundle({
                     value={messageContext.applicationState}
                     onChange={(event) => {
                       const messageApplicationState = event.target.value as RecruiterApplicationState
-                      void mutate((row) => {
-                        const previous = row.languages[resumeLanguage] ?? emptyLanguageState()
-                        row.languages[resumeLanguage] = { ...previous, messageApplicationState }
-                      })
+                      void updateSelectedLanguage((previous) => ({ ...previous, messageApplicationState }))
                     }}
                   >
                     {(Object.keys(APPLICATION_STATE_LABEL) as RecruiterApplicationState[]).map((value) => (
@@ -1503,10 +1408,7 @@ export function ApplicationBundle({
                     value={messageContext.channel}
                     onChange={(event) => {
                       const messageChannel = event.target.value as RecruiterMessageChannel
-                      void mutate((row) => {
-                        const previous = row.languages[resumeLanguage] ?? emptyLanguageState()
-                        row.languages[resumeLanguage] = { ...previous, messageChannel }
-                      })
+                      void updateSelectedLanguage((previous) => ({ ...previous, messageChannel }))
                     }}
                   >
                     {(Object.keys(MESSAGE_CHANNEL_LABEL) as RecruiterMessageChannel[]).map((value) => (
@@ -1520,10 +1422,7 @@ export function ApplicationBundle({
                     value={state?.recruiterName ?? ''}
                     onChange={(event) => {
                       const recruiterName = event.target.value
-                      void mutate((row) => {
-                        const previous = row.languages[resumeLanguage] ?? emptyLanguageState()
-                        row.languages[resumeLanguage] = { ...previous, recruiterName }
-                      })
+                      void updateSelectedLanguage((previous) => ({ ...previous, recruiterName }))
                     }}
                   />
                 </Field>
@@ -1533,10 +1432,7 @@ export function ApplicationBundle({
                     value={state?.messageDiscoveryContext ?? ''}
                     onChange={(event) => {
                       const messageDiscoveryContext = event.target.value
-                      void mutate((row) => {
-                        const previous = row.languages[resumeLanguage] ?? emptyLanguageState()
-                        row.languages[resumeLanguage] = { ...previous, messageDiscoveryContext }
-                      })
+                      void updateSelectedLanguage((previous) => ({ ...previous, messageDiscoveryContext }))
                     }}
                   />
                 </Field>
@@ -1548,10 +1444,7 @@ export function ApplicationBundle({
                       value={state?.messageReferralName ?? ''}
                       onChange={(event) => {
                         const messageReferralName = event.target.value
-                        void mutate((row) => {
-                          const previous = row.languages[resumeLanguage] ?? emptyLanguageState()
-                          row.languages[resumeLanguage] = { ...previous, messageReferralName }
-                        })
+                        void updateSelectedLanguage((previous) => ({ ...previous, messageReferralName }))
                       }}
                     />
                   </Field>
@@ -1574,27 +1467,24 @@ export function ApplicationBundle({
                       value={state.shortMessage}
                       onChange={(event) => {
                         const value = event.target.value
-                        void mutate((row) => {
-                          const previous = row.languages[resumeLanguage] ?? emptyLanguageState()
-                          row.languages[resumeLanguage] = {
-                            ...previous,
-                            shortMessage: value,
-                            messageChecks: checkRecruiterMessage(
-                              value,
-                              resume,
-                              job,
-                              messageContext,
-                              resumeLanguage,
-                            ),
-                            artifactProvenance: {
-                              ...previous.artifactProvenance,
-                              recruiterMessage:
-                                recruiterMessageProvenanceAfterManualEdit(
-                                  previous.artifactProvenance?.recruiterMessage,
-                                ),
-                            },
-                          }
-                        })
+                        void updateSelectedLanguage((previous) => ({
+                          ...previous,
+                          shortMessage: value,
+                          messageChecks: checkRecruiterMessage(
+                            value,
+                            resume,
+                            job,
+                            messageContext,
+                            resumeLanguage,
+                          ),
+                          artifactProvenance: {
+                            ...previous.artifactProvenance,
+                            recruiterMessage:
+                              recruiterMessageProvenanceAfterManualEdit(
+                                previous.artifactProvenance?.recruiterMessage,
+                              ),
+                          },
+                        }))
                       }}
                     />
                   </label>
