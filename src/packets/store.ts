@@ -7,11 +7,17 @@
 // encryption is on, packets live inside the ciphertext and never touch a
 // plaintext store; when it is off, they live in the new Dexie `packets` table.
 //
+// With the `packets` release flag off (src/lib/appFlags.ts) neither applies:
+// rows live in this tab's memory only, and neither the table nor the vault is
+// read or written. Rows saved while the flag was on stay where they are and are
+// used again once it is switched back on.
+//
 // Every mutation goes through `updatePacket`, which is also the autosave: the UI
 // never holds unsaved state longer than one interaction.
 // ============================================================================
 import { db } from '../db/db'
 import { getVaultStatus, readSensitiveContent, updateSensitiveContent } from '../crypto/vault'
+import { loadAppFlags } from '../lib/appFlags'
 import { GENERATION } from '../lib/config'
 import type { NormalizedJob } from '../types'
 import {
@@ -29,7 +35,24 @@ import {
 
 const packetMutationQueues = new Map<string, Promise<PacketRow | null>>()
 
+/** Session-only rows, used instead of storage while the `packets` flag is off. */
+const sessionPackets = new Map<string, PacketRow>()
+
+async function packetsPersisted(): Promise<boolean> {
+  return (await loadAppFlags()).packets
+}
+
+/** Forget every session-only packet (Settings › delete all data). */
+export function clearSessionPackets(): void {
+  sessionPackets.clear()
+}
+
 export async function listPackets(): Promise<PacketRow[]> {
+  if (!(await packetsPersisted())) {
+    return [...sessionPackets.values()]
+      .map((row) => structuredClone(row))
+      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+  }
   const status = await getVaultStatus()
   if (status === 'unlocked') {
     return [...((await readSensitiveContent())?.packets ?? [])]
@@ -44,6 +67,10 @@ export async function listPackets(): Promise<PacketRow[]> {
 }
 
 export async function loadPacket(id: string): Promise<PacketRow | null> {
+  if (!(await packetsPersisted())) {
+    const row = sessionPackets.get(id)
+    return row ? structuredClone(row) : null
+  }
   const status = await getVaultStatus()
   if (status === 'unlocked') {
     const row = (await readSensitiveContent())?.packets.find((item) => item.id === id)
@@ -58,6 +85,10 @@ export async function savePacket(row: PacketRow): Promise<PacketRow> {
   const next: PacketRow = {
     ...normalizePacketFormatVersions(row),
     updatedAt: new Date().toISOString(),
+  }
+  if (!(await packetsPersisted())) {
+    sessionPackets.set(next.id, structuredClone(next))
+    return next
   }
   const status = await getVaultStatus()
   if (status === 'unlocked') {
@@ -108,6 +139,10 @@ export async function updatePacket(
 }
 
 export async function deletePacket(id: string): Promise<void> {
+  if (!(await packetsPersisted())) {
+    sessionPackets.delete(id)
+    return
+  }
   const status = await getVaultStatus()
   if (status === 'unlocked') {
     await updateSensitiveContent((content) => {

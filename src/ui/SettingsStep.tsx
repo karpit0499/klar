@@ -17,6 +17,8 @@ import { testAdzunaConnection } from '../settings/adzunaConnection'
 import { toAppError, type AppErrorData } from '../errors/appError'
 import { lockVault } from '../crypto/vault'
 import { APP_VERSION } from '../lib/version'
+import { DEFAULT_APP_FLAGS, type AppFlags } from '../lib/appFlags'
+import { clearSessionPackets } from '../packets/store'
 
 export function SettingsStep({
   onReset,
@@ -40,6 +42,8 @@ export function SettingsStep({
   const [adzunaMessage, setAdzunaMessage] = useState('')
   const [adzunaTesting, setAdzunaTesting] = useState(false)
   const [adzunaError, setAdzunaError] = useState<AppErrorData | null>(null)
+  // Reported by FeatureFlagsCard, so the engine card follows `customEngine` live.
+  const [flags, setFlags] = useState<AppFlags>(DEFAULT_APP_FLAGS)
 
   useEffect(() => {
     void getActiveRegion().then((region) => setRegionCode(region.code))
@@ -106,6 +110,7 @@ export function SettingsStep({
   async function wipe() {
     setWipeConfirmOpen(false)
     await wipeAllData()
+    clearSessionPackets()
     lockVault()
     await clearGroqKey()
     onReset()
@@ -206,13 +211,13 @@ export function SettingsStep({
         </Card>
 
         {/* v2.5 · WS3 — the configurable OpenAI-compatible engine. */}
-        <EngineSettingsCard apiKey={apiKey} />
+        <EngineSettingsCard apiKey={apiKey} customEngine={flags.customEngine} />
         <div className="mt-4">
           <BudgetNotice />
         </div>
 
         {/* v2.5 · R10 — per-feature kill switches for the new application-quality work. */}
-        <FeatureFlagsCard />
+        <FeatureFlagsCard onChange={setFlags} />
 
         <Card className="mt-4 p-4 sm:p-6">
           <h2 className="text-xl font-semibold text-ink">{t('settings.regionTitle')}</h2>

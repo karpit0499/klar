@@ -53,7 +53,7 @@ Resume creation, editing, replacement, history, and the disabled-by-default desi
 
 ## AI engine
 
-The default engine is Groq through Klar's fixed Worker relay when the Worker is configured. Settings can define another OpenAI-compatible endpoint, main model, fast model, key requirement, and fast-matching preference; it can also request the endpoint's model list.
+The default engine is Groq through Klar's fixed Worker relay when the Worker is configured. Settings can define another OpenAI-compatible endpoint, main model, fast model, key requirement, and fast-matching preference; it can also request the endpoint's model list. The custom-engine release switch described below can take a saved endpoint out of use without deleting it.
 
 Only HTTP and HTTPS endpoints are accepted. The hosted HTTPS app cannot call an HTTP local model server because the browser blocks mixed content. A local HTTP Klar build may call one when its CORS configuration allows it. The experimental desktop build provides a separate managed loopback route, but public local intelligence is not a current production claim.
 
@@ -63,7 +63,11 @@ The rolling-minute budget notice shows estimated use and actual use only when th
 
 The Developer Preview exposes guarded feature switches for requirement extraction, tailoring review, custom engine, packet retention, deterministic matching, budget scheduling, oversized-Resume chunking, and the experimental Resume design lab.
 
-These switches are evaluation and rollback controls. Use the safe defaults unless testing a specific behavior, and record any non-default state when reporting a defect. In v2.6.1, the custom-engine and packet-retention switches are presented in Settings but are not consumed by their corresponding runtime workflows; changing either switch does not disable custom-engine configuration or packet persistence. Treat that mismatch as a known implementation gap, not as a supported control outcome.
+These switches are evaluation and rollback controls. Use the safe defaults unless testing a specific behavior, and record any non-default state when reporting a defect.
+
+Turning **custom engine** off sends every AI request, API-key check, and model-list request to the hosted Groq defaults, so no request or key reaches a custom endpoint. The saved endpoint and models stay visible but read-only under **AI engine** and are used again when the switch is turned back on. The fast-matching preference still applies; it chooses between the two default models.
+
+Turning **packet retention** off makes application packets session-only. Career and Flexible Work packets work while Klar stays open, but nothing is written to the browser database or the encrypted vault, and the packet drawer says that it is not saving. A reload or closed tab discards them. Packets saved earlier stay untouched in storage and return when the switch is turned back on.
 
 ## Region
 
@@ -71,6 +75,6 @@ The active region controls career source selection and applies to the next searc
 
 ## Delete all local data
 
-**Delete all local data** clears every Klar browser store, including settings, Resume and history, preferences, caches, matches, Tracker, Dashboard, saved searches, connector health, packets, and vault. It then clears the Groq key from Klar's session state.
+**Delete all local data** clears every Klar browser store, including settings, Resume and history, preferences, caches, matches, Tracker, Dashboard, saved searches, connector health, packets, and vault. It then clears session-only packets and the Groq key from Klar's session state.
 
 This operation cannot be undone in the interface. Download and verify a backup first. It does not delete data already sent to an AI provider, employer, GitHub, downloaded file, or other external system.

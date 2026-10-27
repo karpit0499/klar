@@ -14,7 +14,8 @@
 //   5. download — editable DOCX files only inside a single packet ZIP
 //
 // Everything the person does is autosaved through src/packets/store.ts, so a
-// reload, a crash or a closed tab loses nothing.
+// reload, a crash or a closed tab loses nothing — unless the `packets` release
+// flag is off, which makes the drawer session-only and says so.
 // ============================================================================
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Badge, Button, Field, Spinner, TextInput } from './atoms'
@@ -454,6 +455,11 @@ export function ApplicationBundle({
 
   const stem = fileStem(job, resume)
   const aiBlocked = affordable?.reason === 'exceeds_budget' && !flags.tailoringChunking
+  // With the `packets` flag off this drawer is session-only (src/packets/store.ts),
+  // so recovery copy never promises that anything was saved.
+  const resumeKept = flags.packets
+    ? 'The tailored resume and application packet remain saved.'
+    : 'The tailored resume and application packet are kept until Klar is reloaded or closed.'
 
   async function runTailoring(language: ResumeLanguage, focusMissing = false) {
     // Opening the persistent packet is asynchronous. Never spend tokens before
@@ -776,7 +782,7 @@ export function ApplicationBundle({
         category: 'export',
         message: 'Klar could not prepare the resume download.',
         dataSafe: true,
-        available: 'The tailored resume and application packet remain saved.',
+        available: resumeKept,
         action: { label: 'Try the download again', kind: 'retry' },
       }))
     }
@@ -803,7 +809,7 @@ export function ApplicationBundle({
         category: 'export',
         message: 'Klar could not prepare the resume PDF.',
         dataSafe: true,
-        available: 'The tailored resume and application packet remain saved.',
+        available: resumeKept,
         action: { label: 'Try the PDF again', kind: 'retry' },
       }))
     }
@@ -831,7 +837,9 @@ export function ApplicationBundle({
         category: 'export',
         message: 'Klar could not prepare the cover-letter download.',
         dataSafe: true,
-        available: 'The cover letter remains saved in this packet.',
+        available: flags.packets
+          ? 'The cover letter remains saved in this packet.'
+          : 'The cover letter is kept in this packet until Klar is reloaded or closed.',
         action: { label: 'Try the download again', kind: 'retry' },
       }))
     }
@@ -875,7 +883,9 @@ export function ApplicationBundle({
         category: 'export',
         message: 'Klar could not prepare the application packet download.',
         dataSafe: true,
-        available: 'The tailored resume, cover letter, and saved packet remain unchanged.',
+        available: flags.packets
+          ? 'The tailored resume, cover letter, and saved packet remain unchanged.'
+          : 'The tailored resume, cover letter, and packet remain unchanged.',
         action: { label: 'Try the download again', kind: 'retry' },
       }))
     } finally {
@@ -1630,7 +1640,9 @@ export function ApplicationBundle({
                   }}
                 />
               </label>
-              <p className="mt-2 text-sm text-faint">{t('packet.autosave')}</p>
+              <p className="mt-2 text-sm text-faint">
+                {t(flags.packets ? 'packet.autosave' : 'packet.sessionOnly')}
+              </p>
               {packet && packet.exportHistory.length > 0 && (
                 <p className="mt-2 text-sm text-muted">
                   {t('packet.lastExport', {

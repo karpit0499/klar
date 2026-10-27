@@ -13,6 +13,10 @@
 //   tailoringReview        off → the v2.4 "generate and download" flow
 //   customEngine           off → hosted Groq defaults only
 //   packets                off → nothing is persisted; the drawer is session-only
+//
+// The last two are enforced at the layer every caller already goes through, so
+// no screen can forget them: `effectiveEngine()` in src/llm/provider.ts and the
+// session-only store in src/packets/store.ts.
 // ============================================================================
 import { getSetting, setSetting } from '../db/db'
 

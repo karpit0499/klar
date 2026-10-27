@@ -659,6 +659,8 @@ const en = {
   // Packet
   'packet.notes': 'Your notes',
   'packet.autosave': 'Saved on this device as you type.',
+  'packet.sessionOnly':
+    'Not saved: application packets are switched off under Release features, so this packet is kept only until Klar is reloaded or closed.',
   'packet.lastExport': 'Last export: {format} · {when}',
   'packet.markReviewed': 'Mark as reviewed',
   'packet.readyYes': 'Ready to send',
@@ -738,6 +740,8 @@ const en = {
   'settings.engine.title': 'AI engine',
   'settings.engine.intro':
     'Klar sends AI requests to one OpenAI-compatible endpoint. The default is Groq’s hosted API. You can point Klar at any other compatible endpoint.',
+  'settings.engine.customOff':
+    'Custom engines are switched off under Release features, so every AI request goes to Groq’s hosted API with Klar’s default models. Your saved endpoint is kept and is used again when you switch custom engines back on.',
   'settings.engine.baseUrl': 'Endpoint (base URL)',
   'settings.engine.model': 'Model',
   'settings.engine.fastModel': 'Fast model',
@@ -1422,6 +1426,8 @@ const de: Record<TranslationKey, string> = {
 
   'packet.notes': 'Deine Notizen',
   'packet.autosave': 'Wird beim Tippen auf diesem Gerät gespeichert.',
+  'packet.sessionOnly':
+    'Nicht gespeichert: Bewerbungspakete sind unter Release-Funktionen abgeschaltet. Dieses Paket bleibt nur erhalten, bis Klar neu geladen oder geschlossen wird.',
   'packet.lastExport': 'Letzter Export: {format} · {when}',
   'packet.markReviewed': 'Als geprüft markieren',
   'packet.readyYes': 'Versandfertig',
@@ -1498,6 +1504,8 @@ const de: Record<TranslationKey, string> = {
   'settings.engine.title': 'KI-Engine',
   'settings.engine.intro':
     'Klar sendet KI-Anfragen an einen OpenAI-kompatiblen Endpunkt. Standard ist die gehostete Groq-API. Du kannst jeden anderen kompatiblen Endpunkt eintragen.',
+  'settings.engine.customOff':
+    'Eigene Engines sind unter Release-Funktionen abgeschaltet. Jede KI-Anfrage geht deshalb an die gehostete Groq-API mit den Standardmodellen von Klar. Dein gespeicherter Endpunkt bleibt erhalten und wird wieder genutzt, sobald du eigene Engines wieder einschaltest.',
   'settings.engine.baseUrl': 'Endpunkt (Basis-URL)',
   'settings.engine.model': 'Modell',
   'settings.engine.fastModel': 'Schnelles Modell',
