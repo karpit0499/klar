@@ -316,11 +316,21 @@ export function checkRecruiterMessage(
   const candidateEvidence = [...evidenceTokens].some((token) =>
     new RegExp(`\\b${escapeRegExp(token)}\\b`, 'u').test(normalized),
   )
+  // German counterparts of the English terms. No general "-gespräch" rule
+  // (Kundengespräch would read as an ask), and deliberately not counted, as in
+  // English: offers ("Für Rückfragen stehe ich gerne zur Verfügung"), reply
+  // requests ("Ihre Rückmeldung"), and "Telefonat".
   const ask = language === 'de'
-    ? /\b(austausch|gespräch|sprechen|anschauen|ansehen|frage|rückfrage|offen für|zeit für)\b/.test(normalized)
+    ? containsTerm(normalized, [
+        'austausch', 'austauschen', 'auszutauschen',
+        'gespräch', 'kennenlerngespräch', 'erstgespräch', 'telefongespräch',
+        'videogespräch', 'vorstellungsgespräch',
+        'sprechen', 'anschauen', 'anzuschauen', 'ansehen', 'anzusehen',
+        'frage', 'rückfrage', 'offen für', 'zeit für', 'vernetzen',
+      ])
     : /\b(take a look|conversation|speak|chat|question|open to|available for|connect)\b/.test(normalized)
   const signOff = language === 'de'
-    ? /\b(viele gru(?:ß|ss)e|freundliche gru(?:ß|ss)e|beste gru(?:ß|ss)e|mit freundlichen gru(?:ß|ss)en)\b/.test(finalLines)
+    ? containsTerm(finalLines, ['grüße', 'grüßen', 'gruß'])
     : /\b(best|regards|kind regards|sincerely|thank you|thanks)\b/.test(finalLines)
   const saysApplied = /\b(applied|submitted (my|an) application|beworben|bewerbung (?:bereits )?eingereicht)\b/.test(normalized)
   const saysReferred = /\b(referred|introduced|recommended|empfohlen|vorgestellt)\b/.test(normalized)
@@ -351,7 +361,8 @@ export function checkRecruiterMessage(
     'expertin',
     'muttersprach',
     'fließend',
-  ].filter((phrase) => normalized.includes(phrase))
+    'verhandlungssicher',
+  ].map(normalizeForCheck).filter((phrase) => normalized.includes(phrase))
   const evidenceText = normalizeForCheck(JSON.stringify(verifiedEvidenceOf(source)))
   const unsupportedClaims =
     outputNumbers.every((number) => allowedNumbers.has(number)) &&
@@ -450,9 +461,18 @@ function normalizeForCheck(value: string): string {
     .normalize('NFKD')
     .replace(/\p{M}/gu, '')
     .toLocaleLowerCase('en')
+    // NFKD keeps ß, so fold it explicitly: "Grüße" and "Grüsse" compare equal.
+    .replace(/ß/g, 'ss')
     .replace(/[^\p{L}\p{N}%]+/gu, ' ')
     .replace(/\s+/g, ' ')
     .trim()
+}
+
+/** Whole-word match for terms in natural spelling, normalized the same way as the text. */
+function containsTerm(normalizedText: string, terms: readonly string[]): boolean {
+  return terms.some((term) =>
+    new RegExp(`\\b${escapeRegExp(normalizeForCheck(term))}\\b`, 'u').test(normalizedText),
+  )
 }
 
 function escapeRegExp(value: string): string {
