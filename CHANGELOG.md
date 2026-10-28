@@ -4,6 +4,32 @@ This file records Klar’s product history from the newest release to the origin
 
 ---
 
+## Unreleased
+
+### Dependency security
+
+- Updated the transitive XML parser `@xmldom/xmldom` from 0.8.13 to 0.8.15
+  (lockfile only) to clear the high-severity advisories that failed the
+  production dependency audit. It is used by `mammoth` for DOCX Resume import
+  and by electron-builder's `plist`. Well-formed DOCX files extract unchanged;
+  a DOCX with a not-well-formed end tag now shows the existing file-read error
+  instead of being imported silently.
+- Updated build tooling flagged by the full development/build dependency
+  audit. concurrently moves from 10.0.4 to 10.0.6 for the critical
+  `shell-quote` command-injection advisory (it only runs `npm run desktop:dev`),
+  and in-range lockfile updates cover Vite 7.3.7, wrangler 4.154.0 with
+  miniflare and workerd, axios, undici, sharp, brace-expansion and smaller
+  build dependencies. The web, desktop renderer and Worker builds are
+  byte-for-byte unchanged; the regenerated Worker types only add wrangler's
+  default module declarations.
+- Updated the Developer Preview's Electron from 43.2.0 to 43.8.4, which clears
+  12 Electron advisories (five high severity) and supersedes the v2.6.0 pin.
+  electron-builder 26.15.3 and `@electron/fuses` 1.8.0 stay pinned, and the
+  packaged app still exposes exactly the nine reviewed fuses. The production
+  and full development/build dependency audits are clean as of 27 October 2026.
+
+---
+
 ## v2.6.1 — Stability, source integrity, and Knowledge Base migration
 
 ### Honest scoring and resilient journeys
