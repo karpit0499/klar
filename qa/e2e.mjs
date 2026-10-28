@@ -83,6 +83,28 @@ async function unnamedFields(page) {
   )
 }
 
+// Chrome 153 refuses to reuse a module preload that the service worker
+// answered before the parser reached its tag, so no parser-blocking classic
+// script may precede the entry module or modulepreload tags. The resulting
+// console warning is timing-dependent, so assert the served order directly.
+async function servedHeadOrder() {
+  const html = await (await fetch(BASE)).text()
+  const page = await browser.newPage()
+  try {
+    return await page.evaluate((source) => {
+      const tags = [...new DOMParser().parseFromString(source, 'text/html').head.children]
+      return {
+        lastModuleTag: tags.findLastIndex((tag) =>
+          tag.matches('script[type="module"], link[rel="modulepreload"]')),
+        firstBlockingScript: tags.findIndex((tag) =>
+          tag.matches('script[src]:not([type="module"]):not([async]):not([defer])')),
+      }
+    }, html)
+  } finally {
+    await page.close()
+  }
+}
+
 async function run(viewport, tag, contextOptions = {}) {
   const context = await browser.newContext({ viewport, ...contextOptions })
   const page = await context.newPage()
@@ -1105,6 +1127,7 @@ async function runSearchCancellation() {
   await context.close()
 }
 
+const headOrder = await servedHeadOrder()
 await run({ width: 1280, height: 900 }, 'desktop')
 await run({ width: 375, height: 812 }, 'mobile-375')
 await run({ width: 320, height: 568 }, 'mobile-320')
@@ -1123,6 +1146,7 @@ await runSearchCancellation()
 await browser.close()
 
 console.log(JSON.stringify({
+  headOrder,
   results,
   careerContinuity,
   issueReporting,
@@ -1134,6 +1158,9 @@ console.log(JSON.stringify({
   errors,
 }, null, 2))
 
+const headOrderFailed =
+  headOrder.firstBlockingScript !== -1 &&
+  headOrder.firstBlockingScript < headOrder.lastModuleTag
 const failed = Object.values(results).some((result) =>
   result.searchOverflow ||
   result.settingsOverflow ||
@@ -1256,6 +1283,7 @@ const searchCancellationFailed =
   searchCancellation.finalHash !== '#/search'
 if (
   errors.length ||
+  headOrderFailed ||
   failed ||
   careerFailed ||
   issueFailed ||
