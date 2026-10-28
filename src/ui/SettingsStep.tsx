@@ -8,6 +8,7 @@ import { ErrorNotice } from './ErrorNotice'
 import { DesktopCapabilityPanel } from './DesktopCapabilityPanel'
 import { ConfirmDialog } from './ConfirmDialog'
 import { wipeAllData } from '../db/db'
+import { invalidateEngineCache } from '../llm/provider'
 import { clearGroqKey } from '../settings/keys'
 import { clearAdzunaKey, loadAdzunaKey, saveAdzunaKey } from '../settings/adzunaKey'
 import { REGIONS, getActiveRegion, setActiveRegion, DEFAULT_REGION_CODE } from '../regions'
@@ -112,6 +113,7 @@ export function SettingsStep({
     await wipeAllData()
     clearSessionPackets()
     lockVault()
+    invalidateEngineCache()
     await clearGroqKey()
     onReset()
   }
