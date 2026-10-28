@@ -21,9 +21,15 @@
 //     OLLAMA_ORIGINS set for CORS. So v2.5 ships the configuration plus an
 //     explicit, honest warning; the full local experience is v2.6 work, gated on
 //     that blocker being solved. `engineWarning()` below is how we stay honest.
+//
+// The `customEngine` release flag (src/lib/appFlags.ts) is the kill switch for
+// all of this: with it off, `effectiveEngine()` sends every request to the
+// hosted Groq defaults, and the saved configuration waits, untouched, until the
+// flag is switched back on.
 // ============================================================================
 import { GROQ, WORKER_URL } from '../lib/config'
 import { getSetting, setSetting } from '../db/db'
+import { loadAppFlags, type AppFlags } from '../lib/appFlags'
 
 export type EngineSettings = {
   /** OpenAI-compatible base URL, no trailing slash (…/v1). */
@@ -87,6 +93,20 @@ export function validateEngineDraft(
 /** True when the settings still point at Klar's default hosted engine. */
 export function isDefaultEngine(settings: EngineSettings): boolean {
   return settings.baseUrl === DEFAULT_ENGINE.baseUrl
+}
+
+/**
+ * The engine a request may actually use. With the `customEngine` flag off that
+ * is always the hosted Groq default endpoint and models. `fastMatching` only
+ * chooses between those two default models, so that cost-control choice is
+ * kept rather than silently raising what matching spends.
+ */
+export function effectiveEngine(
+  settings: EngineSettings,
+  flags: Pick<AppFlags, 'customEngine'>,
+): EngineSettings {
+  if (flags.customEngine) return settings
+  return { ...DEFAULT_ENGINE, fastMatching: settings.fastMatching }
 }
 
 /**
@@ -155,7 +175,11 @@ export function invalidateEngineCache(): void {
   cached = null
 }
 
-export async function loadEngineSettings(): Promise<EngineSettings> {
+/**
+ * The configuration exactly as saved in Settings. Only the Settings editor
+ * reads this; every request resolves `loadEngineSettings()` instead.
+ */
+export async function loadStoredEngineSettings(): Promise<EngineSettings> {
   if (cached) return cached
   let stored: Partial<EngineSettings> | undefined
   try {
@@ -168,6 +192,12 @@ export async function loadEngineSettings(): Promise<EngineSettings> {
   const checked = validateEngineDraft(merged)
   cached = checked.ok ? checked.value : { ...DEFAULT_ENGINE }
   return cached
+}
+
+/** The engine every AI request uses: the saved one, unless `customEngine` is off. */
+export async function loadEngineSettings(): Promise<EngineSettings> {
+  const [stored, flags] = await Promise.all([loadStoredEngineSettings(), loadAppFlags()])
+  return effectiveEngine(stored, flags)
 }
 
 export async function saveEngineSettings(value: EngineSettings): Promise<EngineSettings> {
@@ -189,15 +219,17 @@ export async function resetEngineSettings(): Promise<EngineSettings> {
  * `config.ts` itself warns that "Groq rotates its catalogue often", so a
  * retired model id used to fail as an opaque error. Settings can now list the
  * real ids. Returns [] when the endpoint does not implement /models.
+ * A custom engine switched off by `customEngine` is never contacted.
  */
 export async function listEngineModels(
   settings: EngineSettings,
   apiKey?: string,
   signal?: AbortSignal,
 ): Promise<string[]> {
+  const engine = effectiveEngine(settings, await loadAppFlags())
   const headers: Record<string, string> = { 'Content-Type': 'application/json' }
   if (apiKey) headers.Authorization = `Bearer ${apiKey}`
-  const res = await fetch(engineRequestUrl(settings, '/models'), { headers, signal })
+  const res = await fetch(engineRequestUrl(engine, '/models'), { headers, signal })
   if (!res.ok) return []
   const body = (await res.json().catch(() => null)) as { data?: { id?: unknown }[] } | null
   const ids = (body?.data ?? [])
@@ -215,15 +247,17 @@ export type EngineAccessResult =
  * reliable credential check for reasoning models: the completion budget can be
  * consumed before visible content is produced. A successful /models response
  * proves that the endpoint accepted the credential without spending AI quota.
+ * The key is never offered to a custom engine switched off by `customEngine`.
  */
 export async function probeEngineAccess(
   settings: EngineSettings,
   apiKey: string,
   options: { signal?: AbortSignal; fetcher?: typeof fetch } = {},
 ): Promise<EngineAccessResult> {
+  const engine = effectiveEngine(settings, await loadAppFlags())
   let response: Response
   try {
-    response = await (options.fetcher ?? fetch)(engineRequestUrl(settings, '/models'), {
+    response = await (options.fetcher ?? fetch)(engineRequestUrl(engine, '/models'), {
       method: 'GET',
       headers: {
         Accept: 'application/json',

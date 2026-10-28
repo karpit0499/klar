@@ -8,7 +8,9 @@
 //     answers the D2 model-drift problem ("Groq rotates its catalogue often") by
 //     asking the endpoint which ids it really serves, and it is HONEST about the
 //     mixed-content blocker rather than promising a local model that a browser
-//     will refuse to call from an https:// page.
+//     will refuse to call from an https:// page. With the `customEngine` flag
+//     off it says so, and the endpoint fields stay read-only: the saved values
+//     are kept, but no request uses them.
 //
 //  2. FeatureFlagsCard — per-feature kill switches for the new v2.5 work, using
 //     the same pattern v2.4 shipped for connectors. Turning one off always
@@ -19,7 +21,7 @@ import { Button, Card, Field, TextInput } from './atoms'
 import { useT } from '../i18n/LocaleProvider'
 import type { TranslationKey } from '../i18n/translations'
 import {
-  DEFAULT_ENGINE, engineWarning, listEngineModels, loadEngineSettings, resetEngineSettings,
+  DEFAULT_ENGINE, engineWarning, listEngineModels, loadStoredEngineSettings, resetEngineSettings,
   saveEngineSettings, validateEngineDraft, type EngineProblem, type EngineSettings,
 } from '../llm/provider'
 import { DEFAULT_APP_FLAGS, loadAppFlags, saveAppFlags, type AppFlags } from '../lib/appFlags'
@@ -30,7 +32,14 @@ const PROBLEM_LABEL: Record<EngineProblem, TranslationKey> = {
   model: 'settings.engine.problem.model',
 }
 
-export function EngineSettingsCard({ apiKey }: { apiKey?: string }) {
+export function EngineSettingsCard({
+  apiKey,
+  customEngine = DEFAULT_APP_FLAGS.customEngine,
+}: {
+  apiKey?: string
+  /** The `customEngine` release flag; off → requests use the hosted defaults. */
+  customEngine?: boolean
+}) {
   const t = useT()
   const [draft, setDraft] = useState<EngineSettings>(DEFAULT_ENGINE)
   const [problem, setProblem] = useState<EngineProblem | null>(null)
@@ -39,10 +48,11 @@ export function EngineSettingsCard({ apiKey }: { apiKey?: string }) {
   const [models, setModels] = useState<string[] | null>(null)
 
   useEffect(() => {
-    void loadEngineSettings().then(setDraft)
+    // The editor shows what is saved, even while `customEngine` keeps it unused.
+    void loadStoredEngineSettings().then(setDraft)
   }, [])
 
-  const warning = engineWarning(draft)
+  const warning = customEngine ? engineWarning(draft) : null
 
   async function save() {
     const checked = validateEngineDraft(draft)
@@ -83,6 +93,11 @@ export function EngineSettingsCard({ apiKey }: { apiKey?: string }) {
     <Card className="mt-4 p-4 sm:p-6">
       <h2 className="text-xl font-semibold text-ink">{t('settings.engine.title')}</h2>
       <p className="mt-1 text-base leading-relaxed text-muted">{t('settings.engine.intro')}</p>
+      {!customEngine && (
+        <p className="mt-3 wrap-anywhere rounded-md border border-border bg-surface-2 p-3 text-base text-muted">
+          {t('settings.engine.customOff')}
+        </p>
+      )}
 
       <div className="mt-4 grid gap-4">
         <Field label={t('settings.engine.baseUrl')} htmlFor="engine-base-url">
@@ -92,6 +107,7 @@ export function EngineSettingsCard({ apiKey }: { apiKey?: string }) {
             inputMode="url"
             autoComplete="off"
             spellCheck={false}
+            disabled={!customEngine}
             onChange={(event) => setDraft({ ...draft, baseUrl: event.target.value })}
           />
         </Field>
@@ -102,6 +118,7 @@ export function EngineSettingsCard({ apiKey }: { apiKey?: string }) {
               value={draft.model}
               autoComplete="off"
               spellCheck={false}
+              disabled={!customEngine}
               onChange={(event) => setDraft({ ...draft, model: event.target.value })}
             />
           </Field>
@@ -111,6 +128,7 @@ export function EngineSettingsCard({ apiKey }: { apiKey?: string }) {
               value={draft.fastModel}
               autoComplete="off"
               spellCheck={false}
+              disabled={!customEngine}
               onChange={(event) => setDraft({ ...draft, fastModel: event.target.value })}
             />
           </Field>
@@ -121,6 +139,7 @@ export function EngineSettingsCard({ apiKey }: { apiKey?: string }) {
             type="checkbox"
             className="mt-1 h-5 w-5 shrink-0 rounded border-border accent-accent"
             checked={draft.requiresKey}
+            disabled={!customEngine}
             onChange={(event) => setDraft({ ...draft, requiresKey: event.target.checked })}
           />
           <span className="text-base text-ink">{t('settings.engine.requiresKey')}</span>
@@ -154,7 +173,7 @@ export function EngineSettingsCard({ apiKey }: { apiKey?: string }) {
 
       <div className="mt-4 flex flex-wrap gap-3">
         <Button onClick={() => void save()}>{t('settings.engine.save')}</Button>
-        <Button variant="ghost" onClick={() => void list()} disabled={listing}>
+        <Button variant="ghost" onClick={() => void list()} disabled={listing || !customEngine}>
           {listing ? t('settings.engine.listing') : t('settings.engine.listModels')}
         </Button>
         <Button variant="ghost" onClick={() => void reset()}>{t('settings.engine.reset')}</Button>
@@ -164,7 +183,7 @@ export function EngineSettingsCard({ apiKey }: { apiKey?: string }) {
         {saved ? t('settings.engine.saved') : ''}
       </p>
 
-      {models && (
+      {customEngine && models && (
         <p className="mt-2 wrap-anywhere text-sm text-muted">
           {models.length
             ? t('settings.engine.modelsFound', { models: models.slice(0, 12).join(', ') })

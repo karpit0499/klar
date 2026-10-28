@@ -19,7 +19,7 @@ tags: ["user-guide", "application-packet", "resume", "cover-letter", "provenance
 
 An Application Packet is the persistent, job-specific place to prepare an evidence-controlled Resume, cover letter, recruiter message, notes, and downloads. It snapshots the job so preparation can continue even if the original source later changes.
 
-Open a career job and choose **Build Application Packet**. Klar creates or reopens the packet for that job and autosaves work locally or inside the unlocked vault.
+Open a career job and choose **Build Application Packet**. Klar creates or reopens the packet for that job and autosaves work locally or inside the unlocked vault. With the packet-retention release switch off, the packet is session-only instead: it lasts until Klar is reloaded or closed and is never written to storage. See [Settings and Data](/docs/settings-and-data).
 
 ## Language ownership
 
