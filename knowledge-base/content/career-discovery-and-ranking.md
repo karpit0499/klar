@@ -6,7 +6,7 @@ order: 230
 audience: ["Engineering", "Product", "Data quality reviewers", "Support"]
 status: "current"
 classification: "public"
-applicable_version: "2.6.1"
+applicable_version: "2.6.2"
 owner: "Klar Engineering"
 last_verified: "2026-08-11"
 next_review: "2026-09-11"
@@ -155,7 +155,7 @@ For identical normalized inputs and configuration, feature evaluation and rank m
 
 The v2.6.0.1 merge path expanded the provider row and then overwrote its `score`, `verdict`, `factors`, salary, location, seniority, and ranking fields with deterministic values. Because the model name and rationale could remain, the UI presented the deterministic score as AI-derived. The repeated equality was a defect in representation and provenance, not proof that deterministic and AI scoring independently agreed.
 
-Klar v2.6.1 keeps the deterministic match as the outer row and stores a valid provider response under `aiAssessment`. Cards and details show:
+Klar v2.6.2 keeps the deterministic match as the outer row and stores a valid provider response under `aiAssessment`. Cards and details show:
 
 - **Klar score**: the reproducible deterministic score used for order;
 - **AI opinion**: the provider's independently parsed advisory score; and

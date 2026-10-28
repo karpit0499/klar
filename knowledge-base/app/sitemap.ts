@@ -5,7 +5,7 @@ import { SITE_URL } from "../lib/site";
 export const dynamic = "force-static";
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const releaseDate = new Date("2026-08-11T00:00:00Z");
+  const releaseDate = new Date("2026-10-28T00:00:00Z");
   const staticPages: MetadataRoute.Sitemap = [
     {
       url: SITE_URL,

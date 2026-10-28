@@ -6,7 +6,7 @@ order: 110
 audience: ["Product", "Design", "Engineering", "Reviewers"]
 status: "current"
 classification: "public"
-applicable_version: "2.6.1"
+applicable_version: "2.6.2"
 owner: "Klar Product"
 last_verified: "2026-08-11"
 next_review: "2026-11-11"
@@ -15,7 +15,7 @@ tags: ["product", "principles", "trust"]
 
 # Product Principles
 
-These principles explain the intent behind the behavior present in Klar v2.6.1. They guide product choices but do not override executable contracts or release evidence.
+These principles explain the intent behind the behavior present in Klar v2.6.2. They guide product choices but do not override executable contracts or release evidence.
 
 ## The person owns the workspace
 

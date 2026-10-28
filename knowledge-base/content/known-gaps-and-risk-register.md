@@ -1,12 +1,12 @@
 ---
 title: "Known Gaps and Risk Register"
-description: "Verified current limitations, control gaps, evidence holds, accepted boundaries, and closure criteria for Klar 2.6.1."
+description: "Verified current limitations, control gaps, evidence holds, accepted boundaries, and closure criteria for Klar 2.6.2."
 section: "Quality and Operations"
 order: 340
 audience: ["Leadership", "Engineering", "Security", "Product", "Release owners", "Operations"]
 status: "current"
 classification: "public"
-applicable_version: "2.6.1"
+applicable_version: "2.6.2"
 owner: "Klar Engineering"
 last_verified: "2026-08-11"
 next_review: "2026-09-11"
@@ -17,7 +17,7 @@ tags: ["risk", "known-gaps", "limitations", "hold", "technical-debt"]
 
 ## Purpose
 
-This register prevents implemented foundations, roadmap intent, or passing machine tests from being mistaken for completed product or release claims. It records gaps verified for v2.6.1 and retains closure evidence for material defects fixed from v2.6.0.1. Priority describes potential product impact, not a formal vulnerability score.
+This register prevents implemented foundations, roadmap intent, or passing machine tests from being mistaken for completed product or release claims. It records gaps verified for v2.6.1 that remain open in v2.6.2 and retains closure evidence for material defects fixed from v2.6.0.1. Priority describes potential product impact, not a formal vulnerability score.
 
 | Priority | Meaning |
 | --- | --- |
@@ -46,7 +46,7 @@ No item is closed by prose alone. Closure requires the named implementation/cont
 | KG-014 | Medium | Observability | Browser events are local/content-free and desktop diagnostics are bounded/in-memory. This protects privacy but limits fleet-wide source/runtime incident detection; regex redaction is not formal DLP. | Fixed event schema, safe tokens, 100/200 limits, user preview before report | Approved privacy-preserving aggregate operations design or documented acceptance; adversarial redaction tests and review | Operations and Privacy | Open/accepted tradeoff |
 | KG-015 | Low | Ranking provenance | Outer match rows can still say `local-v2.3` while their deterministic snapshot says `ranking-v2.6.1`, which can confuse consumers. | Snapshot includes authoritative ranking/requirements/explanation versions and historical markers | Migrate/deprecate legacy label with cache compatibility tests and documentation | Discovery Engineering | Open |
 | KG-016 | Low | Schema documentation drift | `src/db/db.ts` header says six stores hold all state; schema version 7 defines 17 stores. | Executable schema and this KB are authoritative | Correct the stale comment and add a lightweight schema-catalog consistency check | Data Engineering | Open |
-| KG-017 | Medium | PDF accessibility | v2.6.1 handbooks have no audited blank pages or relative production links and include language/display-title metadata, but they are not tagged and have no structure tree. | The responsive HTML KB is the authoritative accessible surface; PDFs are labelled snapshots | Reliable tagged-PDF generator, semantic structure validation, and screen-reader review of all three handbooks | Documentation and Accessibility | Evidence hold |
+| KG-017 | Medium | PDF accessibility | v2.6.2 handbooks have no audited blank pages or relative production links and include language/display-title metadata, but they are not tagged and have no structure tree. | The responsive HTML KB is the authoritative accessible surface; PDFs are labelled snapshots | Reliable tagged-PDF generator, semantic structure validation, and screen-reader review of all three handbooks | Documentation and Accessibility | Evidence hold |
 | KG-018 | Medium | German completeness | v2.6.1 expands German UI, codes, filters, normalization, and locale formatting, but user-entered Resume/packet text is not translated and complete bilingual human quality/assistive-technology evidence is absent. | Dictionary parity, locale/normalization unit cases, manual German and pseudo-long layout review, language-specific packet state, human review requirement | Independent bilingual critical-journey review, leakage-free UI audit, automated German/pseudo-long browser coverage, assistive-technology checks, and held writing/ranking gates | Product Quality | Evidence hold |
 | KG-019 | Medium | Career preference editing | Resume maintenance has a dedicated page, but the complete post-onboarding career-preference editor remains absent. | Onboarding retains the authority; Support captures the gap; backup avoids destructive reset | Dedicated reviewed editor with migration-free persistence, validation, unsaved guard, and journey tests | Product and Design | Open |
 

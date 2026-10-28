@@ -6,7 +6,7 @@ order: 240
 audience: ["Engineering", "Product", "Source operations", "Security", "Support"]
 status: "current"
 classification: "public"
-applicable_version: "2.6.1"
+applicable_version: "2.6.2"
 owner: "Klar Engineering"
 last_verified: "2026-08-11"
 next_review: "2026-09-11"
@@ -19,7 +19,7 @@ tags: ["flexible-work", "source-fabric", "connectors", "sessions", "taxonomy", "
 
 Flexible Work gives students and other users a first-class discovery path for schedule-compatible work without requiring a Resume. Source Fabric exists because no single durable API covers the required employer and job landscape. It combines bounded, source-specific retrieval contracts behind one normalized opportunity model.
 
-This page describes the executable 2.6.1 baseline. The July 2026 Source Fabric roadmap supplied the design intent, but code, configuration, dated verification, and tests determine current behavior.
+This page describes the executable 2.6.2 baseline. The July 2026 Source Fabric roadmap supplied the design intent, but code, configuration, dated verification, and tests determine current behavior.
 
 ## Product separation
 

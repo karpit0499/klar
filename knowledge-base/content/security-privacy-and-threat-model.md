@@ -1,12 +1,12 @@
 ---
 title: "Security, Privacy, and Threat Model"
-description: "Assets, trust boundaries, adversaries, controls, residual risks, privacy behavior, and secure-reporting rules for Klar 2.6.1."
+description: "Assets, trust boundaries, adversaries, controls, residual risks, privacy behavior, and secure-reporting rules for Klar 2.6.2."
 section: "Security and Privacy"
 order: 300
 audience: ["Security", "Engineering", "Privacy reviewers", "Operations", "Leadership"]
 status: "current"
 classification: "public"
-applicable_version: "2.6.1"
+applicable_version: "2.6.2"
 owner: "Klar Security"
 last_verified: "2026-08-11"
 next_review: "2026-09-11"

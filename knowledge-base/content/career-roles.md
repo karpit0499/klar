@@ -6,7 +6,7 @@ order: 210
 audience: ["Klar users", "Product support"]
 status: "current"
 classification: "public"
-applicable_version: "2.6.1"
+applicable_version: "2.6.2"
 owner: "Klar Product Support"
 last_verified: "2026-08-11"
 next_review: "2026-11-11"
@@ -39,7 +39,7 @@ During Career Roles setup, keep these concepts separate:
 - **Must-haves and dealbreakers:** supporting preferences and hard conflicts.
 - **German and visa settings:** optionally hide jobs above the selected German level or jobs that state they do not sponsor visas.
 
-Klar v2.6.1 does not expose a complete post-onboarding career-preference editor in Settings. Resume maintenance has moved to its own Dashboard-linked page, but career preferences remain onboarding-owned. Do not delete the workspace simply to change a preference; preserve a backup and track the gap through Support.
+Klar v2.6.2 does not expose a complete post-onboarding career-preference editor in Settings. Resume maintenance has moved to its own Dashboard-linked page, but career preferences remain onboarding-owned. Do not delete the workspace simply to change a preference; preserve a backup and track the gap through Support.
 
 ## Understand source coverage
 
@@ -49,7 +49,7 @@ The active region determines which source families may run:
 - Austria, Switzerland, and the Netherlands: Arbeitnow, optional Adzuna, and the configured ATS registry.
 - Luxembourg and Liechtenstein: Arbeitnow and the configured ATS registry; Adzuna is not configured for these regions.
 
-Actual execution also depends on the Klar Worker configuration, credentials, source availability, and employer routes. Klar v2.6.1 publishes only ATS tenants whose response contract and regional inventory passed the dated verifier. The Worker refreshes the active tenant cache on a schedule; the browser reads bounded cached pages rather than fanning out to every employer board. Candidate, quarantined, and retired tenants do not run in user searches.
+Actual execution also depends on the Klar Worker configuration, credentials, source availability, and employer routes. Klar v2.6.2 publishes only ATS tenants whose response contract and regional inventory passed the dated verifier. The Worker refreshes the active tenant cache on a schedule; the browser reads bounded cached pages rather than fanning out to every employer board. Candidate, quarantined, and retired tenants do not run in user searches.
 
 ## Run a search
 

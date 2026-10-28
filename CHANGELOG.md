@@ -4,7 +4,7 @@ This file records Klar’s product history from the newest release to the origin
 
 ---
 
-## Unreleased
+## v2.6.2 — Dependency security, honest release switches, and German message checks
 
 ### Dependency security
 
@@ -24,9 +24,31 @@ This file records Klar’s product history from the newest release to the origin
   12 Electron advisories (five high severity) and supersedes the v2.6.0 pin.
   electron-builder 26.15.3 and `@electron/fuses` 1.8.0 stay pinned, and the
   packaged app still exposes exactly the nine reviewed fuses. The production
-  and full development/build dependency audits are clean as of 27 October 2026.
+  and full development/build dependency audits are clean as of 28 October 2026.
 
-### Fixed
+### Release switches and data safety
+
+- Settings › Release features now controls what it shows. Turning **custom
+  engine** off sends every AI request, API-key check, and model-list request to
+  the hosted Groq defaults, so no request or key reaches a disabled custom
+  endpoint. The saved endpoint and models stay visible but read-only and are
+  used again when the switch is turned back on; the fast-matching preference
+  still chooses between the two default models.
+- Turning **packet retention** off makes application packets session-only.
+  Nothing is written to the browser database or the encrypted vault, the packet
+  drawer says that it is not saving, its recovery messages no longer promise
+  that anything was saved, and Delete all local data also clears session
+  packets.
+  Packets saved earlier stay in storage and return when the switch is turned
+  back on. Both switches still default to on, so existing workspaces behave as
+  before.
+- Delete all local data and a backup restore now drop the in-memory copy of the
+  AI engine settings. Previously chat completions, key checks, matching, and the
+  AI engine editor kept using the replaced engine until a reload, so a wiped
+  workspace could still send requests to a custom endpoint the user had just
+  deleted.
+
+### German recruiter-message checks
 
 - German recruiter-message checks now recognize a low-pressure request written
   with umlauts, such as “Hätten Sie Zeit für ein kurzes Gespräch?” or “Darf ich
@@ -44,16 +66,37 @@ This file records Klar’s product history from the newest release to the origin
   written “Weissbach” instead of “Weißbach”, now matches its ß spelling.
   Unsupported “fliessend” and “verhandlungssicher” fluency claims are now
   flagged like “fließend”.
+- The English check terms and all stored data are unchanged. Saved messages
+  show the corrected checks when reopened.
+
+### Web and maintenance
+
 - Fixed Chrome 153 discarding the web app's module preloads on returning visits
   ("cross-world service worker resource mismatch" warnings and duplicate
   vendor-bundle fetches) by emitting the first-paint theme script after Vite's
   module, modulepreload, and stylesheet tags. First-paint theming and the
   service worker's offline and update behavior are unchanged.
+- Consolidated duplicated internal helpers (JSON coercion, cancellation checks,
+  HTTP error mapping, tailoring usage accounting, packet cache keys, and the
+  Worker's allowed-origin parsing) without changing results, prompts, exports,
+  or stored data. Rendered screens and saved database rows were compared
+  before and after the change.
+- The Groq key dialog now shows a storage error and re-enables its button when
+  saving the key fails, instead of spinning indefinitely. Five more call sites
+  treat any error named `AbortError` as a cancellation, and the missing-Worker
+  setup hint now points to `.env.local` and `.env.example`.
+- Advanced the user-visible release, package version, desktop smoke
+  expectation, signing examples, Worker ATS-cache user agent, and Knowledge
+  Base release metadata and handbooks to `2.6.2`.
 
-### Unchanged
+### Data
 
-The English check terms and all stored data are unchanged. Saved messages show
-the corrected checks when reopened.
+- No Dexie change: database schema remains **7**.
+- Resume schema remains **2** and backup schema remains **6**.
+- No service-worker shell change; navigations remain network-first.
+- No Worker configuration change. Redeploying the Worker only updates its
+  ATS-cache user agent and the refactored origin parsing, which behaves the
+  same.
 
 ---
 

@@ -6,7 +6,7 @@ order: 30
 audience: ["Documentation contributors", "Page owners", "Reviewers"]
 status: "current"
 classification: "public"
-applicable_version: "2.6.1"
+applicable_version: "2.6.2"
 owner: "Klar Documentation"
 last_verified: "2026-08-11"
 next_review: "2026-11-11"

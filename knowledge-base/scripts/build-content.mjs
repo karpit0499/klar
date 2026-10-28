@@ -152,7 +152,7 @@ for (const file of files.sort()) {
     audience: arrayValue(parsed.data.audience).join(" · "),
     status,
     classification,
-    applicableVersion: stringValue(parsed.data.applicable_version, "2.6.1"),
+    applicableVersion: stringValue(parsed.data.applicable_version, "2.6.2"),
     owner: stringValue(parsed.data.owner, "Repository maintainer"),
     lastVerified,
     nextReview,

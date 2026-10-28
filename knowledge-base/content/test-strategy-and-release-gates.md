@@ -6,7 +6,7 @@ order: 320
 audience: ["Engineering", "QA", "Release engineering", "Security", "Product owners"]
 status: "current"
 classification: "public"
-applicable_version: "2.6.1"
+applicable_version: "2.6.2"
 owner: "Klar Quality Engineering"
 last_verified: "2026-08-11"
 next_review: "2026-09-11"
@@ -88,7 +88,7 @@ Pull requests verify but do not deploy. A non-pull-request run assembles the app
 
 ## Knowledge-base QA gate
 
-The v2.6.1 KB gate verifies:
+The v2.6.2 KB gate verifies:
 
 - fresh-checkout dependency installation, content build, TypeScript, lint, static export, tests, and dependency audit;
 - every public route, asset, canonical, sitemap entry, document fragment, download, and lazy search-index path under `/klar/kb/`;

@@ -6,7 +6,7 @@ order: 310
 audience: ["Engineering", "New contributors", "Reviewers", "Release engineering"]
 status: "current"
 classification: "public"
-applicable_version: "2.6.1"
+applicable_version: "2.6.2"
 owner: "Klar Engineering"
 last_verified: "2026-08-11"
 next_review: "2026-11-11"
@@ -25,8 +25,8 @@ Always inspect the Klar repository root directly before designing a release or b
 
 Current release metadata is aligned:
 
-- npm/electron package version: `2.6.1`;
-- product release: `2.6.1`.
+- npm/electron package version: `2.6.2`;
+- product release: `2.6.2`.
 
 Use `klarRelease` for product documentation and emitted `version.json`; keep every visible version, package manifest, desktop compatibility decision, KB page, and generated handbook deliberate and testable.
 

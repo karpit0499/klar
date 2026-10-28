@@ -1,6 +1,6 @@
 {
   "name": "klar-knowledge-base",
-  "version": "2.6.1",
+  "version": "2.6.2",
   "private": true,
   "engines": {
     "node": ">=22.13.0"
@@ -11,7 +11,7 @@
     "dev": "next dev",
     "prebuild": "npm run content:build",
     "build": "next build",
-    "pdf:build": "python3 scripts/export-handbooks.py --generated-on 2026-08-11",
+    "pdf:build": "python3 scripts/export-handbooks.py --generated-on 2026-10-28",
     "pdf:repro": "npm run content:build && python3 scripts/check-reproducible-handbooks.py",
     "pdf:verify": "python3 scripts/verify-handbooks.py",
     "start": "next dev",

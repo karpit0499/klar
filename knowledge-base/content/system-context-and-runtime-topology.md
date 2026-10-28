@@ -1,12 +1,12 @@
 ---
 title: "System Context and Runtime Topology"
-description: "Verified architecture boundaries, runtime components, trust zones, and end-to-end data flows for Klar 2.6.1."
+description: "Verified architecture boundaries, runtime components, trust zones, and end-to-end data flows for Klar 2.6.2."
 section: "Architecture"
 order: 200
 audience: ["Engineering", "Security", "Operations", "Product"]
 status: "current"
 classification: "public"
-applicable_version: "2.6.1"
+applicable_version: "2.6.2"
 owner: "Klar Engineering"
 last_verified: "2026-08-11"
 next_review: "2026-11-11"
@@ -19,7 +19,7 @@ tags: ["architecture", "runtime", "data-flow", "trust-boundary"]
 
 This page defines where Klar executes, which component owns each responsibility, and where personal or third-party data can cross a boundary. It is the starting point for design review, incident analysis, and any change that introduces storage, networking, or code execution.
 
-Klar 2.6.1 is a local-first React application with two delivery forms:
+Klar 2.6.2 is a local-first React application with two delivery forms:
 
 - a static web application hosted at `/klar/` with its Next-exported KB at `/klar/kb/` in one GitHub Pages artifact; and
 - an Electron developer preview that embeds the same renderer and adds a constrained local-model runtime.
@@ -129,7 +129,7 @@ The renderer is sandboxed with Node integration disabled. A frozen preload bridg
 - The static app does not continue searches while closed. A search exists only while its active browser or desktop session runs.
 - A Worker failure reduces external source and Groq connectivity; it does not delete local state or prevent deterministic local workspace use.
 - A third-party connector failure must be isolated from other connectors and produce an honest partial or limited state.
-- Desktop local inference can remain usable without an internet connection only after a trusted runtime and compatible model package are installed; normal product generation is not yet routed to that provider in 2.6.1.
+- Desktop local inference can remain usable without an internet connection only after a trusted runtime and compatible model package are installed; normal product generation is not yet routed to that provider in 2.6.2.
 
 ## Review triggers
 

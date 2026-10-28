@@ -6,9 +6,9 @@ order: 270
 audience: ["Klar users", "Product support", "Operators"]
 status: "current"
 classification: "public"
-applicable_version: "2.6.1"
+applicable_version: "2.6.2"
 owner: "Klar Product Support"
-last_verified: "2026-08-11"
+last_verified: "2026-10-28"
 next_review: "2026-11-11"
 tags: ["user-guide", "settings", "data", "credentials", "ai-engine"]
 ---
@@ -39,7 +39,7 @@ German search normalization treats `ß` and `ss` as equivalent and supports umla
 
 Settings can create or edit Flexible Work locations, work types, and availability.
 
-Career target titles, job market/field, seniority, salary, city, radius, must-haves, and dealbreakers remain onboarding-owned in v2.6.1; Settings does not expose a complete post-onboarding editor for them. The setup checklist links Resume maintenance to the dedicated Resume page rather than implying that Settings owns career facts. Preserve a backup and use Support to report the remaining preference-editor gap; do not use Delete all data as a routine edit path.
+Career target titles, job market/field, seniority, salary, city, radius, must-haves, and dealbreakers remain onboarding-owned in v2.6.2; Settings does not expose a complete post-onboarding editor for them. The setup checklist links Resume maintenance to the dedicated Resume page rather than implying that Settings owns career facts. Preserve a backup and use Support to report the remaining preference-editor gap; do not use Delete all data as a routine edit path.
 
 ## Adzuna credentials
 

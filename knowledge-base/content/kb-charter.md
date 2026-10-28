@@ -6,7 +6,7 @@ order: 10
 audience: ["Students and job seekers", "Schools, universities, and career services", "Developers and technical reviewers", "Privacy and security reviewers", "Klar contributors", "Product and operations teams"]
 status: "current"
 classification: "public"
-applicable_version: "2.6.1"
+applicable_version: "2.6.2"
 owner: "Klar Documentation"
 last_verified: "2026-08-11"
 next_review: "2026-11-11"
@@ -61,7 +61,7 @@ The KB contains distinct document families. They must not be blended in a way th
 
 ## Scope and boundaries
 
-The KB documents the authoritative repository state for Klar v2.6.1, including the browser/PWA application, Cloudflare Worker boundary, experimental Electron desktop build that is not publicly distributed, local persistence, source connectors, matching, application documents, and release controls.
+The KB documents the authoritative repository state for Klar v2.6.2, including the browser/PWA application, Cloudflare Worker boundary, experimental Electron desktop build that is not publicly distributed, local persistence, source connectors, matching, application documents, and release controls.
 
 ## Publication and access
 

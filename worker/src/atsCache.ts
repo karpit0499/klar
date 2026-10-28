@@ -423,7 +423,7 @@ async function fetchVendor(
     try {
       response = await requestFetch(upstreamUrl(entry), {
         method: 'GET',
-        headers: { Accept: 'application/json', 'User-Agent': 'klar-ats-cache/2.6.1' },
+        headers: { Accept: 'application/json', 'User-Agent': 'klar-ats-cache/2.6.2' },
         redirect: 'manual',
         signal: controller.signal,
       })

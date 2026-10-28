@@ -6,7 +6,7 @@ order: 150
 audience: ["Product", "Design", "Support", "Engineering", "Users"]
 status: "current"
 classification: "public"
-applicable_version: "2.6.1"
+applicable_version: "2.6.2"
 owner: "Klar Product"
 last_verified: "2026-08-11"
 next_review: "2026-11-11"

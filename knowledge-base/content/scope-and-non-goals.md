@@ -1,12 +1,12 @@
 ---
 title: "Scope and Non-Goals"
-description: "What Klar v2.6.1 includes, explicitly excludes, and does not guarantee."
+description: "What Klar v2.6.2 includes, explicitly excludes, and does not guarantee."
 section: "Product"
 order: 120
 audience: ["Users", "Product", "Engineering", "Support"]
 status: "current"
 classification: "public"
-applicable_version: "2.6.1"
+applicable_version: "2.6.2"
 owner: "Klar Product"
 last_verified: "2026-08-11"
 next_review: "2026-11-11"
@@ -17,7 +17,7 @@ tags: ["product", "scope", "limitations", "non-goals"]
 
 ## In scope
 
-Klar v2.6.1 provides:
+Klar v2.6.2 provides:
 
 - browser-local career and Flexible Work workspaces;
 - structured Resume import, manual creation, editing, completeness checks, replacement, and history;
@@ -57,7 +57,7 @@ Klar does not:
 
 ## Current user-interface exclusions
 
-The repository contains support code for capabilities that are not exposed as complete v2.6.1 user workflows. In particular, a standalone interview-preparation flow and a standalone German net-salary calculator are not part of the reachable main application interface. They must not be documented as current user features until an interface, verification, and release decision exist.
+The repository contains support code for capabilities that are not exposed as complete v2.6.2 user workflows. In particular, a standalone interview-preparation flow and a standalone German net-salary calculator are not part of the reachable main application interface. They must not be documented as current user features until an interface, verification, and release decision exist.
 
 Career preferences cannot currently be edited after onboarding through a complete dedicated form. The setup checklist now sends Resume work to the Resume page instead of Settings. Flexible Work result cards also do not currently provide a save-to-Tracker action.
 

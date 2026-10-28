@@ -6,7 +6,7 @@ order: 290
 audience: ["Klar users", "Product support"]
 status: "current"
 classification: "public"
-applicable_version: "2.6.1"
+applicable_version: "2.6.2"
 owner: "Klar Product Support"
 last_verified: "2026-08-11"
 next_review: "2026-11-11"
@@ -108,9 +108,9 @@ Local search, Tracker, backup, and no-AI Resume tailoring remain available witho
 
 ## Klar score and AI opinion look identical
 
-In v2.6.1 the two values are stored and labelled separately. Equality can occur, but the details must show independent provenance and a zero-point difference. If every job is equal or the AI model/rationale appears without an AI opinion, include a synthetic job title, release version, provider/model names, and reduced diagnostics in a Support report. Do not include the Resume or full job description.
+Since v2.6.1, the two values are stored and labelled separately. Equality can occur, but the details must show independent provenance and a zero-point difference. If every job is equal or the AI model/rationale appears without an AI opinion, include a synthetic job title, release version, provider/model names, and reduced diagnostics in a Support report. Do not include the Resume or full job description.
 
-Historical results created by v2.6.0.1 may contain an AI-looking model label or rationale without an independent provider score because that release overwrote the provider score during merge. Rescore deliberately under v2.6.1 if a new comparison is needed.
+Historical results created by v2.6.0.1 may contain an AI-looking model label or rationale without an independent provider score because that release overwrote the provider score during merge. Rescore deliberately under v2.6.1 or later if a new comparison is needed.
 
 ## Packet export is disabled
 

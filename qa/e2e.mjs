@@ -544,7 +544,7 @@ async function runIssueReporting() {
       !publicPreviewText.includes('/home/alice'),
     diagnosticsMinimal:
       /Redacted diagnostics/.test(publicPreviewText) &&
-      /Klar: 2\.6\.1/.test(publicPreviewText) &&
+      /Klar: 2\.6\.2/.test(publicPreviewText) &&
       !/Groq|API key|r(?:esume|\u00e9sum\u00e9) body/i.test(publicPreviewText),
     attemptsBeforeReview,
     publicInitiallyDisabled,

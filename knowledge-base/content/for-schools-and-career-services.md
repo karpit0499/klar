@@ -6,7 +6,7 @@ order: 275
 audience: ["Schools", "Universities", "Career services", "Educators", "Workshop facilitators", "Students and job seekers"]
 status: "current"
 classification: "public"
-applicable_version: "2.6.1"
+applicable_version: "2.6.2"
 owner: "Klar Product Support"
 last_verified: "2026-08-11"
 next_review: "2026-11-11"
@@ -17,7 +17,7 @@ tags: ["schools", "universities", "career-services", "workshops", "shared-device
 
 ## Purpose
 
-Schools, universities, career services, libraries, and community programs can use Klar to demonstrate a structured job-search workflow or help an individual manage their own search. This page defines a safe facilitation model for Klar v2.6.1 without implying institutional accounts, central oversight, or permission to copy or redeploy the software.
+Schools, universities, career services, libraries, and community programs can use Klar to demonstrate a structured job-search workflow or help an individual manage their own search. This page defines a safe facilitation model for Klar v2.6.2 without implying institutional accounts, central oversight, or permission to copy or redeploy the software.
 
 The safest default is to demonstrate Klar with its synthetic **Explore Klar** workspace. A participant who wants to use real career data should use their own trusted device and browser profile, make their own provider choices, and control their own backups and deletion decisions.
 
@@ -109,7 +109,7 @@ Manual Resume creation and pasted text can provide alternatives when PDF or DOCX
 
 ## Institutional capabilities Klar does not provide
 
-Klar v2.6.1 has no:
+Klar v2.6.2 has no:
 
 - institutional or participant account system;
 - single sign-on or identity-provider integration;

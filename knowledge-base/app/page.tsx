@@ -18,7 +18,7 @@ export default function Home() {
       <SiteHeader />
       <main id="main">
         <section className="hero">
-          <div className="eyebrow"><span /> PUBLIC KNOWLEDGE BASE · v2.6.1</div>
+          <div className="eyebrow"><span /> PUBLIC KNOWLEDGE BASE · v2.6.2</div>
           <h1>Understand Klar.<br /><em>Build it with confidence.</em></h1>
           <p className="hero-copy">Public, governed documentation for everyone who uses, teaches, supports, evaluates, or reviews Klar. No sign-in and no application-data uploads.</p>
           <div className="hero-actions">

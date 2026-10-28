@@ -4,7 +4,7 @@ Klar is a private, browser-based workspace for finding work, understanding job
 fit, preparing grounded applications, and tracking every opportunity from first
 look to final decision.
 
-**Current release: v2.6.1 Developer Preview**
+**Current release: v2.6.2 Developer Preview**
 
 [**Open Klar →**](https://karpit0499.github.io/klar/) ·
 [Knowledge Base →](https://karpit0499.github.io/klar/kb/) ·
@@ -19,6 +19,15 @@ _Dashboard_
 _Highlights from Latest Update_
 
 ---
+
+v2.6.2 is the dependency-security and reliability patch. It clears the
+production and full build-tool dependency audits, including Electron 43.8.4 for
+the desktop preview; makes the custom-engine and packet-retention release
+switches actually control their workflows; fixes German recruiter-message
+checks for umlauts, ß/ss, and German phrasing; forgets the replaced AI engine
+after Delete all local data or a backup restore; stops Chrome 153 from
+discarding module preloads on returning visits; and consolidates duplicated
+internal helpers without changing behavior.
 
 v2.6.1 is the stability, source-integrity, and experience release. It preserves
 Klar's deterministic score separately from the AI provider's advisory opinion;
@@ -315,7 +324,7 @@ npm run audit:build-tools
 - the web and desktop renderer bundle budgets.
 
 The production and full build-tool audits are separate release gates. Both are
-green for the lockfile verified on 10 August 2026; rerun both immediately before
+green for the lockfile verified on 28 October 2026; rerun both immediately before
 release because the advisory database can change.
 
 The current suite includes resume-derived search regressions for role, job
@@ -364,6 +373,12 @@ browser origins must include the production GitHub Pages origin.
 
 ## Release history
 
+- **v2.6.2 — Dependency security and reliability patch:** cleared both
+  dependency audits (Electron 43.8.4, `@xmldom/xmldom` 0.8.15, concurrently
+  10.0.6, and in-range build tooling), honoured the custom-engine and
+  packet-retention release switches, corrected German recruiter-message checks,
+  dropped the cached AI engine after a wipe or restore, fixed Chrome 153
+  module-preload reuse, and consolidated shared internal helpers.
 - **v2.6.1 — Stability, sources, and KB release:** separated deterministic and
   AI scores, moved Resume and Help into dedicated workspaces, expanded German
   support and cancellation/error recovery, added a protected feedback route,

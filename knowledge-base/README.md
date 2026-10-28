@@ -38,7 +38,7 @@ npm test
 
 Use `npm run qa` for the combined content, type, lint, static-build, and rendered-output gate. Content compilation fails for missing control metadata, duplicate slugs, broken internal documentation links, unsupported lifecycle values, or the retired accented spelling of Resume.
 
-The v2.6.1 handbook binaries are generated artifacts rather than committed source files. On a fresh checkout, install the hash-locked PDF dependencies and run `npm run pdf:repro` plus `npm run pdf:verify` before `npm run qa`; the reproducibility gate first rebuilds the governed public-content index, then builds twice and requires byte-identical output. The static-export tests require every advertised `/downloads/` target to exist and match its verified source. The deployment workflow uses this same order.
+The v2.6.2 handbook binaries are generated artifacts rather than committed source files. On a fresh checkout, install the hash-locked PDF dependencies and run `npm run pdf:repro` plus `npm run pdf:verify` before `npm run qa`; the reproducibility gate first rebuilds the governed public-content index, then builds twice and requires byte-identical output. The static-export tests require every advertised `/downloads/` target to exist and match its verified source. The deployment workflow uses this same order.
 
 ## Public publication gate
 

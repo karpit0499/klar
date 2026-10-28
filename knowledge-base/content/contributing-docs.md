@@ -6,7 +6,7 @@ order: 60
 audience: ["Documentation contributors", "Engineering", "Product", "Reviewers"]
 status: "current"
 classification: "public"
-applicable_version: "2.6.1"
+applicable_version: "2.6.2"
 owner: "Klar Documentation"
 last_verified: "2026-08-11"
 next_review: "2026-11-11"
@@ -38,7 +38,7 @@ order: 100
 audience: ["Named audience"]
 status: "draft"
 classification: "public"
-applicable_version: "2.6.1"
+applicable_version: "2.6.2"
 owner: "Accountable team or role"
 last_verified: "2026-08-11"
 next_review: "2026-11-11"

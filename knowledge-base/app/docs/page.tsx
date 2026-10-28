@@ -20,17 +20,17 @@ export default function DocumentationIndex() {
     {
       title: "Product and User Handbook",
       detail: "Public · product intent and complete user guidance",
-      href: withBasePath("/downloads/klar-kb-product-user-v2.6.1.pdf"),
+      href: withBasePath("/downloads/klar-kb-product-user-v2.6.2.pdf"),
     },
     {
       title: "Engineering and Architecture Handbook",
       detail: "Public · system, data, discovery, AI, platform, and change guidance",
-      href: withBasePath("/downloads/klar-kb-engineering-architecture-v2.6.1.pdf"),
+      href: withBasePath("/downloads/klar-kb-engineering-architecture-v2.6.2.pdf"),
     },
     {
       title: "Security, Operations, and Governance Handbook",
       detail: "Public · controls, release evidence, runbooks, decisions, and risks",
-      href: withBasePath("/downloads/klar-kb-assurance-operations-v2.6.1.pdf"),
+      href: withBasePath("/downloads/klar-kb-assurance-operations-v2.6.2.pdf"),
     },
   ];
 

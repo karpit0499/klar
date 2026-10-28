@@ -12,7 +12,7 @@ from pypdf import PdfReader
 ROOT = Path(__file__).resolve().parent.parent
 OUTPUT_ROOT = ROOT / "output" / "pdf"
 PUBLIC_ROOT = ROOT / "public" / "downloads"
-RELEASE = "2.6.1"
+RELEASE = "2.6.2"
 EXPECTED = {
     f"klar-kb-product-user-v{RELEASE}.pdf": ("Product and User Handbook", 57),
     f"klar-kb-engineering-architecture-v{RELEASE}.pdf": ("Engineering and Architecture Handbook", 62),

@@ -6,7 +6,7 @@ order: 350
 audience: ["Leadership", "Architecture", "Engineering", "Product", "Documentation owners"]
 status: "current"
 classification: "public"
-applicable_version: "2.6.1"
+applicable_version: "2.6.2"
 owner: "Klar Architecture"
 last_verified: "2026-08-11"
 next_review: "2026-09-11"
@@ -23,7 +23,7 @@ This page records consequential choices that shape Klar and reconciles planning 
 
 | Status | Meaning |
 | --- | --- |
-| Accepted/current | Decision is embodied in 2.6.1 code and remains governing |
+| Accepted/current | Decision is embodied in 2.6.2 code and remains governing |
 | Accepted/partial | Direction is accepted; some required controls or integrations are incomplete |
 | Target | Planned direction not yet authoritative product behavior |
 | Historical | Describes a superseded implementation or baseline |
@@ -109,7 +109,7 @@ Use these rules in every plan, release note, KB page, UI claim, and issue:
 
 | If evidence shows… | Write… | Do not write… |
 | --- | --- | --- |
-| Code/config and proportionate tests implement behavior | “Klar 2.6.1 does…” with the applicable limitation | A stronger guarantee than the test or boundary supports |
+| Code/config and proportionate tests implement behavior | “Klar 2.6.2 does…” with the applicable limitation | A stronger guarantee than the test or boundary supports |
 | Foundation exists but normal workflow does not use it | “Foundation/preview capability exists; integration is incomplete” | “Klar runs this workflow locally” |
 | Machine tests pass but human gate is absent | “Automated gate passed; human release gate is HOLD” | “Quality is validated” |
 | Registry entry is candidate, official-search, or fallback-only | Use that exact state | “Verified direct integration” or “vacancy” |

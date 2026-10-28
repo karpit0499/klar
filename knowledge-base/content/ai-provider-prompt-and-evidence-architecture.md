@@ -6,7 +6,7 @@ order: 260
 audience: ["Engineering", "Security", "Product", "AI quality reviewers"]
 status: "current"
 classification: "public"
-applicable_version: "2.6.1"
+applicable_version: "2.6.2"
 owner: "Klar Engineering"
 last_verified: "2026-08-11"
 next_review: "2026-11-11"
@@ -37,7 +37,7 @@ Klar v2.6.1 fixes a match-merge defect in which the provider response was spread
 
 The corrected contract keeps the deterministic result at the top level and stores a validated provider result under `aiAssessment`. The UI labels these values **Klar score** and **AI opinion**, shows the signed point difference, and preserves the provider's unrounded score, verdict, factors, rationale, skills, warnings, confidence, model, prompt/schema versions, evaluation time, and cache provenance. An absent or invalid provider row stays absent; Klar never invents AI factors from deterministic data.
 
-The deterministic Klar score remains the only ordering input in v2.6.1. The AI opinion is advisory. Any future AI-controlled ordering requires the independent human ranking gate and a separate release decision.
+The deterministic Klar score remains the only ordering input in v2.6.2. The AI opinion is advisory. Any future AI-controlled ordering requires the independent human ranking gate and a separate release decision.
 
 ## Current production provider path
 
@@ -123,7 +123,7 @@ Match-assessment cache identity includes the provider kind, normalized base URL,
 
 `src/ai/` defines capabilities for structured job extraction, evidence selection, recruiter messages, cover letters, and Resume bullet revision. It includes base, precision, and writer adapter slots and a registry that requires an explicit provider selection. It does not silently switch from local to cloud or vice versa.
 
-The foundation is used by tests and the desktop local-runtime panel. Current application call sites for Resume extraction, tailoring, cover letters, and related generation still call the existing `chatComplete` production path. Therefore, a verified local model is not yet selectable as the provider for normal application workflows in 2.6.1. Treat local generation as a foundation/developer-preview capability, not a completed product privacy claim.
+The foundation is used by tests and the desktop local-runtime panel. Current application call sites for Resume extraction, tailoring, cover letters, and related generation still call the existing `chatComplete` production path. Therefore, a verified local model is not yet selectable as the provider for normal application workflows in 2.6.2. Treat local generation as a foundation/developer-preview capability, not a completed product privacy claim.
 
 ## Local-model path
 

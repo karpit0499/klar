@@ -6,7 +6,7 @@ order: 230
 audience: ["Klar users", "Product support"]
 status: "current"
 classification: "public"
-applicable_version: "2.6.1"
+applicable_version: "2.6.2"
 owner: "Klar Product Support"
 last_verified: "2026-08-11"
 next_review: "2026-11-11"
@@ -96,7 +96,7 @@ Blocked AI wording cannot be accepted or exported. Supported or confirmation-req
 
 ## Export format
 
-Klar v2.6.1 retains the `klar-resume-docx-v2.6.0.1` Resume export contract: DOCX and browser-print PDF use a consistent A4, single-column Arial structure with a compact identity block, unlabeled profile, ruled semantic headings, grouped role and date information, real bullets, and combined skills/languages. The newest held role is used as an evidence-backed subtitle; Klar does not present the target vacancy title as experience.
+Klar v2.6.2 retains the `klar-resume-docx-v2.6.0.1` Resume export contract: DOCX and browser-print PDF use a consistent A4, single-column Arial structure with a compact identity block, unlabeled profile, ruled semantic headings, grouped role and date information, real bullets, and combined skills/languages. The newest held role is used as an evidence-backed subtitle; Klar does not present the target vacancy title as experience.
 
 DOCX is the safer default for applicant tracking systems. PDF remains available through browser print/save and should be visually checked before submission.
 

@@ -1,12 +1,12 @@
 ---
 title: "Klar Overview"
-description: "Purpose, capability map, supported markets, privacy boundary, and maturity of Klar v2.6.1."
+description: "Purpose, capability map, supported markets, privacy boundary, and maturity of Klar v2.6.2."
 section: "Product"
 order: 100
 audience: ["All Klar stakeholders", "Users", "Product", "Engineering"]
 status: "current"
 classification: "public"
-applicable_version: "2.6.1"
+applicable_version: "2.6.2"
 owner: "Klar Product"
 last_verified: "2026-08-11"
 next_review: "2026-11-11"
@@ -19,7 +19,7 @@ tags: ["product", "overview", "developer-preview"]
 
 Klar is a privacy-first workspace for finding work, assessing fit, preparing evidence-grounded application material, and tracking opportunities from discovery to decision. Its purpose is to make a fragmented job-search process clearer while keeping the person in control of their data and every external action.
 
-The current release is **Klar v2.6.1 Developer Preview**. It is a functioning browser/PWA product with an experimental unsigned desktop build that is not publicly distributed; “Developer Preview” is a maturity boundary, not a marketing label.
+The current release is **Klar v2.6.2 Developer Preview**. It is a functioning browser/PWA product with an experimental unsigned desktop build that is not publicly distributed; “Developer Preview” is a maturity boundary, not a marketing label.
 
 ## Capability map
 

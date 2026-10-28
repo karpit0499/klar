@@ -18,11 +18,11 @@ from pathlib import Path
 # ReportLab uses SOURCE_DATE_EPOCH for PDF dates and trailer identifiers. Set
 # the controlled release date before importing ReportLab so identical governed
 # sources produce identical bytes instead of embedding the wall-clock time.
-CONTROLLED_SOURCE_DATE_EPOCH = "1786406400"  # 2026-08-11T00:00:00Z
+CONTROLLED_SOURCE_DATE_EPOCH = "1793145600"  # 2026-10-28T00:00:00Z
 configured_epoch = os.environ.get("SOURCE_DATE_EPOCH")
 if configured_epoch not in (None, CONTROLLED_SOURCE_DATE_EPOCH):
     raise RuntimeError(
-        "SOURCE_DATE_EPOCH must be 1786406400 for the v2.6.1 controlled PDFs."
+        "SOURCE_DATE_EPOCH must be 1793145600 for the v2.6.2 controlled PDFs."
     )
 os.environ["SOURCE_DATE_EPOCH"] = CONTROLLED_SOURCE_DATE_EPOCH
 
@@ -55,7 +55,7 @@ CONTENT_ROOT = ROOT / "content"
 GENERATED_DOCS = ROOT / "generated" / "docs.json"
 OUTPUT_ROOT = ROOT / "output" / "pdf"
 PUBLIC_ROOT = ROOT / "public" / "downloads"
-RELEASE = "2.6.1"
+RELEASE = "2.6.2"
 SITE_URL = "https://karpit0499.github.io/klar/kb"
 
 INK = colors.HexColor("#111318")

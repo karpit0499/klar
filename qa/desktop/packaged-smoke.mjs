@@ -226,7 +226,7 @@ try {
   const systemInfo = await page.evaluate(() =>
     window.klarDesktop.system.getInfo())
   assert.equal(systemInfo.desktop, true)
-  assert.equal(systemInfo.appVersion, '2.6.1')
+  assert.equal(systemInfo.appVersion, '2.6.2')
   assert.equal(systemInfo.productName, 'Klar Developer Preview')
   assert.equal(systemInfo.runtime.phase, 'stopped')
 

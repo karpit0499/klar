@@ -6,7 +6,7 @@ order: 250
 audience: ["Engineering", "Product", "Writing reviewers", "Security", "Support"]
 status: "current"
 classification: "public"
-applicable_version: "2.6.1"
+applicable_version: "2.6.2"
 owner: "Klar Engineering"
 last_verified: "2026-08-11"
 next_review: "2026-11-11"

@@ -14,14 +14,14 @@ ROOT = Path(__file__).resolve().parent.parent
 OUTPUT_ROOT = ROOT / "output" / "pdf"
 EXPORTER = ROOT / "scripts" / "export-handbooks.py"
 EXPECTED_NAMES = {
-    "klar-kb-product-user-v2.6.1.pdf",
-    "klar-kb-engineering-architecture-v2.6.1.pdf",
-    "klar-kb-assurance-operations-v2.6.1.pdf",
+    "klar-kb-product-user-v2.6.2.pdf",
+    "klar-kb-engineering-architecture-v2.6.2.pdf",
+    "klar-kb-assurance-operations-v2.6.2.pdf",
 }
 
 
 def snapshot() -> dict[str, tuple[int, str]]:
-    files = sorted(OUTPUT_ROOT.glob("klar-kb-*-v2.6.1.pdf"))
+    files = sorted(OUTPUT_ROOT.glob("klar-kb-*-v2.6.2.pdf"))
     names = {path.name for path in files}
     if names != EXPECTED_NAMES:
         missing = sorted(EXPECTED_NAMES - names)
@@ -35,10 +35,10 @@ def snapshot() -> dict[str, tuple[int, str]]:
 
 def build() -> dict[str, tuple[int, str]]:
     environment = os.environ.copy()
-    environment["SOURCE_DATE_EPOCH"] = "1786406400"
+    environment["SOURCE_DATE_EPOCH"] = "1793145600"
     environment["PYTHONHASHSEED"] = "0"
     subprocess.run(
-        [sys.executable, str(EXPORTER), "--generated-on", "2026-08-11"],
+        [sys.executable, str(EXPORTER), "--generated-on", "2026-10-28"],
         cwd=ROOT,
         env=environment,
         check=True,
