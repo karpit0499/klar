@@ -2,7 +2,7 @@
 // Theme system (feature 3). Three modes: 'light', 'dark', 'system'. The choice
 // is stored in localStorage — NOT IndexedDB — on purpose: the theme has to be
 // applied SYNCHRONOUSLY before the first paint to avoid a white flash, and only
-// localStorage can be read that early (see the boot snippet in index.html).
+// localStorage can be read that early (see public/theme-bootstrap.js).
 //
 // Applying a theme = toggling the `.dark` class on <html> (Tailwind reads it via
 // darkMode: 'class') and setting `color-scheme` so native controls match.

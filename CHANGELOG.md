@@ -44,6 +44,11 @@ This file records Klar’s product history from the newest release to the origin
   written “Weissbach” instead of “Weißbach”, now matches its ß spelling.
   Unsupported “fliessend” and “verhandlungssicher” fluency claims are now
   flagged like “fließend”.
+- Fixed Chrome 153 discarding the web app's module preloads on returning visits
+  ("cross-world service worker resource mismatch" warnings and duplicate
+  vendor-bundle fetches) by emitting the first-paint theme script after Vite's
+  module, modulepreload, and stylesheet tags. First-paint theming and the
+  service worker's offline and update behavior are unchanged.
 
 ### Unchanged
 
