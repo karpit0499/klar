@@ -11,9 +11,7 @@ This file records Klar’s product history from the newest release to the origin
 - Updated the transitive XML parser `@xmldom/xmldom` from 0.8.13 to 0.8.15
   (lockfile only) to clear the high-severity advisories that failed the
   production dependency audit. It is used by `mammoth` for DOCX Resume import
-  and by electron-builder's `plist`. Well-formed DOCX files extract unchanged;
-  a DOCX with a not-well-formed end tag now shows the existing file-read error
-  instead of being imported silently.
+  and by electron-builder's `plist`. DOCX import results are unchanged.
 - Updated build tooling flagged by the full development/build dependency
   audit. concurrently moves from 10.0.4 to 10.0.6 for the critical
   `shell-quote` command-injection advisory (it only runs `npm run desktop:dev`),
