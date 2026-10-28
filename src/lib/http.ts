@@ -5,8 +5,9 @@
 // Proxied (browser → your Worker → upstream): BA and Adzuna because they send
 //   no CORS headers, plus default Groq requests for reliable browser support.
 // ============================================================================
+import { isAbortError } from './abort'
 import { WORKER_URL } from './config'
-import { AppError, isAppErrorData } from '../errors/appError'
+import { AppError, appErrorFromResponseText, httpStatusErrorCategory } from '../errors/appError'
 
 /** GET a URL and parse JSON, with a helpful error if the response isn't ok. */
 export async function getJson<T>(
@@ -17,7 +18,7 @@ export async function getJson<T>(
   try {
     res = await fetch(url, { headers: opts.headers, signal: opts.signal })
   } catch (error) {
-    if (error instanceof DOMException && error.name === 'AbortError') throw error
+    if (isAbortError(error)) throw error
     throw new AppError({
         category: 'network',
         message: 'Klar could not reach this service.',
@@ -29,13 +30,9 @@ export async function getJson<T>(
   }
   if (!res.ok) {
     const body = await res.text().catch(() => '')
-    try {
-      const parsed = JSON.parse(body) as { error?: unknown }
-      if (isAppErrorData(parsed.error)) throw new AppError(parsed.error)
-    } catch (error) {
-      if (error instanceof AppError) throw error
-    }
-    const category = res.status === 429 ? 'rate_limit' : res.status === 401 || res.status === 403 ? 'credentials' : 'source'
+    const structured = appErrorFromResponseText(body)
+    if (structured) throw structured
+    const category = httpStatusErrorCategory(res.status)
     throw new AppError({
       category,
       message:
@@ -65,8 +62,8 @@ export async function getJson<T>(
 export function workerUrl(route: 'ba' | 'adzuna', pathAndQuery: string): string {
   if (!WORKER_URL) {
     throw new Error(
-      'VITE_WORKER_URL is not set. Create app/.env.local with ' +
-        'VITE_WORKER_URL=https://<your-worker>.workers.dev (see Phase 0).',
+      'VITE_WORKER_URL is not set. Create .env.local with ' +
+        'VITE_WORKER_URL=https://<your-worker>.workers.dev (see .env.example).',
     )
   }
   const sep = pathAndQuery.startsWith('/') ? '' : '/'

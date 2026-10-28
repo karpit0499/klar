@@ -5,6 +5,7 @@
 import type { Profile } from '../types'
 import { groqChat, extractJson } from '../llm/groq'
 import { PROFILE_OUTPUT } from '../llm/jsonSchemas'
+import { array, cleanText, record, stringList } from '../lib/coerce'
 
 const SYSTEM = `You extract structured data from resumes. You never invent facts not present in the text. Reply with ONE JSON object and nothing else.`
 
@@ -95,32 +96,6 @@ export async function parseProfile(
   })
   const raw = extractJson<unknown>(text)
   return coerceProfile(raw, rawText)
-}
-
-function record(value: unknown): Record<string, unknown> {
-  return value !== null && typeof value === 'object' && !Array.isArray(value)
-    ? value as Record<string, unknown>
-    : {}
-}
-
-function array(value: unknown): unknown[] {
-  return Array.isArray(value) ? value : []
-}
-
-function cleanText(value: unknown): string {
-  return typeof value === 'string' ? value.trim() : ''
-}
-
-function stringList(value: unknown): string[] {
-  const seen = new Set<string>()
-  const out: string[] = []
-  for (const valueItem of array(value)) {
-    const item = cleanText(valueItem)
-    if (!item || seen.has(item)) continue
-    seen.add(item)
-    out.push(item)
-  }
-  return out
 }
 
 function nonNegativeNumber(value: unknown): number | undefined {

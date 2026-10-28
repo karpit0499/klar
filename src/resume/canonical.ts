@@ -182,6 +182,20 @@ export function resumeFromLegacyProfile(profile: Profile): ResumeData {
   return resume
 }
 
+/** Generators accept canonical resume data or a legacy matching Profile. */
+export function isResumeData(value: ResumeData | Profile): value is ResumeData {
+  return 'experience' in value && 'contact' in value
+}
+
+/**
+ * The canonical resume behind either input shape. Convert a legacy profile
+ * once per action: its generated evidence ids must match between the prompt
+ * and any validation of the response.
+ */
+export function asResumeData(source: ResumeData | Profile): ResumeData {
+  return isResumeData(source) ? source : resumeFromLegacyProfile(source)
+}
+
 export function sampleResume(): ResumeData {
   return normalizeResume({
     contact: { name: 'Mira Novak', email: 'mira@example.invalid', location: 'Berlin', links: [] },

@@ -67,10 +67,15 @@ export function selectAdzunaCredentials(
   return { ok: false, reason: 'not_configured' }
 }
 
+/** The comma-separated ALLOWED_ORIGINS value as a list of exact origins. */
+function allowedOriginList(allowed: string): string[] {
+  return allowed.split(',').map((value) => value.trim()).filter(Boolean)
+}
+
 /** Pick the CORS origin to echo, honoring an optional allow-list. */
 export function corsOrigin(requestOrigin: string | null, allowed?: string): string {
   if (!allowed || allowed.trim() === '*') return '*'
-  const list = allowed.split(',').map((s) => s.trim()).filter(Boolean)
+  const list = allowedOriginList(allowed)
   if (requestOrigin && list.includes(requestOrigin)) return requestOrigin
   return list[0] ?? '*'
 }
@@ -78,7 +83,7 @@ export function corsOrigin(requestOrigin: string | null, allowed?: string): stri
 /** CORS is a browser policy, so reject an explicitly disallowed browser origin. */
 export function isOriginAllowed(requestOrigin: string | null, allowed?: string): boolean {
   if (!requestOrigin || !allowed || allowed.trim() === '*') return true
-  return allowed.split(',').map((value) => value.trim()).filter(Boolean).includes(requestOrigin)
+  return allowedOriginList(allowed).includes(requestOrigin)
 }
 
 function corsHeaders(origin: string): Record<string, string> {
@@ -162,7 +167,7 @@ function json(
 
 export function isFeedbackOriginAllowed(origin: string | null, allowed?: string): boolean {
   if (!origin || !allowed || allowed.trim() === '*') return false
-  return allowed.split(',').map((value) => value.trim()).filter(Boolean).includes(origin)
+  return allowedOriginList(allowed).includes(origin)
 }
 
 export default {

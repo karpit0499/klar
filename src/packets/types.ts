@@ -21,6 +21,7 @@ import type { LetterTone } from '../llm/coverLetter'
 import type {
   RecruiterApplicationState,
   RecruiterMessageChannel,
+  RecruiterMessageContext,
   RecruiterMessageStyle,
   WritingCheck,
 } from '../llm/coverLetter'
@@ -287,6 +288,34 @@ export function emptyLanguageState(tone: LetterTone = 'balanced'): PacketLanguag
     messageStyle: 'conversational',
     messageApplicationState: 'not_applied',
     messageChannel: 'linkedin',
+  }
+}
+
+/**
+ * Replace one language's state on a packet draft (inside `updatePacket`),
+ * starting from an empty state when that language has no state yet.
+ */
+export function updateLanguageState(
+  row: PacketRow,
+  language: ResumeLanguage,
+  update: (previous: PacketLanguageState) => PacketLanguageState,
+): void {
+  row.languages[language] = update(row.languages[language] ?? emptyLanguageState())
+}
+
+/** The recruiter-message inputs saved for one language, with their defaults. */
+export function recruiterMessageContext(
+  state: PacketLanguageState | undefined,
+  signOffName: string,
+): RecruiterMessageContext {
+  return {
+    style: state?.messageStyle ?? 'conversational',
+    applicationState: state?.messageApplicationState ?? 'not_applied',
+    channel: state?.messageChannel ?? 'linkedin',
+    recruiterName: state?.recruiterName?.trim() || undefined,
+    discoveryContext: state?.messageDiscoveryContext?.trim() || undefined,
+    referralName: state?.messageReferralName?.trim() || undefined,
+    signOffName,
   }
 }
 

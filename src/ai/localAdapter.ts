@@ -1,4 +1,6 @@
 import {
+  ADAPTER_SLOTS,
+  AI_LANGUAGES,
   AiProviderError,
   type AiProvider,
   type GenerationRequest,
@@ -44,8 +46,8 @@ export class LocalAiProvider implements AiProvider {
       providerId: this.id,
       kind: this.kind,
       capabilities: new Set(Object.keys(AI_CAPABILITIES) as Array<keyof typeof AI_CAPABILITIES>),
-      languages: new Set(['de', 'en']),
-      adapters: new Set(['base', 'precision', 'writer']),
+      languages: new Set(AI_LANGUAGES),
+      adapters: new Set(ADAPTER_SLOTS),
       structuredOutput: true,
       cancellation: true,
     }

@@ -12,7 +12,13 @@
 // Routing NEVER relaxes a validator. This file only chooses WHERE a request goes
 // and reports failures honestly — it has no notion of "acceptable output".
 // ============================================================================
-import { AppError, serializeAppError, toAppError, type AppErrorData } from '../errors/appError'
+import {
+  AppError,
+  httpStatusErrorCategory,
+  serializeAppError,
+  toAppError,
+  type AppErrorData,
+} from '../errors/appError'
 import {
   canAfford,
   costOf,
@@ -24,6 +30,7 @@ import {
   waitForHeadroom,
   type RequestCost,
 } from './budget'
+import { isAbortError } from '../lib/abort'
 import { loadAppFlags } from '../lib/appFlags'
 import {
   engineDisplayName,
@@ -387,12 +394,7 @@ function throwProviderError(
     })
   }
 
-  const category =
-    status === 429
-      ? 'rate_limit'
-      : status === 401 || status === 403
-        ? 'credentials'
-        : 'source'
+  const category = httpStatusErrorCategory(status)
   // v2.5 (D2 model-drift guard): a retired model id comes back as a 404/400
   // mentioning the model. Say so plainly and send the person to Settings,
   // instead of surfacing an opaque provider error.
@@ -470,16 +472,6 @@ function isModelGoneProviderError(status: number, details: string): boolean {
 
 function isProviderRequestTooLarge(status: number, details: string): boolean {
   return isRequestTooLarge(status, details) || (status === 400 && REQUEST_TOO_LARGE_RE.test(details))
-}
-
-function isAbortError(error: unknown): boolean {
-  return (
-    (error instanceof DOMException && error.name === 'AbortError') ||
-    (!!error &&
-      typeof error === 'object' &&
-      'name' in error &&
-      (error as { name?: unknown }).name === 'AbortError')
-  )
 }
 
 /**

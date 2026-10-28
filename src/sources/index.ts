@@ -9,6 +9,7 @@ import { fetchBa } from './ba'
 import { fetchArbeitnow } from './arbeitnow'
 import { fetchAdzuna } from './adzuna'
 import { dedupeJobs } from './dedup'
+import { isAbortError } from '../lib/abort'
 import { WORKER_URL } from '../lib/config'
 import type { AdzunaKey } from '../settings/adzunaKey'
 import { AppError, serializeAppError, toAppError } from '../errors/appError'
@@ -203,10 +204,6 @@ export async function gatherJobs(q: SearchQuery, opts: GatherOptions = {}): Prom
     rawCount: rawJobs.length,
     duplicatesRemoved: rawJobs.length - jobs.length,
   }
-}
-
-function isAbortError(error: unknown): boolean {
-  return error instanceof DOMException && error.name === 'AbortError'
 }
 
 function failedStatus(source: SourceStatus['source'], error: unknown): SourceStatus {

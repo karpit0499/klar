@@ -11,6 +11,8 @@ import {
 import { loadGroqKey } from '../settings/keys'
 import { AI_CAPABILITIES } from './capabilities'
 import {
+  ADAPTER_SLOTS,
+  AI_LANGUAGES,
   AiProviderError,
   type AiProvider,
   type GenerationRequest,
@@ -60,6 +62,13 @@ function projectMessages(messages: GenerationRequest['messages']): {
     )
   }
   return { system, user }
+}
+
+/** The error for a request stopped by its own timeout or by the caller. */
+function interruptedError(timedOut: boolean, cause?: unknown): AiProviderError {
+  return timedOut
+    ? new AiProviderError('timeout', 'The cloud request timed out.', { cause })
+    : new AiProviderError('cancelled', 'The cloud request was cancelled.', { cause })
 }
 
 function mapCloudError(error: unknown): AiProviderError {
@@ -118,10 +127,10 @@ export class OpenAiCompatibleCloudProvider implements AiProvider {
       capabilities: new Set(
         Object.keys(AI_CAPABILITIES) as Array<keyof typeof AI_CAPABILITIES>,
       ),
-      languages: new Set(['de', 'en']),
+      languages: new Set(AI_LANGUAGES),
       // These are logical task profiles for cloud routing. No claim is made
       // that a cloud model physically loads Klar's local LoRA adapters.
-      adapters: new Set(['base', 'precision', 'writer']),
+      adapters: new Set(ADAPTER_SLOTS),
       structuredOutput: true,
       cancellation: true,
     }
@@ -146,7 +155,7 @@ export class OpenAiCompatibleCloudProvider implements AiProvider {
             status: 'ready',
             providerId: this.id,
             modelId: settings.model,
-            adapters: ['base', 'precision', 'writer'],
+            adapters: [...ADAPTER_SLOTS],
             warmed: true,
           }
         : {
@@ -174,9 +183,7 @@ export class OpenAiCompatibleCloudProvider implements AiProvider {
         'A cloud request with this id is already running.',
       )
     }
-    if (signal?.aborted) {
-      throw new AiProviderError('cancelled', 'The cloud request was cancelled.')
-    }
+    if (signal?.aborted) throw interruptedError(false)
     const projected = projectMessages(request.messages)
     const controller = new AbortController()
     const active = { controller, timeout: false }
@@ -197,14 +204,7 @@ export class OpenAiCompatibleCloudProvider implements AiProvider {
         this.loadEngine(),
         this.loadApiKey(),
       ])
-      if (controller.signal.aborted) {
-        throw new AiProviderError(
-          active.timeout ? 'timeout' : 'cancelled',
-          active.timeout
-            ? 'The cloud request timed out.'
-            : 'The cloud request was cancelled.',
-        )
-      }
+      if (controller.signal.aborted) throw interruptedError(active.timeout)
       if (settings.requiresKey && !apiKey) {
         throw new AiProviderError(
           'provider_unavailable',
@@ -228,14 +228,7 @@ export class OpenAiCompatibleCloudProvider implements AiProvider {
             }
           : {}),
       })
-      if (controller.signal.aborted) {
-        throw new AiProviderError(
-          active.timeout ? 'timeout' : 'cancelled',
-          active.timeout
-            ? 'The cloud request timed out.'
-            : 'The cloud request was cancelled.',
-        )
-      }
+      if (controller.signal.aborted) throw interruptedError(active.timeout)
       if (!content.trim()) {
         throw new AiProviderError(
           'invalid_response',
@@ -252,17 +245,9 @@ export class OpenAiCompatibleCloudProvider implements AiProvider {
         timings: { totalMs: this.now() - startedAt },
       }
     } catch (error) {
-      if (active.timeout) {
-        throw new AiProviderError('timeout', 'The cloud request timed out.', {
-          cause: error,
-        })
-      }
+      if (active.timeout) throw interruptedError(true, error)
       if (this.cancelled.has(request.requestId) || signal?.aborted) {
-        throw new AiProviderError(
-          'cancelled',
-          'The cloud request was cancelled.',
-          { cause: error },
-        )
+        throw interruptedError(false, error)
       }
       throw mapCloudError(error)
     } finally {

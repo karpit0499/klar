@@ -10,6 +10,7 @@ import { fetchArbeitnow } from '../../sources/arbeitnow'
 import { fetchAdzuna } from '../../sources/adzuna'
 import type { AdzunaKey } from '../../settings/adzunaKey'
 import { serializeAppError, toAppError } from '../../errors/appError'
+import { isAbortError } from '../../lib/abort'
 import { makeApiConnector, type ApiAdapters } from './engines/apiEngine'
 import { makeFeedConnector } from './engines/feedEngine'
 import { makeSitemapConnector } from './engines/sitemapEngine'
@@ -82,7 +83,7 @@ function wrapWithFallback(connector: Connector, apiRunner: ApiRunner): Connector
         }
         return result
       } catch (error) {
-        if (error instanceof DOMException && error.name === 'AbortError') throw error
+        if (isAbortError(error)) throw error
         const fallback = await buildFallback(connector.config, query, ctx, apiRunner).catch(() => null)
         if (!fallback) throw error
         return {

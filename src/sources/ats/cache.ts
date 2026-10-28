@@ -1,4 +1,5 @@
 import { AppError } from '../../errors/appError'
+import { isRecord } from '../../lib/coerce'
 import { WORKER_URL } from '../../lib/config'
 import type { NormalizedJob, SearchQuery } from '../../types'
 import type { AtsMarketCode } from './location'
@@ -31,10 +32,6 @@ type CachedAtsBody = {
     missing: number
     staleServed: number
   }
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
 }
 
 function isCachedJob(value: unknown): value is NormalizedJob {

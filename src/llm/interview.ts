@@ -1,8 +1,9 @@
 import type { NormalizedJob, Profile } from '../types'
 import type { ResumeData } from '../resume/types'
-import { resumeFromLegacyProfile } from '../resume/canonical'
+import { asResumeData } from '../resume/canonical'
 import { extractJson, groqChat } from './groq'
 import { INTERVIEW_OUTPUT } from './jsonSchemas'
+import { cleanText, record, stringList } from '../lib/coerce'
 
 const SYSTEM = `You are an interview coach. Use only the supplied verified resume achievements and the job description. Never invent experience. Return one JSON object only.`
 
@@ -13,7 +14,7 @@ export type InterviewPrep = {
 }
 
 export function buildInterviewPrompt(source: ResumeData | Profile, job: NormalizedJob): string {
-  const resume = isResumeData(source) ? source : resumeFromLegacyProfile(source)
+  const resume = asResumeData(source)
   const evidence = resume.experience.map((role) => ({
     id: role.id, title: role.title, company: role.company, start: role.start, end: role.end, current: role.current,
     achievements: role.bullets.map((bullet) => ({ id: bullet.id, text: bullet.text })),
@@ -69,34 +70,7 @@ export async function generateInterviewPrep(
 ): Promise<InterviewPrep> {
   // Convert a legacy profile only once. Its generated evidence IDs must be the
   // same IDs used in both the prompt and the response validation below.
-  const resume = isResumeData(source) ? source : resumeFromLegacyProfile(source)
+  const resume = asResumeData(source)
   const raw = await groqChat({ apiKey, system: SYSTEM, user: buildInterviewPrompt(resume, job), jsonSchema: INTERVIEW_OUTPUT, temperature: 0, maxTokens: 1800, signal })
   return coerceInterviewPrep(extractJson<unknown>(raw), resume)
-}
-
-function isResumeData(value: ResumeData | Profile): value is ResumeData {
-  return 'experience' in value && 'contact' in value
-}
-
-function record(value: unknown): Record<string, unknown> {
-  return value !== null && typeof value === 'object' && !Array.isArray(value)
-    ? value as Record<string, unknown>
-    : {}
-}
-
-function cleanText(value: unknown): string {
-  return typeof value === 'string' ? value.trim() : ''
-}
-
-function stringList(value: unknown): string[] {
-  if (!Array.isArray(value)) return []
-  const seen = new Set<string>()
-  const out: string[] = []
-  for (const raw of value) {
-    const item = cleanText(raw)
-    if (!item || seen.has(item)) continue
-    seen.add(item)
-    out.push(item)
-  }
-  return out
 }

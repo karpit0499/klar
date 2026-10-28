@@ -35,8 +35,13 @@
 //                                and duties; the tail is benefits and legal text
 // ============================================================================
 import type { NormalizedJob } from '../types'
-import type { ResumeData } from '../resume/types'
+import type { ResumeData, ResumeLanguage } from '../resume/types'
 import { PROMPT } from '../lib/config'
+
+/** The output language as it is named inside English prompt instructions. */
+export function promptLanguageName(language: ResumeLanguage): 'German' | 'English' {
+  return language === 'de' ? 'German' : 'English'
+}
 
 export type ProjectedRole = {
   /** The index the model must copy back. */

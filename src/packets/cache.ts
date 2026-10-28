@@ -1,7 +1,8 @@
 import { stableHash } from '../lib/hash'
+import type { LetterTone, RecruiterMessageContext } from '../llm/coverLetter'
 import type { EngineSettings } from '../llm/provider'
 import type { ResumeData, ResumeLanguage } from '../resume/types'
-import type { NormalizedJob } from '../types'
+import type { MatchResult, NormalizedJob } from '../types'
 
 export type GenerationKind = 'resume' | 'letter' | 'message'
 
@@ -36,4 +37,74 @@ export function generationCacheKey(input: {
     variant: input.variant ?? '',
     context: input.context ?? null,
   }))
+}
+
+// Artifact keys. Each one is built in exactly one place, so the packet's
+// "outputs are current" check fingerprints exactly what generation used.
+
+export type ArtifactCacheKeyInput = {
+  resume: ResumeData
+  job: NormalizedJob
+  language: ResumeLanguage
+  engine: EngineSettings
+  jdTerms?: readonly string[]
+}
+
+export function resumeCacheKey(input: ArtifactCacheKeyInput): string {
+  return generationCacheKey({
+    kind: 'resume',
+    source: input.resume,
+    job: input.job,
+    language: input.language,
+    engine: input.engine,
+    jdTerms: input.jdTerms,
+  })
+}
+
+/** The match fields a cover-letter prompt receives as relevance context. */
+function letterMatchContext(match?: MatchResult): unknown {
+  return match
+    ? {
+        matchedSkills: match.matchedSkills,
+        missingSkills: match.missingSkills,
+        rationale: match.rationale,
+      }
+    : null
+}
+
+export function letterCacheKey(
+  input: ArtifactCacheKeyInput & { tone?: LetterTone; match?: MatchResult },
+): string {
+  return generationCacheKey({
+    kind: 'letter',
+    source: input.resume,
+    job: input.job,
+    language: input.language,
+    engine: input.engine,
+    jdTerms: input.jdTerms,
+    variant: input.tone,
+    context: letterMatchContext(input.match),
+  })
+}
+
+/** The sign-off name is not a key input; every other message input is. */
+export function recruiterMessageCacheKey(
+  input: ArtifactCacheKeyInput & { context: RecruiterMessageContext },
+): string {
+  return generationCacheKey({
+    kind: 'message',
+    source: input.resume,
+    job: input.job,
+    language: input.language,
+    engine: input.engine,
+    jdTerms: input.jdTerms,
+    variant: input.context.style,
+    context: {
+      applicationState: input.context.applicationState,
+      channel: input.context.channel,
+      recruiterName: input.context.recruiterName ?? null,
+      discoveryContext: input.context.discoveryContext ?? null,
+      referralName: input.context.referralName ?? null,
+    },
+  })
 }

@@ -11,6 +11,8 @@ import { chatComplete, extractJson, resolveModel } from '../llm/groq'
 import { loadEngineSettings } from '../llm/provider'
 import { RERANK_OUTPUT } from '../llm/jsonSchemas'
 import { AppError, type ErrorCategory } from '../errors/appError'
+import { isAbortError } from '../lib/abort'
+import { cleanText, record, stringList, uniqueStrings } from '../lib/coerce'
 
 export const AI_MATCH_SCORER_VERSION = 'ai-match-scorer-v2.6.1'
 export const AI_MATCH_PROMPT_VERSION = 'ai-match-prompt-v2.6.1'
@@ -208,38 +210,11 @@ function clampScore(n: unknown): number {
   return Math.max(0, Math.min(100, v))
 }
 
-function record(value: unknown): Record<string, unknown> {
-  return value !== null && typeof value === 'object' && !Array.isArray(value)
-    ? value as Record<string, unknown>
-    : {}
-}
-
-function cleanText(value: unknown): string {
-  return typeof value === 'string' ? value.trim() : ''
-}
-
 function finiteNumber(value: unknown): number | undefined {
   if (typeof value === 'number') return isFinite(value) ? value : undefined
   if (typeof value !== 'string' || !value.trim()) return undefined
   const parsed = Number(value)
   return isFinite(parsed) ? parsed : undefined
-}
-
-function stringList(value: unknown): string[] {
-  if (!Array.isArray(value)) return []
-  return uniqueStrings(value)
-}
-
-function uniqueStrings(values: readonly unknown[]): string[] {
-  const seen = new Set<string>()
-  const out: string[] = []
-  for (const value of values) {
-    const item = cleanText(value)
-    if (!item || seen.has(item)) continue
-    seen.add(item)
-    out.push(item)
-  }
-  return out
 }
 
 function verdict(value: unknown): MatchResult['verdict'] | undefined {
@@ -373,14 +348,4 @@ export async function rerankAll(
 function scoringFailureCategory(caught: unknown): ErrorCategory {
   if (caught instanceof AppError) return caught.category
   return caught instanceof SyntaxError ? 'parsing' : 'unknown'
-}
-
-function isAbortError(caught: unknown): boolean {
-  return (
-    (caught instanceof DOMException && caught.name === 'AbortError') ||
-    (!!caught &&
-      typeof caught === 'object' &&
-      'name' in caught &&
-      (caught as { name?: unknown }).name === 'AbortError')
-  )
 }

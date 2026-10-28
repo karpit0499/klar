@@ -1,8 +1,9 @@
-import type {
-  AdapterSlot,
-  AiCapability,
-  AiLanguage,
-  ProviderCapabilities,
+import {
+  AI_LANGUAGES,
+  type AdapterSlot,
+  type AiCapability,
+  type AiLanguage,
+  type ProviderCapabilities,
 } from './contracts'
 
 export type CapabilityDefinition = {
@@ -18,35 +19,35 @@ const DEFINITIONS: Record<AiCapability, CapabilityDefinition> = {
     id: 'structured_job_extraction',
     adapter: 'precision',
     structuredOutput: 'required',
-    languages: ['de', 'en'],
+    languages: AI_LANGUAGES,
     maxOutputTokens: 2_048,
   },
   evidence_selection: {
     id: 'evidence_selection',
     adapter: 'precision',
     structuredOutput: 'required',
-    languages: ['de', 'en'],
+    languages: AI_LANGUAGES,
     maxOutputTokens: 2_048,
   },
   recruiter_message: {
     id: 'recruiter_message',
     adapter: 'writer',
     structuredOutput: 'optional',
-    languages: ['de', 'en'],
+    languages: AI_LANGUAGES,
     maxOutputTokens: 768,
   },
   cover_letter: {
     id: 'cover_letter',
     adapter: 'writer',
     structuredOutput: 'optional',
-    languages: ['de', 'en'],
+    languages: AI_LANGUAGES,
     maxOutputTokens: 2_048,
   },
   resume_bullet_revision: {
     id: 'resume_bullet_revision',
     adapter: 'writer',
     structuredOutput: 'required',
-    languages: ['de', 'en'],
+    languages: AI_LANGUAGES,
     maxOutputTokens: 1_024,
   },
 }
@@ -62,15 +63,10 @@ export function providerSupports(
   capability: AiCapability,
   language: AiLanguage,
 ): boolean {
-  const definition = capabilityDefinition(capability)
-  return (
-    provider.capabilities.has(capability) &&
-    provider.languages.has(language) &&
-    provider.adapters.has(definition.adapter) &&
-    (definition.structuredOutput !== 'required' || provider.structuredOutput)
-  )
+  return missingProviderRequirements(provider, capability, language).length === 0
 }
 
+/** Every unmet requirement, in a stable order suitable for diagnostics. */
 export function missingProviderRequirements(
   provider: ProviderCapabilities,
   capability: AiCapability,

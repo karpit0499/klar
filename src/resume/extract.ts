@@ -2,6 +2,7 @@ import type { ResumeData } from './types'
 import { normalizeResume } from './canonical'
 import { groqChat, extractJson } from '../llm/groq'
 import { RESUME_EXTRACTION_OUTPUT } from '../llm/jsonSchemas'
+import { array, cleanText, record } from '../lib/coerce'
 
 const SYSTEM = `You convert resume text into structured JSON. Copy facts exactly as written. Never invent employers, dates, titles, tools, responsibilities, qualifications, or metrics. Leave absent fields empty. Reply with one JSON object only.`
 
@@ -111,18 +112,4 @@ function sanitizeExtractionPayload(value: unknown): Record<string, unknown> {
     projects,
     certifications,
   }
-}
-
-function record(value: unknown): Record<string, unknown> {
-  return value !== null && typeof value === 'object' && !Array.isArray(value)
-    ? value as Record<string, unknown>
-    : {}
-}
-
-function array(value: unknown): unknown[] {
-  return Array.isArray(value) ? value : []
-}
-
-function cleanText(value: unknown): string {
-  return typeof value === 'string' ? value.trim() : ''
 }
